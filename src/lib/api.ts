@@ -236,6 +236,12 @@ async function apiBlobRequest(
 }
 
 export const appApi = {
+  requestPasswordResetEmail(payload: { email: string; redirectTo: string; captchaToken?: string }) {
+    return apiRequest<{ ok: true }>('/auth/password-reset', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
   getBootstrap() {
     return apiRequest<DashboardBootstrap>('/bootstrap');
   },

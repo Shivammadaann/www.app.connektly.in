@@ -960,7 +960,6 @@ export default function Channels() {
   const [isWhatsAppDisconnecting, setIsWhatsAppDisconnecting] = useState(false);
   const [isInstagramConnecting, setIsInstagramConnecting] = useState(false);
   const [isInstagramDisconnecting, setIsInstagramDisconnecting] = useState(false);
-  const [isInstagramWebhookUpdating, setIsInstagramWebhookUpdating] = useState(false);
   const [isSavingInstagramSelection, setIsSavingInstagramSelection] = useState(false);
   const [instagramSelection, setInstagramSelection] = useState<InstagramSelectionState | null>(null);
   const [isMessengerConnecting, setIsMessengerConnecting] = useState(false);
@@ -1215,7 +1214,7 @@ export default function Channels() {
             instagramChannel?.webhookLastError ||
             (instagramChannel?.webhookFields?.length
               ? `Fields: ${instagramChannel.webhookFields.join(', ')}`
-              : 'Use Activate webhooks to subscribe the linked Page to Instagram DM events.'),
+              : 'Reconnect the Instagram channel if DM webhook subscription needs to be refreshed.'),
           statusText: instagramChannel?.webhookSubscribed ? 'Subscribed' : 'Needs attention',
           statusTone: instagramChannel?.webhookSubscribed
             ? 'text-green-700 bg-green-50 border-green-200'
@@ -1653,22 +1652,6 @@ export default function Channels() {
       );
     } finally {
       setIsSavingInstagramSelection(false);
-    }
-  };
-
-  const handleSubscribeInstagramWebhook = async () => {
-    try {
-      setIsInstagramWebhookUpdating(true);
-      clearMessages();
-      await appApi.subscribeInstagramWebhook();
-      await refresh();
-      setSuccess('Instagram DM webhooks activated.');
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error ? nextError.message : 'Failed to activate Instagram DM webhooks.',
-      );
-    } finally {
-      setIsInstagramWebhookUpdating(false);
     }
   };
 
@@ -2353,19 +2336,6 @@ export default function Channels() {
                         Incoming DMs are routed into Inbox and text replies are sent from the connected Instagram account.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void handleSubscribeInstagramWebhook()}
-                      disabled={isInstagramWebhookUpdating}
-                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#2364ff] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97] disabled:opacity-60"
-                    >
-                      {isInstagramWebhookUpdating ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <RefreshCcw className="h-4 w-4" />
-                      )}
-                      Activate webhooks
-                    </button>
                   </div>
                 </motion.div>
               ) : null}

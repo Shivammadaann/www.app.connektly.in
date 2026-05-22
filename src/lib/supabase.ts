@@ -2,6 +2,7 @@ import { createClient, type Session } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const PASSWORD_RECOVERY_INTENT_KEY = 'connektly:password-recovery-intent';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key is missing. Please add them to your environment variables.');
@@ -15,7 +16,35 @@ export const supabase = createClient(
 let cachedSession: Session | null | undefined;
 let sessionBootstrapPromise: Promise<Session | null> | null = null;
 
-supabase.auth.onAuthStateChange((_event, session) => {
+export function rememberPasswordRecoveryIntent() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.setItem(PASSWORD_RECOVERY_INTENT_KEY, '1');
+}
+
+export function clearPasswordRecoveryIntent() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.removeItem(PASSWORD_RECOVERY_INTENT_KEY);
+}
+
+export function hasPasswordRecoveryIntent() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.sessionStorage.getItem(PASSWORD_RECOVERY_INTENT_KEY) === '1';
+}
+
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    rememberPasswordRecoveryIntent();
+  }
+
   cachedSession = session;
 });
 

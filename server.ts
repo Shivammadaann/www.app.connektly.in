@@ -2208,6 +2208,42 @@ function normalizeEmailAddress(value: unknown) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
 }
 
+async function verifyPasswordResetUserExists(email: string, redirectTo: string) {
+  const { data, error } = await adminSupabase.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (error || !data.user?.id) {
+    throw new Error('No account exists with that email address.');
+  }
+}
+
+function sendPasswordResetEmailInBackground(args: {
+  email: string;
+  redirectTo: string;
+  captchaToken?: string;
+}) {
+  setImmediate(() => {
+    authSupabase.auth
+      .resetPasswordForEmail(args.email, {
+        redirectTo: args.redirectTo,
+        captchaToken: args.captchaToken,
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error('Background password reset email failed:', error);
+        }
+      })
+      .catch((error) => {
+        console.error('Background password reset email failed:', error);
+      });
+  });
+}
+
 function normalizeEmailPort(value: unknown, label: string) {
   const numeric = typeof value === 'number' ? value : Number(value);
 
@@ -20165,6 +20201,26 @@ app.post('/api/integrations/woocommerce/webhook/:userId', async (req, res) => {
     }
 
     sendError(res, 400, error);
+  }
+});
+
+app.post('/api/auth/password-reset', async (req, res) => {
+  try {
+    const email = normalizeEmailAddress(req.body?.email);
+    const redirectToInput = normalizeOptionalString(req.body?.redirectTo);
+    const captchaToken = normalizeOptionalString(req.body?.captchaToken) || undefined;
+    const redirectTo = redirectToInput || `${frontendOrigin.replace(/\/$/, '')}/login?password_setup=recovery`;
+
+    if (!email) {
+      throw new Error('Enter a valid email address.');
+    }
+
+    await verifyPasswordResetUserExists(email, redirectTo);
+    sendPasswordResetEmailInBackground({ email, redirectTo, captchaToken });
+
+    res.json({ ok: true });
+  } catch (error) {
+    sendError(res, 404, error);
   }
 });
 

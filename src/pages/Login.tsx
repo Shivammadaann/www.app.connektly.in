@@ -3,7 +3,13 @@ import type { ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
-import { getCachedSession, supabase } from '../lib/supabase';
+import {
+  clearPasswordRecoveryIntent,
+  getCachedSession,
+  hasPasswordRecoveryIntent,
+  rememberPasswordRecoveryIntent,
+  supabase,
+} from '../lib/supabase';
 import { appApi } from '../lib/api';
 import TurnstileWidget from '../components/TurnstileWidget';
 import { clientConfig, hasTurnstileSiteKey } from '../lib/config';
@@ -53,10 +59,20 @@ function getPasswordSetupHashType() {
   const hash = window.location.hash.startsWith('#')
     ? window.location.hash.slice(1)
     : window.location.hash;
-  const params = new URLSearchParams(hash);
+  const hashParams = new URLSearchParams(hash);
+  const searchParams = new URLSearchParams(window.location.search);
 
-  const type = params.get('type');
-  return type === 'recovery' || type === 'invite' ? type : null;
+  const type =
+    hashParams.get('type') ||
+    searchParams.get('type') ||
+    hashParams.get('password_setup') ||
+    searchParams.get('password_setup');
+
+  if (type === 'recovery' || hasPasswordRecoveryIntent()) {
+    return 'recovery';
+  }
+
+  return type === 'invite' ? 'invite' : null;
 }
 
 function AuthModal({
@@ -218,11 +234,16 @@ export default function Login() {
   useEffect(() => {
     const passwordSetupType = getPasswordSetupHashType();
     const shouldStayOnLogin = Boolean(passwordSetupType);
+
+    if (passwordSetupType === 'recovery') {
+      rememberPasswordRecoveryIntent();
+    }
+
     setIsRecoveryFlow(shouldStayOnLogin);
     setIsInvitePasswordSetup(passwordSetupType === 'invite');
 
     getCachedSession().then((session) => {
-      if (session && !shouldStayOnLogin) {
+      if (session && !shouldStayOnLogin && !hasPasswordRecoveryIntent()) {
         void continueAfterPasswordAccepted(session.user.email).catch(async (error) => {
           await supabase.auth.signOut().catch(() => null);
           setError(error instanceof Error ? error.message : 'Failed to verify account security.');
@@ -234,7 +255,11 @@ export default function Login() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       const nextPasswordSetupType = getPasswordSetupHashType();
-      if (event === 'PASSWORD_RECOVERY' || nextPasswordSetupType === 'invite') {
+      if (event === 'PASSWORD_RECOVERY') {
+        rememberPasswordRecoveryIntent();
+      }
+
+      if (event === 'PASSWORD_RECOVERY' || nextPasswordSetupType) {
         setIsRecoveryFlow(true);
         setIsInvitePasswordSetup(nextPasswordSetupType === 'invite');
         setRecoveryError('');
@@ -453,14 +478,11 @@ export default function Login() {
     setIsSendingResetEmail(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/login`,
+      await appApi.requestPasswordResetEmail({
+        email: resetEmail.trim(),
+        redirectTo: `${window.location.origin}/login?password_setup=recovery`,
         captchaToken: forgotPasswordCaptchaToken || undefined,
       });
-
-      if (error) {
-        throw error;
-      }
 
       setForgotPasswordMessage('Password reset email sent. Please check your inbox.');
       setForgotPasswordCaptchaToken(null);
@@ -508,6 +530,7 @@ export default function Login() {
         throw error;
       }
 
+      clearPasswordRecoveryIntent();
       await supabase.auth.signOut();
       window.history.replaceState({}, document.title, '/login');
       setIsRecoveryFlow(false);
