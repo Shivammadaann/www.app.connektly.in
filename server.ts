@@ -2208,18 +2208,32 @@ function normalizeEmailAddress(value: unknown) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
 }
 
-async function verifyPasswordResetUserExists(email: string, redirectTo: string) {
-  const { data, error } = await adminSupabase.auth.admin.generateLink({
-    type: 'recovery',
-    email,
-    options: {
-      redirectTo,
-    },
-  });
+async function verifyPasswordResetUserExists(email: string) {
+  const perPage = 1000;
 
-  if (error || !data.user?.id) {
-    throw new Error('No account exists with that email address.');
+  for (let page = 1; page <= 100; page += 1) {
+    const { data, error } = await adminSupabase.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const users = data.users || [];
+    const userExists = users.some((user) => normalizeEmailAddress(user.email) === email);
+
+    if (userExists) {
+      return;
+    }
+
+    if (users.length < perPage) {
+      break;
+    }
   }
+
+  throw new Error('No account exists with that email address.');
 }
 
 function sendPasswordResetEmailInBackground(args: {
@@ -20215,7 +20229,7 @@ app.post('/api/auth/password-reset', async (req, res) => {
       throw new Error('Enter a valid email address.');
     }
 
-    await verifyPasswordResetUserExists(email, redirectTo);
+    await verifyPasswordResetUserExists(email);
     sendPasswordResetEmailInBackground({ email, redirectTo, captchaToken });
 
     res.json({ ok: true });

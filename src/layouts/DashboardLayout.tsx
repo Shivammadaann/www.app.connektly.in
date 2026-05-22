@@ -46,6 +46,7 @@ import {
   Mail,
   X,
   Wallet,
+  Loader2,
 } from 'lucide-react';
 
 const HELP_CENTER_URL = 'https://connektly.in/help/';
@@ -150,6 +151,7 @@ export default function DashboardLayout() {
       location.pathname.startsWith('/dashboard/emails/template-builder'),
   );
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [apiErrorNotice, setApiErrorNotice] = useState<DashboardApiErrorEventDetail | null>(null);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const walletMenuRef = useRef<HTMLDivElement | null>(null);
@@ -399,8 +401,16 @@ export default function DashboardLayout() {
   ]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
+    setIsSigningOut(true);
+    setIsSignOutModalOpen(false);
+    setIsMobileMenuOpen(false);
+    setIsAccountMenuOpen(false);
+
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      navigate('/login');
+    }
   };
 
   const toggleDesktopSidebar = () => {
@@ -674,6 +684,20 @@ export default function DashboardLayout() {
       activePrefixes: ['/dashboard/channels'],
     },
   ];
+
+  if (isSigningOut) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6 font-sans">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+            <Loader2 className="h-8 w-8 animate-spin text-[#2364ff]" />
+          </div>
+          <h1 className="mt-5 text-xl font-semibold text-gray-900">Signing out</h1>
+          <p className="mt-2 text-sm text-gray-500">Ending your session securely.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <CallManagerProvider>
@@ -1457,15 +1481,17 @@ export default function DashboardLayout() {
               <div className="flex gap-3">
                 <button 
                   onClick={() => setIsSignOutModalOpen(false)}
+                  disabled={isSigningOut}
                   className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleSignOut}
-                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
+                  disabled={isSigningOut}
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Sign out
+                  {isSigningOut ? 'Signing out' : 'Sign out'}
                 </button>
               </div>
             </motion.div>
