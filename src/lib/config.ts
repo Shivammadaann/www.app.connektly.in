@@ -1,20 +1,20 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || '/api';
-const META_APP_ID = import.meta.env.VITE_META_APP_ID?.trim() || '';
+const META_APP_ID = import.meta.env.VITE_META_APP_ID?.trim() || '797649033413847';
 // WhatsApp Embedded Signup must use this Meta configuration; other Meta flows keep their own config IDs.
 export const WHATSAPP_ONBOARDING_CONFIG_ID = '959911236622056';
 const META_CONFIG_ID = WHATSAPP_ONBOARDING_CONFIG_ID;
 const INSTAGRAM_APP_ID =
-  META_APP_ID || import.meta.env.VITE_INSTAGRAM_APP_ID?.trim() || '';
+  META_APP_ID || import.meta.env.VITE_INSTAGRAM_APP_ID?.trim() || '1364707755710909';
 const INSTAGRAM_CONFIG_ID =
   import.meta.env.VITE_META_INSTAGRAM_INBOX_CONFIG_ID?.trim() || '1851191622215671';
 const ADS_CONFIG_ID =
-  import.meta.env.VITE_META_ADS_CONFIG_ID?.trim() || '356104403242812';
+  import.meta.env.VITE_META_ADS_CONFIG_ID?.trim() || '1356104403242812';
 const CATALOG_CONFIG_ID =
   import.meta.env.VITE_META_CATALOG_CONFIG_ID?.trim() || '1644345003439852';
 const MESSENGER_CONFIG_ID =
   import.meta.env.VITE_META_MESSENGER_CONFIG_ID?.trim() || '1238854098066248';
 const LEAD_CAPTURE_CONFIG_ID =
-  import.meta.env.VITE_META_LEAD_CAPTURE_CONFIG_ID?.trim() || ADS_CONFIG_ID;
+  import.meta.env.VITE_META_LEAD_CAPTURE_CONFIG_ID?.trim() || '1347031370653731';
 const META_GRAPH_VERSION = import.meta.env.VITE_META_GRAPH_VERSION?.trim() || 'v24.0';
 const DEFAULT_TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() || '0x4AAAAAAC9513RDryb1Cua4';
 const LOCAL_TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_LOCAL_SITE_KEY?.trim() || '';
