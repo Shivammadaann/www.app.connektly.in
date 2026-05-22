@@ -1,0 +1,292 @@
+Connektly Feature List
+Generated from project analysis on 2026-05-09.
+
+Project Overview
+- Vite + React + TypeScript frontend for the Connektly web app.
+- Express API server in server.ts for Meta, Supabase, Razorpay, email, WooCommerce, notifications, and developer endpoints.
+- Supabase-backed persistence with row-level security for profiles, channels, templates, flows, conversations, calls, notifications, integrations, billing credits, developer credentials, and email data.
+- Production build can be served by the Express server after running the Vite build.
+
+Authentication and Account Access
+- Supabase email/password login and signup.
+- Google and Facebook OAuth sign-in support through Supabase.
+- Password reset and invite password setup flows.
+- Multi-factor authentication support with authenticator app challenge and verification.
+- Protected dashboard routes with automatic redirect to login for unauthenticated users.
+- Account deletion endpoint and UI flow.
+
+Billing, Plans, and Trial Access
+- Onboarding starts with plan selection and billing access enforcement.
+- Free trial support with trial expiry checks before dashboard access.
+- Starter and Pro plan definitions with monthly and annual billing cycles.
+- Dynamic plan catalog loading with fallback pricing.
+- Razorpay subscription creation and payment verification.
+- GST, coupon, discount, taxable amount, and total quote calculation.
+- Billing status stored on app profiles.
+
+Onboarding
+- Step-gated onboarding flow for plan, company details, industry, profile, and channel connection.
+- Company name and website capture.
+- Industry selection with predefined business categories and search.
+- User profile setup with full name, profile photo upload, country code, and phone number.
+- WhatsApp channel connection step with setup type selection, embedded signup, and manual credentials.
+- Business profile setup during channel connection, including profile photo upload and business details.
+
+Dashboard Shell and Workspace UX
+- Responsive dashboard layout with desktop and mobile navigation.
+- Collapsible sidebar with grouped navigation for home, contacts, leads, inbox, campaigns, automations, commerce, connections, channels, templates, settings, and help.
+- Account menu, sign-out confirmation, and global API error notices.
+- Live notification bell with unread count and sound playback.
+- Global call manager and WhatsApp call popup.
+- Periodic refresh of dashboard bootstrap data, business profile, templates, and inbox insights.
+
+Home Dashboard
+- Today overview for conversations, new leads, active campaigns, ad spend, and pending replies.
+- Performance snapshot across ads, campaigns, and WhatsApp.
+- Quick actions for new chat, campaign creation, template creation, ad creation, and automation setup.
+- Connection health overview for WhatsApp, Instagram, Meta Ads, and WhatsApp Payments.
+- Automation, calls, and smart insight summary panels.
+
+WhatsApp Cloud API Channel
+- Manual WhatsApp Cloud API connection with access token, WABA ID, and phone number ID.
+- Meta embedded signup connection flow.
+- Sender registration and deregistration.
+- Two-step verification PIN setup and status checks.
+- Phone number verification code request and verification.
+- Webhook subscription check, subscribe, and unsubscribe.
+- Channel quality, messaging limit tier, display phone number, verified name, WABA, and account metadata display.
+- Encrypted Meta access token storage when configured.
+
+Instagram Messaging Channel
+- Meta OAuth code exchange for Instagram connection.
+- Instagram connectable account discovery through Facebook pages.
+- Instagram Business Login connection flow.
+- Instagram webhook subscription.
+- Instagram channel disconnect.
+- Incoming Instagram webhook handling and conversation storage.
+- Instagram outbound text messaging support from conversation threads.
+
+Messenger Channel
+- Facebook Page Login connection flow.
+- Manual Messenger page connection with page ID and access token.
+- Connectable page discovery and permission checks.
+- Messenger webhook verification and event ingestion.
+- Messenger page conversation sync.
+- Messenger channel disconnect.
+- Messenger outbound text messaging support from conversation threads.
+
+Channels Page
+- Central status view for WhatsApp, Instagram, Messenger, email, and provider settings.
+- Connected channel list with detailed setup and health state.
+- WhatsApp display name, message limit, quality rating, registration state, two-step verification state, webhook status, and verification status panels.
+- Instagram and Messenger setup modals for account/page selection.
+- Confirmation dialogs for disconnect and destructive channel actions.
+
+Inbox and Conversations
+- Unified inbox for WhatsApp, Instagram, Messenger, and email-related navigation.
+- Conversation thread list with filtering, sorting, unread counts, labels, owners, priority, and status.
+- Conversation detail view with contact details, message timeline, date grouping, message status, read/delivery/failure receipts, contextual replies, and media previews.
+- Send WhatsApp text messages with optional URL preview and reply context.
+- Send WhatsApp media messages with uploaded image, video, audio, or document attachments.
+- Send WhatsApp template messages and start new template-based conversations.
+- Download received media by media ID.
+- Optimistic message and thread updates.
+- Block and unblock WhatsApp users.
+- Contact details editing directly from inbox.
+- Conversation reply-window enforcement for WhatsApp conversations.
+- Call summary cards inside the message timeline.
+- Inbox insights section with sent, delivered, received, read, replied, failed, quality, and messaging limit metrics.
+
+Contacts and CRM Leads
+- Contacts page for creating, editing, deleting, searching, filtering, and viewing conversation-backed contacts.
+- CSV import for contacts.
+- CSV export for contacts.
+- Contact fields include name, phone/identifier, email, source, remark, owner, status, priority, and labels.
+- Lead list page with lead creation, editing, status updates, owner assignment, labels, source, priority, and remarks.
+- Lead timeline loading from conversation messages.
+- CSV import for leads.
+- Lead stage normalization for New, In progress, Waiting, and Completed.
+
+WhatsApp Templates
+- WhatsApp template list with search, preview, status, category, and language metadata.
+- Meta template sync from connected WhatsApp Business Account.
+- Create templates for Utility, Marketing, and Authentication categories.
+- Multiple language options.
+- Header support for none, text, image, video, and document.
+- Header media upload and local preview storage.
+- Body, footer, quick reply button, URL button, and WhatsApp Flow button support.
+- Template examples generated for Meta variable review.
+- Template duplicate and delete actions.
+- Template preview card showing header, body, footer, and buttons.
+
+WhatsApp Flows
+- WhatsApp Flow builder with field schema editing.
+- Supported field types include text, number, email, phone, date, and select.
+- Flow categories such as lead generation, appointment booking, sign up, sign in, support, survey, contact us, and other.
+- Create, update, publish, preview, and delete flows.
+- Remote Meta Flow creation and sync.
+- Flow submission persistence.
+- Flow buttons can be attached to WhatsApp templates and automation actions.
+
+Automations
+- Automation rules dashboard with statistics, rule list, and editor modal.
+- Trigger support for inbound message, lead created, time-based, and related automation rule types defined in the app types.
+- Keyword match support and editable filter groups with AND/OR logic.
+- Filters for message keywords, lead/source/status/priority/labels, time windows, and contact attributes.
+- Actions for sending text, WhatsApp template messages, and WhatsApp Flow messages.
+- Automation rule enable/disable, trigger count, last triggered time, and last error tracking.
+- Backend processing for incoming messages and lead creation triggers.
+- Conversational automation configuration endpoint for WhatsApp.
+
+WhatsApp Campaigns and Broadcasts
+- WhatsApp campaign composer using approved templates.
+- Recipient import from CSV.
+- Recipient parsing with contact name, phone, labels, and template variable mapping.
+- Campaign launch through backend marketing message endpoint.
+- Campaign result tracking for sent, failed, held for quality assessment, and paused recipients.
+- Past broadcast list and outcome summary.
+- Template preview inside campaign composer.
+- Downloadable sample/import utilities.
+
+Meta Ads
+- Meta Ads integration setup with OAuth, Facebook page selection, ad account selection, permissions, and disconnect.
+- Meta ad campaign manager with period filters, campaign list, delivery status, budget, spend, reach, impressions, clicks, and results.
+- Campaign detail modal with nested ads and creative metadata.
+- Campaign pause/resume status update.
+- Media library fetch from Meta Ads assets.
+- Click-to-WhatsApp ad creation UI with creative draft, audience estimation, placements, destinations, and Facebook/Instagram preview cards.
+- Meta Ads routes for overview, manager, campaign, budget, lead, forms, and analytics redirects.
+
+Meta Lead Capture
+- Meta lead capture integration setup with access token, app ID, page IDs, form IDs, callback URL, verify token, default owner, default labels, and auto-create-leads toggle.
+- Webhook verification endpoint for Meta lead capture.
+- Leadgen webhook ingestion and event persistence.
+- Page subscription management.
+- Recent lead capture event display.
+- Optional auto-creation of CRM leads from captured Meta lead data.
+
+Email
+- SMTP and IMAP email connection setup.
+- Email connection verification before saving.
+- Email connection delete/disconnect.
+- Email inbox fetch and display with folder normalization and safe preview rendering.
+- Email template builder with subject, HTML body, preview, create/update, and delete.
+- Email campaign sender with recipients from templates or custom recipient lists.
+- Email campaign history.
+- Incoming email notification sync.
+
+WhatsApp Calls
+- WhatsApp call settings fetch and update.
+- Call enable/disable, call icon visibility, callback permission, weekly operating hours, timezone, and holiday schedule controls.
+- Call history with incoming, outgoing, missed, failed, rejected, ongoing, and ended state handling.
+- New WhatsApp call modal with contact selection or manual WhatsApp ID input.
+- Call permission check and permission request flow.
+- Call manage actions for connect, pre-accept, accept, reject, and terminate.
+- Call session persistence with SDP offer/answer data and call summary message generation.
+- Incoming and outgoing call sounds.
+
+WhatsApp Business Profile and Compliance
+- WhatsApp business profile fetch and edit.
+- Business display name request/update.
+- Profile photo upload.
+- Business vertical/category, description, email, websites, address, and about fields.
+- Official Business Account status check and application/update submission.
+- Display name approval status display.
+- WhatsApp quality, messaging tier, and profile snapshot panels.
+- WhatsApp Business Account activity audit fetch for developer tools.
+
+Commerce and Catalog
+- WhatsApp commerce/catalog settings page.
+- Catalog enable/disable state and catalog display controls.
+- Persisted commerce settings fetched and updated through Meta endpoints.
+- Local catalog UI state for products/catalog status and summary cards.
+
+WhatsApp Payments
+- WhatsApp Payments integration setup view.
+- Payment configuration listing and recent configuration event history.
+- Payment configuration creation with purpose code, merchant category code, provider, provider MID, merchant VPA, redirect URL, and data endpoint URL.
+- Fetch individual payment configuration details.
+- Update data endpoint URL.
+- Regenerate provider OAuth link.
+- Delete payment configuration.
+- Supports providers defined in code: Razorpay, PayU, Zaakpay, and UPI VPA.
+
+WooCommerce Integration
+- WooCommerce connection verification with store URL, consumer key, and consumer secret.
+- Save and disconnect WooCommerce connection.
+- Webhook callback endpoint per user.
+- Store connection status, last verified time, last error, and masked credentials.
+- Automation settings for abandoned recovery, order confirmation, order fulfilled, purchase follow-up, and return/exchange.
+- Configurable automation delay and template key.
+
+Notifications
+- Notification center with all/unread filters.
+- Notification feed grouped by date.
+- Mark one notification or all notifications as read.
+- Notification preference settings for live alerts, sounds, call sounds, sound preset, volume, incoming messages, incoming email, template review, missed calls, leads, campaigns, email campaigns, display name approval, and team joins.
+- Notification sounds with generated tone presets and call loop sounds.
+- Notification triggers are documented for leads, incoming messages, missed calls, template approval/rejection, campaigns, incoming email, email campaigns, display name approval, and new workspace users.
+
+Developer Tools and Platform API
+- Developer API credential management with create, regenerate secret, delete, status, scopes, and last-used tracking.
+- Supported developer API scopes include messages read/write, contacts read/write, and webhooks manage.
+- Developer webhook endpoint management with create, pause/resume, delete, events, signing secret, last delivery, and last error.
+- Webhook events include message received, message read, message delivered, message failed, conversation created, contact created, template status updated, and campaign sent.
+- REST API usage example shown in settings.
+- WhatsApp Business Account activity/audit viewer with filters and summary.
+
+Settings and Workspace Management
+- Profile details update including name, phone, email, password, profile picture, and company logo.
+- Organization details update including company name, website, and industry.
+- Security settings for email verification, password changes, and multi-factor authentication enrollment/unenrollment.
+- Team member list, invite, edit role/name, and remove user flows.
+- Team roles include Owner, Admin, Manager, and Agent.
+- Billing summary, payment method placeholder, and billing history area.
+- Integrations entry point linking to the connection center.
+- Preferences, privacy, data export placeholder, and delete account controls.
+
+Backend and Infrastructure Features
+- Authenticated API requests using Supabase bearer tokens.
+- Supabase service-role API server access for persistence and privileged operations.
+- Meta Graph API helpers for WhatsApp, Instagram, Messenger, Ads, Lead Capture, Flows, Templates, Payments, Business Profile, Business Activities, and Commerce.
+- Webhook endpoints for WhatsApp, Messenger, Instagram, Meta lead capture, and WooCommerce.
+- Token encryption/decryption support for external provider credentials.
+- File upload handling with multer for profile images, company logos, media, business profile photos, and template header media.
+- Static serving of template header media previews and built frontend assets.
+- Health check endpoint.
+- Vite dev proxy support for local API routing.
+
+Realtime and Data Synchronization
+- Supabase realtime subscriptions for conversation threads, call logs, call sessions, templates, notifications, and notification preferences.
+- Periodic dashboard refresh every 12 seconds while visible.
+- Business profile polling every 45 seconds while visible.
+- Silent WhatsApp template sync every 30 seconds while visible.
+- Email notification polling while the dashboard is active.
+
+Database and Persistence
+- app_profiles for workspace profile, onboarding, billing, trial, photo, and logo data.
+- meta_channels, instagram_channels, and messenger_channels for connected messaging providers.
+- meta_ads_integrations for selected Meta Ads page, ad account, token metadata, status, and permissions.
+- meta_templates for synced and created WhatsApp templates.
+- meta_flows and flow_submissions for WhatsApp Flows and user submissions.
+- meta_conversational_automation_configs and automation_rules for automation behavior.
+- conversation_threads and conversation_messages for unified inbox and CRM data.
+- credit_ledger for WhatsApp credit balance history.
+- call_logs and call_sessions for WhatsApp call history and live call state.
+- meta_lead_capture_configs and meta_lead_capture_events for leadgen integration.
+- whatsapp_payment_configuration_events for WhatsApp Payments event history.
+- workspace_team_members for invitations and roles.
+- user_notifications and user_notification_preferences for alerts.
+- developer_api_credentials and developer_webhook_endpoints for developer tooling.
+- woocommerce_connections for store credentials and automation settings.
+- email_connections, email_templates, and email_campaigns for email features.
+- Row-level security policies are enabled for user-owned data.
+
+Known Incomplete or Scaffolded Areas
+- README notes team management is still primarily single-user oriented even though invite/member screens exist.
+- WhatsApp credits read persisted credit_ledger data, but the billing/top-up backend still needs to populate ledger entries automatically.
+- WhatsApp call logs and sessions exist, but README notes provider-specific call automation is not fully implemented.
+- CRM Analytics, CRM Reports, Pipeline, and Help routes render coming-soon placeholders.
+- /dashboard/insights currently redirects to /dashboard/home; detailed inbox insights are embedded elsewhere.
+- Some commerce catalog UI state is local/demo-style while Meta commerce settings are persisted.
+- README flags Instagram inbox, Messenger inbox/message sync, broadcasts, flows, automations, commerce, and CRM as areas that may still need deeper backend integrations, although several first-pass endpoints and UI flows are present in the current code.

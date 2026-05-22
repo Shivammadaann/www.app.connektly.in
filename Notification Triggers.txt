@@ -1,0 +1,12 @@
+Live Notifications Should Trigger if and when - 
+
+1. New Lead is Assigned / New Lead Lands on the CRM from Any Source / New Lead Captured
+2. New Incoming Message from Any Source
+3. There is any WhatsApp Missed Call.
+4. New WhatsApp Template is Approved or Rejected.
+5. New Campaign is Successfully Sent.
+6. New Incoming Email.
+7. Successful Email Campaign
+8. WhatsApp Display Name is Approved.
+9. New User Joins the Workspace via Invite.
+

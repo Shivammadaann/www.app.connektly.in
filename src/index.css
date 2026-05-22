@@ -1,0 +1,210 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  background:
+    radial-gradient(circle at top, rgba(221, 232, 251, 0.78), transparent 34%),
+    linear-gradient(180deg, #f7fafe 0%, #ebf1f8 55%, #e6edf6 100%);
+  color: #0f172a;
+}
+
+.dashboard-shell {
+  --dashboard-page-bg: #e7eef7;
+  --dashboard-page-bg-soft: #f8fbff;
+  --dashboard-surface: rgba(255, 255, 255, 0.9);
+  --dashboard-surface-strong: rgba(255, 255, 255, 0.96);
+  --dashboard-surface-soft: #f2f6fb;
+  --dashboard-surface-soft-strong: #e9f0f8;
+  --dashboard-border: rgba(148, 163, 184, 0.28);
+  --dashboard-border-strong: rgba(100, 116, 139, 0.36);
+  --dashboard-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
+  --dashboard-shadow-strong: 0 24px 60px rgba(15, 23, 42, 0.1);
+  background:
+    radial-gradient(circle at top, rgba(219, 232, 255, 0.84), transparent 30%),
+    linear-gradient(180deg, #f8fbff 0%, #edf3fa 48%, #e7eef7 100%);
+}
+
+.dashboard-main {
+  background:
+    linear-gradient(180deg, rgba(250, 252, 255, 0.8), rgba(236, 243, 251, 0.94)),
+    var(--dashboard-page-bg);
+}
+
+.dashboard-shell .dashboard-main .text-gray-500 {
+  color: #64748b;
+}
+
+.dashboard-shell .dashboard-main .text-gray-400 {
+  color: #7b8a9d;
+}
+
+.dashboard-shell .border-gray-200 {
+  border-color: var(--dashboard-border);
+}
+
+.dashboard-shell .border-gray-100 {
+  border-color: rgba(226, 232, 240, 0.78);
+}
+
+.dashboard-shell
+  :where(div, section, article, aside, form, header, footer, nav, table, thead, tbody, tfoot, tr, td, th).bg-white {
+  background-color: var(--dashboard-surface-strong);
+}
+
+.dashboard-shell
+  :where(div, section, article, aside, form, header, footer, nav, table, thead, tbody, tfoot, tr, td, th).bg-gray-50 {
+  background-color: var(--dashboard-surface-soft);
+}
+
+.dashboard-shell
+  :where(div, section, article, aside, form, header, footer, nav).shadow-sm {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    var(--dashboard-shadow);
+}
+
+.dashboard-shell
+  :where(div, section, article, aside, form, header, footer, nav).shadow-md {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    var(--dashboard-shadow-strong);
+}
+
+.dashboard-shell
+  :where(button, a[href], [role="button"], [role="menuitem"], [role="tab"], [role="option"]).border-gray-200.bg-white,
+.dashboard-shell
+  :where(button, a[href], [role="button"], [role="menuitem"], [role="tab"], [role="option"]).border-gray-200.bg-gray-50 {
+  border-color: var(--dashboard-border-strong);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 252, 0.98));
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  color: #1e293b;
+}
+
+.dashboard-shell
+  :where(button, a[href], [role="button"], [role="menuitem"], [role="tab"], [role="option"]).border-gray-200.bg-white:hover,
+.dashboard-shell
+  :where(button, a[href], [role="button"], [role="menuitem"], [role="tab"], [role="option"]).border-gray-200.bg-gray-50:hover {
+  border-color: rgba(91, 69, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(235, 241, 255, 0.98));
+  box-shadow:
+    0 16px 30px rgba(15, 23, 42, 0.09),
+    0 0 0 1px rgba(91, 69, 255, 0.06);
+}
+
+.dashboard-shell .dashboard-main .hover\:bg-gray-50:hover {
+  background-color: #edf3ff;
+}
+
+.dashboard-shell .dashboard-main .hover\:bg-white:hover {
+  background-color: #f8fbff;
+}
+
+.dashboard-shell .dashboard-main .hover\:border-gray-300:hover {
+  border-color: rgba(91, 69, 255, 0.22);
+}
+
+.dashboard-shell .dashboard-page-stack > * + * {
+  margin-top: 0;
+}
+
+:where(
+  a[href],
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  label:has(input[type="file"]:not(:disabled))
+) {
+  cursor: pointer;
+}
+
+:where(button:disabled, select:disabled, input:disabled, [aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+:where(
+  button,
+  a[href],
+  [role="button"],
+  [role="menuitem"],
+  [role="tab"],
+  [role="option"],
+  select,
+  input,
+  textarea
+):focus-visible {
+  outline: 2px solid rgb(91 69 255 / 70%);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :where(
+    a[href],
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    [role="menuitem"]:not([aria-disabled="true"]),
+    [role="tab"]:not([aria-disabled="true"]),
+    [role="option"]:not([aria-disabled="true"]),
+    summary,
+    select:not(:disabled),
+    input[type="checkbox"]:not(:disabled),
+    input[type="radio"]:not(:disabled)
+  ) {
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
