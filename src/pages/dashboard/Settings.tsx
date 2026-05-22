@@ -2127,13 +2127,7 @@ export default function Settings() {
 
   const toggleSettingsGroup = (groupTitle: string) => {
     setExpandedSettingsGroups((current) => {
-      const next = new Set(current);
-      if (next.has(groupTitle)) {
-        next.delete(groupTitle);
-      } else {
-        next.add(groupTitle);
-      }
-      return next;
+      return current.has(groupTitle) ? new Set() : new Set([groupTitle]);
     });
   };
 
