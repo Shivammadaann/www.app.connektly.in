@@ -22,6 +22,7 @@ declare global {
 export type MetaOAuthFlowState =
   | 'core_onboarding'
   | 'ads_flow'
+  | 'catalog_flow'
   | 'lead_capture_flow'
   | 'instagram_flow'
   | 'messenger_flow';
@@ -62,6 +63,13 @@ export interface MessengerPageLoginSession {
 }
 
 export interface MetaAdsLoginSession {
+  code: string;
+  redirectUri: string;
+  flowState: MetaOAuthFlowState;
+  oauthState: string;
+}
+
+export interface MetaCatalogLoginSession {
   code: string;
   redirectUri: string;
   flowState: MetaOAuthFlowState;
@@ -476,6 +484,15 @@ export async function beginMetaAdsLogin(options: { flowState?: MetaOAuthFlowStat
       'pages_read_engagement',
       'pages_manage_ads',
     ],
+  });
+}
+
+export async function beginMetaCatalogLogin(options: { flowState?: MetaOAuthFlowState } = {}) {
+  return beginConfiguredOAuthLogin({
+    flowState: options.flowState || 'catalog_flow',
+    configKey: 'catalogConnection',
+    label: 'Meta Catalog',
+    popupName: 'connektly-catalog-login',
   });
 }
 

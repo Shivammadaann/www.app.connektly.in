@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { CalendarDays, Download, FileSpreadsheet, History, Loader2, Pencil, Plus, Save, Search, UserPlus, X } from 'lucide-react';
 import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
@@ -20,6 +20,7 @@ import { formatContactIdentity } from '../../lib/phone';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import defaultProfilePictureUrl from '../../assets/profile.png';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
+import CsvImportModal from '../../components/CsvImportModal';
 import {
   getConversationThreadStatusClassName,
   LEAD_STATUS_OPTIONS,
@@ -28,6 +29,9 @@ import {
 import type { ConversationMessage, ConversationThread, WorkspaceTeamMember } from '../../lib/types';
 
 const STAGE_OPTIONS: Array<'all' | ConversationThread['status']> = ['all', ...LEAD_STATUS_OPTIONS];
+const LEADS_SAMPLE_CSV = [
+  'Name,Phone Number,Email,Lead Owner,Source,Lead Status,Remark',
+].join('\r\n');
 
 interface LeadFormState {
   contactName: string;
@@ -312,6 +316,7 @@ export default function LeadList() {
   const [stageFilter, setStageFilter] = useState<'all' | ConversationThread['status']>('all');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [editLeadId, setEditLeadId] = useState<string | null>(null);
   const [updateLeadId, setUpdateLeadId] = useState<string | null>(null);
   const [timelineLeadId, setTimelineLeadId] = useState<string | null>(null);
@@ -323,7 +328,6 @@ export default function LeadList() {
   const [isTimelineLoading, setIsTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<WorkspaceTeamMember[]>([]);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const deferredQuery = useDeferredValue(searchQuery);
   const editLead = leads.find((lead) => lead.id === editLeadId) || null;
   const updateLead = leads.find((lead) => lead.id === updateLeadId) || null;
@@ -577,18 +581,17 @@ export default function LeadList() {
         successCount += 1;
       }
       setFeedback({ type: 'success', message: `CSV import finished. ${successCount} lead${successCount === 1 ? '' : 's'} added${skippedCount ? `, ${skippedCount} row${skippedCount === 1 ? '' : 's'} skipped` : ''}.` });
+      setIsCsvImportOpen(false);
     } catch (error) {
       setFeedback({ type: 'error', message: error instanceof Error ? error.message : 'Failed to import leads from CSV.' });
     } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      event.currentTarget.value = '';
       setIsImporting(false);
     }
   };
 
   return (
     <div className="mx-auto max-w-7xl space-y-7">
-      <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportFile} />
-
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Lead List</h1>
@@ -596,10 +599,22 @@ export default function LeadList() {
         </div>
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={() => setIsCreateModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"><Plus className="h-4 w-4" /> Create Lead</button>
-          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="inline-flex items-center gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition hover:bg-gray-50 disabled:opacity-60">{isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />} Import via CSV</button>
+          <button type="button" onClick={() => setIsCsvImportOpen(true)} disabled={isImporting} className="inline-flex items-center gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition hover:bg-gray-50 disabled:opacity-60">{isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />} Import via CSV</button>
           <button type="button" onClick={handleExport} className="inline-flex items-center gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition hover:bg-gray-50"><Download className="h-4 w-4" /> Export</button>
         </div>
       </div>
+
+      {isCsvImportOpen ? (
+        <CsvImportModal
+          title="Import Leads CSV"
+          description="Upload a CSV using the required headers below. Download the blank sample CSV first if you need the correct structure."
+          sampleFilename="leads-sample.csv"
+          sampleCsv={LEADS_SAMPLE_CSV}
+          isImporting={isImporting}
+          onClose={() => setIsCsvImportOpen(false)}
+          onImport={handleImportFile}
+        />
+      ) : null}
 
       {feedback ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedback.type === 'success' ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'}`}>{feedback.message}</div> : null}
 

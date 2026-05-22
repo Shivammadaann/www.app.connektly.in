@@ -1064,6 +1064,13 @@ export interface MetaCatalogListResponse {
   catalogs: MetaCatalogSummary[];
 }
 
+export interface MetaCatalogConnectionInput {
+  code: string;
+  redirectUri: string;
+  flowState?: string;
+  oauthState?: string;
+}
+
 export interface MetaCatalogCreateInput {
   name: string;
 }

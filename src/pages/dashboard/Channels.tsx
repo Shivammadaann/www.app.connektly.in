@@ -952,7 +952,7 @@ function StatusTable({
   );
 }
 
-export default function Channels() {
+export default function Channels({ hideHeader = false }: { hideHeader?: boolean }) {
   const shouldReduceMotion = useReducedMotion();
   const { bootstrap, businessProfile, refresh, refreshBusinessProfile } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -2159,18 +2159,20 @@ export default function Channels() {
       variants={staggerContainer}
       className="mx-auto max-w-7xl space-y-6"
     >
-      <motion.div variants={slideUp} className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Channels</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-            Manage WhatsApp Business, Instagram Messaging, and Facebook Messenger from one structured workspace.
-          </p>
-        </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          {connectedChannelCount} of {channels.length} connected
-        </div>
-      </motion.div>
+      {!hideHeader ? (
+        <motion.div variants={slideUp} className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Channels</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+              Manage WhatsApp Business, Instagram Messaging, and Facebook Messenger from one structured workspace.
+            </p>
+          </div>
+          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            {connectedChannelCount} of {channels.length} connected
+          </div>
+        </motion.div>
+      ) : null}
 
       <FeedbackPopupStack
         items={[

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -32,6 +32,7 @@ import {
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import defaultProfilePictureUrl from '../../assets/profile.png';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
+import CsvImportModal from '../../components/CsvImportModal';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import {
   getConversationThreadStatusClassName,
@@ -39,6 +40,10 @@ import {
   normalizeConversationThreadStatus,
 } from '../../lib/lead-status';
 import type { ConversationThread, WorkspaceTeamMember } from '../../lib/types';
+
+const CONTACTS_SAMPLE_CSV = [
+  'name,phone,owner,status,priority,labels,whatsappMarketing,email,source,remark',
+].join('\r\n');
 
 const STATUS_OPTIONS: ConversationThread['status'][] = [...LEAD_STATUS_OPTIONS];
 const PRIORITY_OPTIONS: ConversationThread['priority'][] = ['Low', 'Medium', 'High'];
@@ -524,8 +529,8 @@ export default function Contacts() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<WorkspaceTeamMember[]>([]);
-  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -794,6 +799,7 @@ export default function Contacts() {
           ? `Imported ${importedCount} contacts. Skipped ${skippedCount} rows without a valid phone number.`
           : `Imported ${importedCount} contacts from CSV.`,
       );
+      setIsCsvImportOpen(false);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Failed to import contacts from CSV.');
     } finally {
@@ -834,7 +840,7 @@ export default function Contacts() {
           </button>
           <button
             type="button"
-            onClick={() => importInputRef.current?.click()}
+            onClick={() => setIsCsvImportOpen(true)}
             disabled={isImporting}
             className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
           >
@@ -849,15 +855,20 @@ export default function Contacts() {
             <CirclePlus className="h-4 w-4" />
             Add New Contact
           </button>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleImportFile}
-            className="hidden"
-          />
         </div>
       </div>
+
+      {isCsvImportOpen ? (
+        <CsvImportModal
+          title="Import Contacts CSV"
+          description="Upload a CSV using the required headers below. Download the blank sample CSV first if you need the correct structure."
+          sampleFilename="contacts-sample.csv"
+          sampleCsv={CONTACTS_SAMPLE_CSV}
+          isImporting={isImporting}
+          onClose={() => setIsCsvImportOpen(false)}
+          onImport={handleImportFile}
+        />
+      ) : null}
 
       <FeedbackPopupStack
         items={[

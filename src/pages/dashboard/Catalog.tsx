@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
+  ArrowLeft,
   Building2,
+  Eye,
   Link2,
   Loader2,
   Package,
   PlusCircle,
   Store,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import { appApi } from '../../lib/api';
+import { hasMetaCatalogLoginConfig } from '../../lib/config';
+import { beginMetaCatalogLogin } from '../../lib/meta-sdk';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import type {
   MetaCatalogProduct,
@@ -21,7 +26,6 @@ import type {
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 
 const CURRENCY_OPTIONS = ['INR', 'USD', 'AED', 'EUR', 'GBP'] as const;
-
 type CatalogStatus = 'Available' | 'Active';
 
 interface ProductFormState {
@@ -38,10 +42,6 @@ interface ProductFormState {
 
 interface CreateCatalogFormState {
   name: string;
-}
-
-interface LinkCatalogFormState {
-  catalogId: string;
 }
 
 function SectionCard({
@@ -138,17 +138,56 @@ function ToggleRow({
   );
 }
 
+function CatalogModal({
+  title,
+  subtitle,
+  children,
+  onClose,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-6">
+      <div className="flex min-h-full items-start justify-center py-4">
+        <button
+          type="button"
+          aria-label="Close modal"
+          onClick={onClose}
+          className="fixed inset-0 bg-gray-900/45 backdrop-blur-sm"
+        />
+        <div className="relative z-10 flex max-h-[calc(100vh-3rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-5">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-500">{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Catalog() {
-  const { bootstrap, businessProfile } = useAppData();
+  const { bootstrap, businessProfile, refresh } = useAppData();
   const [catalogs, setCatalogs] = useState<MetaCatalogSummary[]>([]);
   const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
   const [selectedCatalog, setSelectedCatalog] = useState<MetaCatalogSummary | null>(null);
   const [products, setProducts] = useState<MetaCatalogProduct[]>([]);
   const [createForm, setCreateForm] = useState<CreateCatalogFormState>({
     name: '',
-  });
-  const [linkForm, setLinkForm] = useState<LinkCatalogFormState>({
-    catalogId: '',
   });
   const [productForm, setProductForm] = useState<ProductFormState>({
     retailerId: '',
@@ -167,6 +206,10 @@ export default function Catalog() {
   const [isCatalogsLoading, setIsCatalogsLoading] = useState(false);
   const [isProductsLoading, setIsProductsLoading] = useState(false);
   const [isSavingCatalog, setIsSavingCatalog] = useState(false);
+  const [isConnectingCatalog, setIsConnectingCatalog] = useState(false);
+  const [isCreateCatalogOpen, setIsCreateCatalogOpen] = useState(false);
+  const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
+  const [productModalMode, setProductModalMode] = useState<'list' | 'form'>('list');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [commerceSettings, setCommerceSettings] = useState<WhatsAppCommerceSettings | null>(null);
   const [commerceDraft, setCommerceDraft] = useState({
@@ -341,6 +384,31 @@ export default function Catalog() {
     setEditingRetailerId(null);
   };
 
+  const handleConnectCatalog = async () => {
+    try {
+      setIsConnectingCatalog(true);
+      resetMessages();
+      const catalogSession = await beginMetaCatalogLogin({ flowState: 'catalog_flow' });
+      const catalogsResponse = await appApi.connectMetaCatalog({
+        code: catalogSession.code,
+        redirectUri: catalogSession.redirectUri,
+        flowState: catalogSession.flowState,
+        oauthState: catalogSession.oauthState,
+      });
+      setCatalogs(catalogsResponse.catalogs);
+      setSelectedCatalogId(catalogsResponse.selectedCatalogId);
+      setSelectedCatalog(
+        catalogsResponse.catalogs.find((catalog) => catalog.id === catalogsResponse.selectedCatalogId) || null,
+      );
+      await refresh();
+      setNotice('Meta Catalog connection refreshed. Accessible catalogs are now available.');
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Failed to connect Meta Catalog.');
+    } finally {
+      setIsConnectingCatalog(false);
+    }
+  };
+
   const handleSaveCommerceSettings = async () => {
     if (!connectedPhoneNumberId) {
       setCommerceError('Connect your WhatsApp Business Account first to manage commerce settings.');
@@ -385,37 +453,10 @@ export default function Catalog() {
       setSelectedCatalogId(response.selectedCatalogId);
       setSelectedCatalog(response.catalog);
       setCreateForm({ name: '' });
+      setIsCreateCatalogOpen(false);
       setNotice('Catalog created in Meta and made active for this workspace.');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Failed to create the catalog.');
-    } finally {
-      setIsSavingCatalog(false);
-    }
-  };
-
-  const handleLinkExistingCatalog = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    resetMessages();
-    setIsSavingCatalog(true);
-
-    try {
-      const response = await appApi.selectMetaCatalog({
-        catalogId: linkForm.catalogId.trim() || null,
-      });
-      const catalogsResponse = await appApi.getMetaCatalogs();
-      setCatalogs(catalogsResponse.catalogs);
-      setSelectedCatalogId(response.selectedCatalogId);
-      setSelectedCatalog(
-        catalogsResponse.catalogs.find((catalog) => catalog.id === response.selectedCatalogId) || null,
-      );
-      setLinkForm({ catalogId: '' });
-      setNotice(
-        response.selectedCatalogId
-          ? 'Catalog selected for this workspace.'
-          : 'Active catalog cleared for this workspace.',
-      );
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Failed to select the catalog.');
     } finally {
       setIsSavingCatalog(false);
     }
@@ -448,6 +489,7 @@ export default function Catalog() {
       priceParts.length > 1 ? priceParts.slice(0, -1).join(' ') : product.price || '';
 
     setEditingRetailerId(product.retailerId || product.id);
+    setProductModalMode('form');
     setProductForm({
       retailerId: product.retailerId || product.id,
       title: product.name || '',
@@ -497,6 +539,7 @@ export default function Catalog() {
       setProducts(response.products);
       setSelectedCatalog(response.catalog);
       resetProductForm();
+      setProductModalMode('list');
       setNotice(editingRetailerId ? 'Catalog product updated.' : 'Catalog product created.');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Failed to save the product.');
@@ -542,11 +585,21 @@ export default function Catalog() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Catalog</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Create a fresh catalog for commerce workflows or link an existing catalog to your WhatsApp Business Account.
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Catalog</h1>
+          <p className="mt-1 max-w-3xl text-sm text-gray-500">
+            Connect Meta Catalogs, choose the active catalog, and manage products for WhatsApp commerce.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsCreateCatalogOpen(true)}
+          className="inline-flex w-fit items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+        >
+          <PlusCircle className="h-4 w-4" />
+          Create Catalog
+        </button>
       </div>
 
       <FeedbackPopupStack
@@ -555,6 +608,52 @@ export default function Catalog() {
           ...(notice ? [{ id: 'catalog-notice', tone: 'success' as const, message: notice, onDismiss: () => setNotice(null) }] : []),
         ]}
       />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          icon={Store}
+          label="Total catalogs"
+          value={String(catalogs.length)}
+          toneClassName="bg-[#eff5ff] text-[#2364ff]"
+        />
+        <StatCard
+          icon={Link2}
+          label="Active in Connektly"
+          value={String(linkedCatalogCount)}
+          toneClassName="bg-emerald-50 text-emerald-700"
+        />
+        <StatCard
+          icon={Building2}
+          label="Active business account"
+          value={connectedWabaName || 'Not connected'}
+          toneClassName="bg-amber-50 text-amber-700"
+        />
+      </div>
+
+      {!selectedCatalogId ? (
+        <div className="flex flex-col gap-4 rounded-3xl border border-[#dfe6ff] bg-[#f6f8ff] px-5 py-5 text-gray-900 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#2364ff] shadow-sm">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Meta Catalog is not connected</p>
+              <p className="mt-1 text-sm text-gray-600">
+                Connect through Meta Embedded Signup to refresh the catalog business context, then choose an accessible catalog below.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleConnectCatalog()}
+            disabled={isConnectingCatalog || !hasMetaCatalogLoginConfig}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#1d54d9] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isConnectingCatalog ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+            {hasMetaCatalogLoginConfig ? 'Connect Meta Catalog' : 'Catalog setup not configured'}
+          </button>
+        </div>
+      ) : null}
 
       {!connectedWabaId ? (
         <div className="flex flex-col gap-4 rounded-3xl border border-amber-200 bg-amber-50 px-5 py-5 text-amber-900 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -577,6 +676,51 @@ export default function Catalog() {
           </Link>
         </div>
       ) : null}
+
+      <SectionCard
+        title="Choose Active Catalogue"
+        description="Pick the accessible Meta catalog this workspace should manage for product sync and WhatsApp commerce operations."
+      >
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">All accessible Meta catalogs</label>
+            <DropdownSelect
+              value={selectedCatalogId || ''}
+              onChange={(nextCatalogId) => void handleUseCatalog(nextCatalogId || null)}
+              options={catalogs.map((catalog) => ({
+                value: catalog.id,
+                label: `${catalog.name || 'Unnamed catalog'} (${catalog.productCount ?? 0} products)`,
+              }))}
+              placeholder={isCatalogsLoading ? 'Loading Meta catalogs...' : 'Select a catalog'}
+              disabled={isSavingCatalog || isCatalogsLoading || catalogs.length === 0}
+              ariaLabel="Choose active Meta catalog"
+              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setProductModalMode('list');
+              setIsProductsModalOpen(true);
+            }}
+            disabled={!selectedCatalogId}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1f2937] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Eye className="h-4 w-4" />
+            View Products
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void handleUseCatalog(null)}
+            disabled={isSavingCatalog || !selectedCatalogId}
+            className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Clear Active
+          </button>
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="WhatsApp Commerce Settings"
@@ -678,107 +822,6 @@ export default function Catalog() {
         </div>
       </SectionCard>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard
-          icon={Store}
-          label="Total catalogs"
-          value={String(catalogs.length)}
-          toneClassName="bg-[#eff5ff] text-[#2364ff]"
-        />
-        <StatCard
-          icon={Link2}
-          label="Active in Connektly"
-          value={String(linkedCatalogCount)}
-          toneClassName="bg-emerald-50 text-emerald-700"
-        />
-        <StatCard
-          icon={Building2}
-          label="Active business account"
-          value={connectedWabaName || 'Not connected'}
-          toneClassName="bg-amber-50 text-amber-700"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard
-          title="Create Catalog"
-          description="Create a new commerce catalog in your connected Meta business and make it active for this workspace."
-        >
-          <form className="space-y-4" onSubmit={handleCreateCatalog}>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Catalog Name</label>
-              <input
-                type="text"
-                value={createForm.name}
-                onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Summer Collection 2026"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Meta business context</p>
-              <p className="mt-2 text-sm font-medium text-gray-900">{connectedWabaName || 'No WhatsApp Business Account connected'}</p>
-              <p className="mt-1 text-xs text-gray-500">
-                The connected Meta business discovered through Embedded Signup will own this catalog.
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSavingCatalog}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8]"
-            >
-              {isSavingCatalog ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
-              Create Catalog
-            </button>
-          </form>
-        </SectionCard>
-
-        <SectionCard
-          title="Choose Active Catalog"
-          description="Pick which accessible Meta catalog this workspace should manage for product sync and WhatsApp commerce operations."
-        >
-          <form className="space-y-4" onSubmit={handleLinkExistingCatalog}>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Existing Catalog ID</label>
-              <input
-                type="text"
-                value={linkForm.catalogId}
-                onChange={(event) => setLinkForm((current) => ({ ...current, catalogId: event.target.value }))}
-                placeholder="123456789012345"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Current active catalog</p>
-              <p className="mt-2 text-sm font-medium text-gray-900">{selectedCatalog?.name || 'No active catalog selected'}</p>
-              <p className="mt-1 break-all text-xs text-gray-500">{selectedCatalogId || 'Select an accessible catalog ID below'}</p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={isSavingCatalog}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1f2937] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSavingCatalog ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                Use This Catalog
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleUseCatalog(null)}
-                disabled={isSavingCatalog || !selectedCatalogId}
-                className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Clear Active Catalog
-              </button>
-            </div>
-          </form>
-        </SectionCard>
-      </div>
-
       <SectionCard
         title="Accessible Meta Catalogs"
         description="These catalogs come directly from the connected Meta business context, not from local dashboard state."
@@ -855,39 +898,98 @@ export default function Catalog() {
         )}
       </SectionCard>
 
-      <SectionCard
-        title="Catalog Products"
-        description="Manage product items in the active Meta catalog using the Catalog Batch API."
-      >
-        {selectedCatalogId ? (
-          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <form className="space-y-4" onSubmit={handleSaveProduct}>
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Active catalog</p>
-                <p className="mt-2 text-sm font-medium text-gray-900">{selectedCatalog?.name || 'Selected catalog'}</p>
-                <p className="mt-1 break-all text-xs text-gray-500">{selectedCatalogId}</p>
-              </div>
+      {isCreateCatalogOpen ? (
+        <CatalogModal
+          title="Create Catalog"
+          subtitle="Create a new commerce catalog in your connected Meta business and make it active for this workspace."
+          onClose={() => setIsCreateCatalogOpen(false)}
+        >
+          <form className="space-y-5" onSubmit={handleCreateCatalog}>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Catalog Name</label>
+              <input
+                type="text"
+                value={createForm.name}
+                onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Summer Collection 2026"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              />
+            </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">Retailer ID</label>
-                <input
-                  type="text"
-                  value={productForm.retailerId}
-                  onChange={(event) => setProductForm((current) => ({ ...current, retailerId: event.target.value }))}
-                  placeholder="sku-1001"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                />
-              </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Meta business context</p>
+              <p className="mt-2 text-sm font-medium text-gray-900">{connectedWabaName || 'No WhatsApp Business Account connected'}</p>
+              <p className="mt-1 text-xs text-gray-500">
+                The connected Meta business discovered through Embedded Signup will own this catalog.
+              </p>
+            </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">Title</label>
-                <input
-                  type="text"
-                  value={productForm.title}
-                  onChange={(event) => setProductForm((current) => ({ ...current, title: event.target.value }))}
-                  placeholder="Product title"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                />
+            <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+              <button
+                type="button"
+                onClick={() => setIsCreateCatalogOpen(false)}
+                className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingCatalog}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingCatalog ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+                Create Catalog
+              </button>
+            </div>
+          </form>
+        </CatalogModal>
+      ) : null}
+
+      {isProductsModalOpen ? (
+        <CatalogModal
+          title={productModalMode === 'form' ? (editingRetailerId ? 'Edit Product' : 'Add New Product') : 'Catalog Products'}
+          subtitle={selectedCatalog?.name || selectedCatalogId || 'Active catalog products'}
+          onClose={() => {
+            setIsProductsModalOpen(false);
+            setProductModalMode('list');
+            resetProductForm();
+          }}
+        >
+          {productModalMode === 'form' ? (
+            <form className="space-y-5" onSubmit={handleSaveProduct}>
+              <button
+                type="button"
+                onClick={() => {
+                  setProductModalMode('list');
+                  resetProductForm();
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to products
+              </button>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Retailer ID</label>
+                  <input
+                    type="text"
+                    value={productForm.retailerId}
+                    onChange={(event) => setProductForm((current) => ({ ...current, retailerId: event.target.value }))}
+                    placeholder="sku-1001"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Title</label>
+                  <input
+                    type="text"
+                    value={productForm.title}
+                    onChange={(event) => setProductForm((current) => ({ ...current, title: event.target.value }))}
+                    placeholder="Product title"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                  />
+                </div>
               </div>
 
               <div>
@@ -900,7 +1002,7 @@ export default function Catalog() {
                 />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Brand</label>
                   <input
@@ -908,10 +1010,9 @@ export default function Catalog() {
                     value={productForm.brand}
                     onChange={(event) => setProductForm((current) => ({ ...current, brand: event.target.value }))}
                     placeholder="Brand"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
                   />
                 </div>
-
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Availability</label>
                   <input
@@ -919,12 +1020,12 @@ export default function Catalog() {
                     value={productForm.availability}
                     onChange={(event) => setProductForm((current) => ({ ...current, availability: event.target.value }))}
                     placeholder="in stock"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
                   />
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_140px]">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Price</label>
                   <input
@@ -932,56 +1033,45 @@ export default function Catalog() {
                     value={productForm.priceAmount}
                     onChange={(event) => setProductForm((current) => ({ ...current, priceAmount: event.target.value }))}
                     placeholder="20.00"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
                   />
                 </div>
-
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Currency</label>
                   <DropdownSelect
                     value={productForm.currency}
                     onChange={(nextCurrency) => setProductForm((current) => ({ ...current, currency: nextCurrency }))}
-                    options={CURRENCY_OPTIONS.map((currency) => ({
-                      value: currency,
-                      label: currency,
-                    }))}
+                    options={CURRENCY_OPTIONS.map((currency) => ({ value: currency, label: currency }))}
                     ariaLabel="Select product currency"
-                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">Image Link</label>
-                <input
-                  type="url"
-                  value={productForm.imageLink}
-                  onChange={(event) => setProductForm((current) => ({ ...current, imageLink: event.target.value }))}
-                  placeholder="https://example.com/image.jpg"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Image Link</label>
+                  <input
+                    type="url"
+                    value={productForm.imageLink}
+                    onChange={(event) => setProductForm((current) => ({ ...current, imageLink: event.target.value }))}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Product Link</label>
+                  <input
+                    type="url"
+                    value={productForm.productLink}
+                    onChange={(event) => setProductForm((current) => ({ ...current, productLink: event.target.value }))}
+                    placeholder="https://example.com/product"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">Product Link</label>
-                <input
-                  type="url"
-                  value={productForm.productLink}
-                  onChange={(event) => setProductForm((current) => ({ ...current, productLink: event.target.value }))}
-                  placeholder="https://example.com/product"
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  disabled={isSavingProduct}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1f2937] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSavingProduct ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-                  {editingRetailerId ? 'Update Product' : 'Create Product'}
-                </button>
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
                 <button
                   type="button"
                   onClick={resetProductForm}
@@ -990,76 +1080,89 @@ export default function Catalog() {
                 >
                   Reset
                 </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProduct}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1f2937] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingProduct ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+                  {editingRetailerId ? 'Update Product' : 'Create Product'}
+                </button>
               </div>
             </form>
-
+          ) : (
             <div className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Active catalog</p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">{selectedCatalog?.name || 'Selected catalog'}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetProductForm();
+                    setProductModalMode('form');
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8]"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Add New Product
+                </button>
+              </div>
+
               {isProductsLoading ? (
                 <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-sm text-gray-500">
                   Loading products from Meta...
                 </div>
               ) : products.length > 0 ? (
-                products.map((product) => (
-                  <div key={product.id} className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{product.name || product.retailerId || product.id}</p>
-                        <p className="mt-1 break-all text-xs text-gray-500">Retailer ID: {product.retailerId || product.id}</p>
-                        {product.description ? (
-                          <p className="mt-2 text-sm text-gray-600">{product.description}</p>
-                        ) : null}
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
-                          <span>Price: {product.price || 'Not set'}</span>
-                          <span>Availability: {product.availability || 'Unknown'}</span>
-                          <span>Brand: {product.brand || 'Unknown'}</span>
+                <div className="space-y-3">
+                  {products.map((product) => (
+                    <div key={product.id} className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">{product.name || product.retailerId || product.id}</p>
+                          <p className="mt-1 break-all text-xs text-gray-500">Retailer ID: {product.retailerId || product.id}</p>
+                          {product.description ? <p className="mt-2 text-sm text-gray-600">{product.description}</p> : null}
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                            <span>Price: {product.price || 'Not set'}</span>
+                            <span>Availability: {product.availability || 'Unknown'}</span>
+                            <span>Brand: {product.brand || 'Unknown'}</span>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditProduct(product)}
+                            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-100"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteProduct(product.retailerId || product.id)}
+                            className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex shrink-0 flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEditProduct(product)}
-                          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteProduct(product.retailerId || product.id)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </button>
-                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
                 <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-gray-400 shadow-sm">
                     <Package className="h-6 w-6" />
                   </div>
                   <p className="mt-4 text-sm font-semibold text-gray-900">No products in this catalog yet</p>
-                  <p className="mt-2 text-sm text-gray-500">
-                    Use the form on the left to create the first product item through the Catalog Batch API.
-                  </p>
+                  <p className="mt-2 text-sm text-gray-500">Add the first product to start syncing catalog items.</p>
                 </div>
               )}
             </div>
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-gray-400 shadow-sm">
-              <Package className="h-6 w-6" />
-            </div>
-            <p className="mt-4 text-sm font-semibold text-gray-900">Choose an active catalog first</p>
-            <p className="mt-2 text-sm text-gray-500">
-              Product management is enabled only after you select one accessible Meta catalog for this workspace.
-            </p>
-          </div>
-        )}
-      </SectionCard>
+          )}
+        </CatalogModal>
+      ) : null}
     </div>
   );
 }

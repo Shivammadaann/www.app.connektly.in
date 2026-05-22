@@ -53,6 +53,7 @@ import type {
   MetaAdsIntegrationSaveInput,
   MetaAdsIntegrationSetupResponse,
   MetaCatalogCreateInput,
+  MetaCatalogConnectionInput,
   MetaCatalogItemsBatchInput,
   MetaCatalogListResponse,
   MetaCatalogProductsResponse,
@@ -761,6 +762,12 @@ export const appApi = {
   getMetaCatalogs() {
     return apiRequest<MetaCatalogListResponse>('/meta/catalogs', {
       cache: 'no-store',
+    });
+  },
+  connectMetaCatalog(payload: MetaCatalogConnectionInput) {
+    return apiRequest<MetaCatalogListResponse>('/meta/catalog/connect', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
   createMetaCatalog(payload: MetaCatalogCreateInput) {

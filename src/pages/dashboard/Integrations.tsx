@@ -1281,7 +1281,7 @@ export default function Integrations() {
       <div className="mx-auto max-w-7xl space-y-6">
         {renderConnectionsHeader()}
         {renderSectionToggle()}
-        <Channels />
+        <Channels hideHeader />
       </div>
     );
   }

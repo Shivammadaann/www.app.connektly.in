@@ -100,6 +100,7 @@ import type {
   MetaAdsIntegrationSetupResponse,
   MetaAdsPixelOption,
   MetaCatalogCreateInput,
+  MetaCatalogConnectionInput,
   MetaCatalogItemsBatchInput,
   MetaCatalogListResponse,
   MetaCatalogProductsResponse,
@@ -6660,6 +6661,7 @@ function normalizeMetaOAuthFlowState(value: unknown) {
   if (
     normalized === 'core_onboarding' ||
     normalized === 'ads_flow' ||
+    normalized === 'catalog_flow' ||
     normalized === 'lead_capture_flow' ||
     normalized === 'instagram_flow' ||
     normalized === 'messenger_flow'
@@ -7825,6 +7827,12 @@ function getCatalogWebhookMetadata(metadata: Record<string, unknown>) {
     : {};
 }
 
+function getCatalogConnectionMetadata(metadata: Record<string, unknown>) {
+  return isRecord(metadata.catalogConnection)
+    ? (metadata.catalogConnection as Record<string, unknown>)
+    : {};
+}
+
 function buildMetaCatalogWebhookSetupResponse(
   req: Request,
   row: Record<string, unknown> | null,
@@ -7872,14 +7880,33 @@ function getMetaCatalogConnectionContext(row: Record<string, unknown>) {
   const businessIds = getNormalizedIdentifierList(reusableIdentifiers.businessIds);
   const embeddedCatalogIds = getNormalizedIdentifierList(reusableIdentifiers.catalogIds);
   const webhookCatalogIds = getNormalizedIdentifierList(catalogWebhook.lastCatalogIds);
+  const catalogConnection = getCatalogConnectionMetadata(metadata);
+  const connectedBusinessIds = getNormalizedIdentifierList(catalogConnection.businessIds);
+  const connectedCatalogIds = getNormalizedIdentifierList(catalogConnection.catalogIds);
   const catalogSelection = getMetaCatalogSelectionMetadata(metadata);
 
   return {
     metadata,
-    businessIds,
-    catalogIds: Array.from(new Set([...embeddedCatalogIds, ...webhookCatalogIds])),
+    businessIds: Array.from(new Set([...businessIds, ...connectedBusinessIds])),
+    catalogIds: Array.from(new Set([...embeddedCatalogIds, ...webhookCatalogIds, ...connectedCatalogIds])),
     selectedCatalogId: normalizeOptionalIdentifier(catalogSelection.selectedCatalogId),
   };
+}
+
+function resolveMetaCatalogAccessToken(row: Record<string, unknown>, fallbackAccessToken: string) {
+  const metadata = getMetaChannelMetadata(row);
+  const catalogConnection = getCatalogConnectionMetadata(metadata);
+  const tokenCiphertext = normalizeOptionalString(catalogConnection.accessTokenCiphertext);
+
+  if (tokenCiphertext) {
+    try {
+      return decryptAccessToken(tokenCiphertext);
+    } catch (error) {
+      console.error('Failed to decrypt Meta Catalog access token:', error);
+    }
+  }
+
+  return fallbackAccessToken;
 }
 
 function parseMetaOptionalNumber(value: unknown) {
@@ -7958,6 +7985,76 @@ async function listOwnedMetaCatalogs(accessToken: string, businessId: string) {
     : [];
 }
 
+async function listMetaBusinessesForCatalogConnection(accessToken: string) {
+  const response = await metaRequestDetailed<{
+    data?: Array<Record<string, unknown>>;
+  }>({
+    accessToken,
+    path: 'me/businesses',
+    query: {
+      fields: 'id,name',
+      limit: 200,
+    },
+  });
+
+  return Array.isArray(response.data)
+    ? response.data
+        .map((entry) => normalizeOptionalIdentifier(entry.id))
+        .filter((entry): entry is string => Boolean(entry))
+    : [];
+}
+
+async function saveMetaCatalogConnection(args: {
+  userId: string;
+  row: Record<string, unknown>;
+  accessToken: string;
+  flowState: string | null;
+  oauthState: string | null;
+}) {
+  const businessIds = await listMetaBusinessesForCatalogConnection(args.accessToken);
+  const catalogMap = new Map<string, MetaCatalogSummary>();
+
+  for (const businessId of businessIds) {
+    const catalogs = await listOwnedMetaCatalogs(args.accessToken, businessId);
+    for (const catalog of catalogs) {
+      catalogMap.set(catalog.id, catalog);
+    }
+  }
+
+  const metadata = getMetaChannelMetadata(args.row);
+  const currentCatalogConnection = getCatalogConnectionMetadata(metadata);
+  const updatedAt = new Date().toISOString();
+  const { data, error } = await adminSupabase
+    .from('meta_channels')
+    .update({
+      metadata: {
+        ...metadata,
+        catalogConnection: {
+          ...currentCatalogConnection,
+          accessTokenCiphertext: encryptAccessToken(args.accessToken),
+          accessTokenLast4: last4(args.accessToken),
+          businessIds,
+          catalogIds: Array.from(catalogMap.keys()),
+          flowState: args.flowState,
+          oauthState: args.oauthState,
+          connectedAt: normalizeOptionalString(currentCatalogConnection.connectedAt) || updatedAt,
+          updatedAt,
+        },
+      },
+      updated_at: updatedAt,
+    })
+    .eq('user_id', args.userId)
+    .eq('id', args.row.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Record<string, unknown>;
+}
+
 async function listMetaCatalogsForChannel(
   row: Record<string, unknown>,
   accessToken: string,
@@ -7966,9 +8063,13 @@ async function listMetaCatalogsForChannel(
   const catalogMap = new Map<string, MetaCatalogSummary>();
 
   for (const businessId of context.businessIds) {
-    const catalogs = await listOwnedMetaCatalogs(accessToken, businessId);
-    for (const catalog of catalogs) {
-      catalogMap.set(catalog.id, catalog);
+    try {
+      const catalogs = await listOwnedMetaCatalogs(accessToken, businessId);
+      for (const catalog of catalogs) {
+        catalogMap.set(catalog.id, catalog);
+      }
+    } catch (error) {
+      console.error(`Failed to list catalogs for Meta business ${businessId}:`, error);
     }
   }
 
@@ -11029,6 +11130,13 @@ function mapChannel(row: Record<string, unknown> | null): MetaChannelConnection 
     return null;
   }
 
+  const metadata = isRecord(row.metadata) ? { ...(row.metadata as Record<string, unknown>) } : {};
+  if (isRecord(metadata.catalogConnection)) {
+    const catalogConnection = { ...(metadata.catalogConnection as Record<string, unknown>) };
+    delete catalogConnection.accessTokenCiphertext;
+    metadata.catalogConnection = catalogConnection;
+  }
+
   return {
     id: String(row.id),
     userId: String(row.user_id),
@@ -11045,7 +11153,7 @@ function mapChannel(row: Record<string, unknown> | null): MetaChannelConnection 
     accessTokenLast4: (row.access_token_last4 as string | null) || null,
     connectedAt: String(row.connected_at || row.created_at),
     lastSyncedAt: (row.last_synced_at as string | null) || null,
-    metadata: (row.metadata as Record<string, unknown>) || {},
+    metadata,
   };
 }
 
@@ -22854,7 +22962,41 @@ app.get('/api/meta/catalog/setup', async (req, res) => {
 app.get('/api/meta/catalogs', async (req, res) => {
   try {
     const { row, accessToken } = await getChannelWithToken(req.authedUser!.id);
-    res.json(await listMetaCatalogsForChannel(row, accessToken));
+    res.json(await listMetaCatalogsForChannel(row, resolveMetaCatalogAccessToken(row, accessToken)));
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.post('/api/meta/catalog/connect', async (req, res) => {
+  try {
+    const { code, redirectUri, flowState, oauthState } =
+      req.body as MetaCatalogConnectionInput;
+    const normalizedCode = normalizeOptionalString(code);
+    const normalizedRedirectUri = normalizeOptionalString(redirectUri);
+    const normalizedFlowState = normalizeMetaOAuthFlowState(flowState) || 'catalog_flow';
+
+    if (!normalizedCode || !normalizedRedirectUri) {
+      throw new Error('code and redirectUri are required.');
+    }
+
+    assertMetaOAuthFlowState(normalizedFlowState, 'catalog_flow');
+
+    const { row } = await getChannelWithToken(req.authedUser!.id);
+    const catalogAccessToken = await exchangeEmbeddedSignupCode(normalizedCode, {
+      redirectUri: normalizedRedirectUri,
+      requestReferer: req.get('referer') || undefined,
+      requestOrigin: req.get('origin') || undefined,
+    });
+    const updatedRow = await saveMetaCatalogConnection({
+      userId: req.authedUser!.id,
+      row,
+      accessToken: catalogAccessToken,
+      flowState: normalizedFlowState,
+      oauthState: normalizeOptionalString(oauthState),
+    });
+
+    res.json(await listMetaCatalogsForChannel(updatedRow, catalogAccessToken));
   } catch (error) {
     sendError(res, 400, error);
   }
@@ -22863,11 +23005,12 @@ app.get('/api/meta/catalogs', async (req, res) => {
 app.post('/api/meta/catalogs', async (req, res) => {
   try {
     const { row, accessToken } = await getChannelWithToken(req.authedUser!.id);
+    const catalogAccessToken = resolveMetaCatalogAccessToken(row, accessToken);
     res.json(
       await createMetaCatalogForChannel({
         userId: req.authedUser!.id,
         row,
-        accessToken,
+        accessToken: catalogAccessToken,
         input: req.body as MetaCatalogCreateInput,
       }),
     );
@@ -22879,11 +23022,12 @@ app.post('/api/meta/catalogs', async (req, res) => {
 app.post('/api/meta/catalogs/select', async (req, res) => {
   try {
     const { row, accessToken } = await getChannelWithToken(req.authedUser!.id);
+    const catalogAccessToken = resolveMetaCatalogAccessToken(row, accessToken);
     res.json(
       await selectMetaCatalogForChannel({
         userId: req.authedUser!.id,
         row,
-        accessToken,
+        accessToken: catalogAccessToken,
         input: req.body as MetaCatalogSelectionInput,
       }),
     );
@@ -22900,10 +23044,11 @@ app.get('/api/meta/catalogs/:catalogId/products', async (req, res) => {
     }
 
     const { row, accessToken } = await getChannelWithToken(req.authedUser!.id);
+    const catalogAccessToken = resolveMetaCatalogAccessToken(row, accessToken);
     res.json(
       await listMetaCatalogProducts({
         row,
-        accessToken,
+        accessToken: catalogAccessToken,
         catalogId,
       }),
     );
@@ -22920,10 +23065,11 @@ app.post('/api/meta/catalogs/:catalogId/items-batch', async (req, res) => {
     }
 
     const { row, accessToken } = await getChannelWithToken(req.authedUser!.id);
+    const catalogAccessToken = resolveMetaCatalogAccessToken(row, accessToken);
     res.json(
       await saveMetaCatalogItemsBatch({
         row,
-        accessToken,
+        accessToken: catalogAccessToken,
         catalogId,
         input: req.body as MetaCatalogItemsBatchInput,
       }),

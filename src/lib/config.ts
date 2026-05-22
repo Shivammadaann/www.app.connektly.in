@@ -66,5 +66,6 @@ export const hasEmbeddedSignupConfig = Boolean(META_APP_ID && META_CONFIG_ID);
 export const hasInstagramBusinessLoginConfig = Boolean(INSTAGRAM_APP_ID && INSTAGRAM_CONFIG_ID);
 export const hasMessengerLoginConfig = Boolean(META_APP_ID && MESSENGER_CONFIG_ID);
 export const hasMetaAdsLoginConfig = Boolean(META_APP_ID && ADS_CONFIG_ID);
+export const hasMetaCatalogLoginConfig = Boolean(META_APP_ID && CATALOG_CONFIG_ID);
 export const hasMetaLeadCaptureLoginConfig = Boolean(META_APP_ID && LEAD_CAPTURE_CONFIG_ID);
 export const hasTurnstileSiteKey = Boolean(TURNSTILE_SITE_KEY);

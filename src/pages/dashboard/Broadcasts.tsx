@@ -7,8 +7,6 @@ import {
   CalendarDays,
   CheckCircle2,
   CornerDownLeft,
-  Download,
-  FileUp,
   Loader2,
   Megaphone,
   Search,
@@ -20,6 +18,7 @@ import { useAppData } from '../../context/AppDataContext';
 import { getConversationDisplayDetail, getConversationDisplayName } from '../../lib/conversation-display';
 import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
+import CsvImportModal from '../../components/CsvImportModal';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import type { ConversationThread, MetaTemplate } from '../../lib/types';
@@ -66,7 +65,7 @@ interface BroadcastComposerState {
   scheduledTime: string;
 }
 
-const SAMPLE_AUDIENCE_CSV = ['name,phone,labels', 'Aarav Sharma,+919876543210,vip|festival', 'Mia Johnson,+14155550123,newsletter'].join('\r\n');
+const SAMPLE_AUDIENCE_CSV = ['name,phone,labels'].join('\r\n');
 
 function getInitialPastBroadcasts() {
   if (typeof window === 'undefined') {
@@ -180,18 +179,6 @@ function parseLabels(value: string) {
     .split(/[|,]+/)
     .map((entry) => entry.trim())
     .filter(Boolean);
-}
-
-function triggerFileDownload(filename: string, contents: string, type: string) {
-  const blob = new Blob([contents], { type });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
 }
 
 function getTemplateComponents(raw: Record<string, unknown> | null | undefined) {
@@ -597,6 +584,7 @@ export default function Broadcasts() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isImportingCsv, setIsImportingCsv] = useState(false);
+  const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
 
   const contacts = bootstrap?.conversations || [];
@@ -683,12 +671,6 @@ export default function Broadcasts() {
     );
   };
 
-  const handleDownloadSampleCsv = () => {
-    triggerFileDownload('campaign-audience-sample.csv', SAMPLE_AUDIENCE_CSV, 'text/csv;charset=utf-8');
-    setNotice('Sample audience CSV downloaded.');
-    setError(null);
-  };
-
   const handleImportAudienceCsv = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
 
@@ -734,6 +716,7 @@ export default function Broadcasts() {
         audienceSource: 'csv',
       }));
       setNotice(`Imported ${importedRows.length} audience contacts from CSV.`);
+      setIsCsvImportOpen(false);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Failed to import audience CSV.');
     } finally {
@@ -924,6 +907,18 @@ export default function Broadcasts() {
         ]}
       />
 
+      {isCsvImportOpen ? (
+        <CsvImportModal
+          title="Import Audience CSV"
+          description="Upload a CSV using the required headers below. Download the blank sample CSV first if you need the correct structure."
+          sampleFilename="campaign-audience-sample.csv"
+          sampleCsv={SAMPLE_AUDIENCE_CSV}
+          isImporting={isImportingCsv}
+          onClose={() => setIsCsvImportOpen(false)}
+          onImport={handleImportAudienceCsv}
+        />
+      ) : null}
+
       <motion.section
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -997,7 +992,10 @@ export default function Broadcasts() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => updateComposer('audienceSource', 'csv')}
+                    onClick={() => {
+                      updateComposer('audienceSource', 'csv');
+                      setIsCsvImportOpen(true);
+                    }}
                     className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                       composer.audienceSource === 'csv'
                         ? 'bg-[#5b45ff] text-white'
@@ -1073,22 +1071,13 @@ export default function Broadcasts() {
                     <div className="flex flex-wrap gap-3">
                       <button
                         type="button"
-                        onClick={handleDownloadSampleCsv}
-                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                        onClick={() => setIsCsvImportOpen(true)}
+                        disabled={isImportingCsv}
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
                       >
-                        <Download className="h-4 w-4" />
-                        Download Sample CSV
-                      </button>
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
-                        {isImportingCsv ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+                        {isImportingCsv ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                         Import Audience CSV
-                        <input
-                          type="file"
-                          accept=".csv,text/csv"
-                          onChange={handleImportAudienceCsv}
-                          className="hidden"
-                        />
-                      </label>
+                      </button>
                     </div>
 
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
