@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, ReactNode } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowUpRight,
@@ -936,7 +936,7 @@ function getSystemMessageText(raw: Record<string, unknown>) {
   const system = isRecord(raw.system) ? raw.system : null;
 
   if (!system) {
-    return 'WhatsApp system message';
+    return null;
   }
 
   if (typeof system.body === 'string' && system.body.trim()) {
@@ -955,7 +955,134 @@ function getSystemMessageText(raw: Record<string, unknown>) {
     return `WhatsApp system notice for ${identity}`;
   }
 
-  return 'WhatsApp system message';
+  return null;
+}
+
+function getNestedText(record: Record<string, unknown> | null | undefined, key: string) {
+  const value = record?.[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getTextObjectText(value: unknown) {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+
+  return isRecord(value) ? getNestedText(value, 'text') || getNestedText(value, 'body') : null;
+}
+
+function isGenericInteractiveText(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === 'interactive reply' || normalized === 'interactive message';
+}
+
+function isGenericSystemText(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === 'whatsapp system message' || normalized === 'system message';
+}
+
+function getInteractiveMessageText(raw: Record<string, unknown>) {
+  const interactive = isRecord(raw.interactive) ? raw.interactive : null;
+
+  if (!interactive) {
+    return null;
+  }
+
+  const header = isRecord(interactive.header) ? interactive.header : null;
+  const footer = isRecord(interactive.footer) ? interactive.footer : null;
+  const buttonReply = isRecord(interactive.button_reply) ? interactive.button_reply : null;
+  const listReply = isRecord(interactive.list_reply) ? interactive.list_reply : null;
+  const nfmReply = isRecord(interactive.nfm_reply) ? interactive.nfm_reply : null;
+  const action = isRecord(interactive.action) ? interactive.action : null;
+  const parameters = isRecord(action?.parameters) ? action.parameters : null;
+
+  const text =
+    getTextObjectText(interactive.body) ||
+    getNestedText(header, 'text') ||
+    getTextObjectText(footer) ||
+    getNestedText(nfmReply, 'body') ||
+    getNestedText(buttonReply, 'title') ||
+    getNestedText(listReply, 'title') ||
+    getNestedText(listReply, 'description') ||
+    getNestedText(parameters, 'display_text') ||
+    getNestedText(parameters, 'text') ||
+    getNestedText(parameters, 'body') ||
+    getNestedText(parameters, 'title');
+
+  return isGenericInteractiveText(text) ? null : text;
+}
+
+function getInteractiveType(raw: Record<string, unknown>) {
+  const interactive = isRecord(raw.interactive) ? raw.interactive : null;
+  return getNestedText(interactive, 'type')?.toLowerCase() || null;
+}
+
+function looksLikeWhatsAppSystemNotice(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    normalized.includes('end-to-end encrypted') ||
+    normalized.includes('security code') ||
+    normalized.includes('disappearing messages') ||
+    normalized.includes('view once') ||
+    normalized.includes('chat lock') ||
+    normalized.includes('silence unknown callers') ||
+    normalized.includes('this business') ||
+    normalized.includes('business account') ||
+    normalized.includes('permission') ||
+    normalized.includes('blocked this business') ||
+    normalized.includes('managed by other companies') ||
+    normalized.includes('only admins can send messages') ||
+    normalized.includes('community created') ||
+    normalized.includes('admin deleted this message') ||
+    normalized.includes('message was deleted') ||
+    normalized.includes('waiting for this message') ||
+    normalized.includes('forwarded many times') ||
+    normalized.includes('changed your phone number') ||
+    normalized.includes('pinned message') ||
+    normalized.includes('starred message') ||
+    normalized.includes('media visibility') ||
+    normalized.includes('linked devices') ||
+    normalized.includes('companion mode') ||
+    normalized.includes('syncing messages') ||
+    normalized.includes('restoring backup') ||
+    normalized.includes('restore chat history') ||
+    normalized.includes('not in your contacts') ||
+    normalized.includes('block or report') ||
+    normalized.includes('unknown accounts') ||
+    normalized.includes('potential spam') ||
+    normalized.includes('suspicious link')
+  );
+}
+
+function getWhatsAppNoticeText(message: ConversationMessage) {
+  if (message.messageType === 'system') {
+    return getSystemMessageText(message.raw);
+  }
+
+  if (message.messageType !== 'interactive') {
+    return null;
+  }
+
+  const interactiveType = getInteractiveType(message.raw);
+  const interactiveText = getInteractiveMessageText(message.raw);
+  const body = typeof message.body === 'string' && !isGenericInteractiveText(message.body) ? message.body.trim() : null;
+  const text = interactiveText || body;
+
+  if (
+    interactiveType === 'call_permission_request' ||
+    interactiveType === 'call_permission_response' ||
+    interactiveType === 'call_permission_request_response' ||
+    looksLikeWhatsAppSystemNotice(text)
+  ) {
+    return text;
+  }
+
+  return null;
 }
 
 function getSpecialMessageText(message: ConversationMessage) {
@@ -965,6 +1092,10 @@ function getSpecialMessageText(message: ConversationMessage) {
 
   if (message.messageType === 'system') {
     return getSystemMessageText(message.raw);
+  }
+
+  if (message.messageType === 'interactive') {
+    return getInteractiveMessageText(message.raw);
   }
 
   return null;
@@ -977,6 +1108,14 @@ function getVisibleMessageBody(message: ConversationMessage, media: ReturnType<t
 
   const specialMessageText = getSpecialMessageText(message);
   const body = typeof message.body === 'string' ? message.body.trim() : '';
+
+  if (message.messageType === 'interactive' && isGenericInteractiveText(body)) {
+    return specialMessageText;
+  }
+
+  if (message.messageType === 'system' && isGenericSystemText(body)) {
+    return specialMessageText;
+  }
 
   if (!body) {
     return specialMessageText;
@@ -1235,7 +1374,7 @@ function getContextualReplyPreviewText(message: ConversationMessage, templates: 
     case 'contacts':
       return 'Shared contact card';
     case 'interactive':
-      return 'Interactive reply';
+      return getInteractiveMessageText(message.raw) || 'WhatsApp notice';
     case 'button':
       return 'Button reply';
     default:
@@ -1866,15 +2005,9 @@ function MessageDetails({ message }: { message: ConversationMessage }) {
   }
 
   if (type === 'interactive') {
-    const interactive = message.raw.interactive as
-      | { button_reply?: { title?: string }; list_reply?: { title?: string; description?: string } }
-      | undefined;
-    const title =
-      interactive?.button_reply?.title ||
-      interactive?.list_reply?.title ||
-      interactive?.list_reply?.description ||
-      message.body;
-    return <div className="rounded-xl bg-gray-100/70 px-3 py-2 text-xs text-gray-700">Interactive reply: {title}</div>;
+    const title = getInteractiveMessageText(message.raw);
+
+    return title ? <div className="rounded-xl bg-gray-100/70 px-3 py-2 text-xs text-gray-700">{title}</div> : null;
   }
 
   return null;
@@ -2114,6 +2247,7 @@ function MessageBubble({
   const [failedBubbleAvatarUrl, setFailedBubbleAvatarUrl] = useState<string | null>(null);
   const media = getMediaPayload(message.raw);
   const visibleMessageBody = getVisibleMessageBody(message, media);
+  const whatsappNoticeText = getWhatsAppNoticeText(message);
   const templateSnapshot = message.messageType === 'template' ? resolveTemplateSnapshot(message, templates) : null;
   const callSummary = getCallSummaryPayload(message);
   const usesTemplateCard = Boolean(templateSnapshot);
@@ -2131,6 +2265,27 @@ function MessageBubble({
       setFailedBubbleAvatarUrl(null);
     }
   }, [inboundAvatarUrl, failedBubbleAvatarUrl]);
+
+  if (whatsappNoticeText) {
+    return (
+      <div className="flex w-full justify-center px-4">
+        <div className="max-w-[min(82%,520px)] rounded-xl bg-slate-200/80 px-4 py-2 text-center text-xs font-medium leading-5 text-slate-600 shadow-sm ring-1 ring-slate-300/40">
+          {whatsappNoticeText}
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    (message.messageType === 'system' || message.messageType === 'interactive') &&
+    !visibleMessageBody &&
+    !media &&
+    !usesTemplateCard &&
+    !usesCallSummaryCard &&
+    !fallbackCallSummaryText
+  ) {
+    return null;
+  }
 
   return (
     <div className={`group flex max-w-[85%] gap-2 ${isOutbound ? 'ml-auto flex-row-reverse' : ''}`}>
@@ -2228,6 +2383,7 @@ function MessageBubble({
 export default function Inbox() {
   const { bootstrap, setBootstrap } = useAppData();
   const { startOutgoingCall } = useCallManager();
+  const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const [threadFilter, setThreadFilter] = useState<InboxThreadFilter>('all');
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
@@ -2572,9 +2728,7 @@ export default function Inbox() {
       return;
     }
 
-    setLabelDraft('');
-    setLabelModalError(null);
-    setIsAddLabelModalOpen(true);
+    navigate('/dashboard/settings?tab=labels-attributes');
   };
 
   const handleAddActiveThreadLabel = async (event: FormEvent) => {

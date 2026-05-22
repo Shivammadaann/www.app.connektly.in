@@ -103,6 +103,8 @@ import type {
   WhatsAppOfficialBusinessAccountUpdateInput,
   WhatsAppOfficialBusinessAccountUpdateResponse,
   WorkspaceTeamMember,
+  WorkspaceOptionDefinition,
+  WorkspaceOptionInput,
   WhatsAppCommerceSettings,
   WhatsAppCommerceSettingsUpdateInput,
   WooCommerceAutomationSetting,
@@ -362,6 +364,22 @@ export const appApi = {
   },
   removeTeamMember(memberId: string) {
     return apiRequest<{ ok: true }>(`/team/members/${encodeURIComponent(memberId)}`, {
+      method: 'DELETE',
+    });
+  },
+  getWorkspaceOptions() {
+    return apiRequest<{ options: WorkspaceOptionDefinition[] }>('/workspace/options', {
+      cache: 'no-store',
+    });
+  },
+  createWorkspaceOption(payload: WorkspaceOptionInput) {
+    return apiRequest<{ option: WorkspaceOptionDefinition }>('/workspace/options', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteWorkspaceOption(optionId: string) {
+    return apiRequest<{ ok: true }>(`/workspace/options/${encodeURIComponent(optionId)}`, {
       method: 'DELETE',
     });
   },

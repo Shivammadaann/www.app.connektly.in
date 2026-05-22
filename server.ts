@@ -168,6 +168,8 @@ import type {
   WooCommerceConnection,
   WooCommerceConnectionInput,
   WooCommerceConnectionVerifyInput,
+  WorkspaceOptionDefinition,
+  WorkspaceOptionInput,
   WorkspaceTeamMember,
 } from './src/lib/types';
 
@@ -3390,19 +3392,29 @@ function getMessageText(message: Record<string, unknown>) {
     case 'button':
       return ((message.button as { text?: string } | undefined)?.text || 'Button reply') as string;
     case 'interactive': {
-      const interactive = message.interactive as
-        | {
-            button_reply?: { title?: string };
-            list_reply?: { title?: string; description?: string };
-            nfm_reply?: { body?: string };
-          }
-        | undefined;
+      const interactive = isRecord(message.interactive) ? message.interactive : null;
+      const body = isRecord(interactive?.body) ? interactive.body : null;
+      const header = isRecord(interactive?.header) ? interactive.header : null;
+      const footer = isRecord(interactive?.footer) ? interactive.footer : null;
+      const buttonReply = isRecord(interactive?.button_reply) ? interactive.button_reply : null;
+      const listReply = isRecord(interactive?.list_reply) ? interactive.list_reply : null;
+      const nfmReply = isRecord(interactive?.nfm_reply) ? interactive.nfm_reply : null;
+      const action = isRecord(interactive?.action) ? interactive.action : null;
+      const parameters = isRecord(action?.parameters) ? action.parameters : null;
+
       return (
-        interactive?.nfm_reply?.body ||
-        interactive?.button_reply?.title ||
-        interactive?.list_reply?.title ||
-        interactive?.list_reply?.description ||
-        'Interactive reply'
+        normalizeOptionalString(body?.text) ||
+        normalizeOptionalString(header?.text) ||
+        normalizeOptionalString(footer?.text) ||
+        normalizeOptionalString(nfmReply?.body) ||
+        normalizeOptionalString(buttonReply?.title) ||
+        normalizeOptionalString(listReply?.title) ||
+        normalizeOptionalString(listReply?.description) ||
+        normalizeOptionalString(parameters?.display_text) ||
+        normalizeOptionalString(parameters?.text) ||
+        normalizeOptionalString(parameters?.body) ||
+        normalizeOptionalString(parameters?.title) ||
+        null
       );
     }
     case 'system': {
@@ -15228,6 +15240,108 @@ async function removeWorkspaceTeamMember(user: User, memberId: string) {
   return { ok: true as const };
 }
 
+function normalizeWorkspaceOptionType(value: unknown): WorkspaceOptionDefinition['type'] {
+  return value === 'attribute' ? 'attribute' : 'label';
+}
+
+function normalizeWorkspaceOptionValueType(value: unknown) {
+  const normalized = normalizeOptionalString(value)?.toLowerCase();
+  return normalized === 'number' ||
+    normalized === 'date' ||
+    normalized === 'boolean' ||
+    normalized === 'select'
+    ? normalized
+    : 'text';
+}
+
+function mapWorkspaceOptionDefinition(row: Record<string, unknown>): WorkspaceOptionDefinition {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    type: normalizeWorkspaceOptionType(row.type),
+    name: String(row.name || ''),
+    valueType: normalizeWorkspaceOptionValueType(row.value_type),
+    options: normalizeStringArray(row.options),
+    color: normalizeOptionalString(row.color),
+    description: normalizeOptionalString(row.description),
+    createdAt: String(row.created_at || new Date().toISOString()),
+    updatedAt: String(row.updated_at || row.created_at || new Date().toISOString()),
+  };
+}
+
+async function getWorkspaceOptionDefinitions(user: User) {
+  const ownerUserId = await resolveWorkspaceOwnerUserId(user.id);
+  const { data, error } = await adminSupabase
+    .from('workspace_option_definitions')
+    .select('*')
+    .eq('user_id', ownerUserId)
+    .order('type', { ascending: true })
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data || []) as Array<Record<string, unknown>>).map(mapWorkspaceOptionDefinition);
+}
+
+async function createWorkspaceOptionDefinition(user: User, input: WorkspaceOptionInput) {
+  const ownerUserId = await resolveWorkspaceOwnerUserId(user.id);
+  const type = normalizeWorkspaceOptionType(input.type);
+  const name = normalizeOptionalString(input.name);
+
+  if (!name) {
+    throw new Error(type === 'label' ? 'Enter a label name.' : 'Enter an attribute name.');
+  }
+
+  const { data, error } = await adminSupabase
+    .from('workspace_option_definitions')
+    .insert({
+      user_id: ownerUserId,
+      type,
+      name,
+      value_type: type === 'attribute' ? normalizeWorkspaceOptionValueType(input.valueType) : 'text',
+      options: type === 'attribute' ? normalizeStringArray(input.options) : [],
+      color: normalizeOptionalString(input.color),
+      description: normalizeOptionalString(input.description),
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapWorkspaceOptionDefinition(data as Record<string, unknown>);
+}
+
+async function deleteWorkspaceOptionDefinition(user: User, optionId: string) {
+  const ownerUserId = await resolveWorkspaceOwnerUserId(user.id);
+  const normalizedOptionId = normalizeOptionalIdentifier(optionId);
+
+  if (!normalizedOptionId) {
+    throw new Error('Choose an option to delete.');
+  }
+
+  const { data, error } = await adminSupabase
+    .from('workspace_option_definitions')
+    .delete()
+    .eq('id', normalizedOptionId)
+    .eq('user_id', ownerUserId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error('Workspace option was not found.');
+  }
+
+  return { ok: true as const };
+}
+
 async function getChannelWithToken(userId: string) {
   const { data, error } = await adminSupabase.from('meta_channels').select('*').eq('user_id', userId).maybeSingle();
 
@@ -20963,6 +21077,31 @@ app.patch('/api/team/members/:memberId', async (req, res) => {
 app.delete('/api/team/members/:memberId', async (req, res) => {
   try {
     res.json(await removeWorkspaceTeamMember(req.authedUser!, req.params.memberId));
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.get('/api/workspace/options', async (req, res) => {
+  try {
+    res.json({ options: await getWorkspaceOptionDefinitions(req.authedUser!) });
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.post('/api/workspace/options', async (req, res) => {
+  try {
+    const option = await createWorkspaceOptionDefinition(req.authedUser!, req.body as WorkspaceOptionInput);
+    res.json({ option });
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.delete('/api/workspace/options/:optionId', async (req, res) => {
+  try {
+    res.json(await deleteWorkspaceOptionDefinition(req.authedUser!, req.params.optionId));
   } catch (error) {
     sendError(res, 400, error);
   }

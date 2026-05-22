@@ -107,6 +107,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
   const [hasRemoteAudio, setHasRemoteAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [pendingOutgoingSession, setPendingOutgoingSession] = useState<WhatsAppCallSessionRecord | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -141,7 +142,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
     () => (currentCallId ? callSessions.find((session) => session.callId === currentCallId) || null : null),
     [callSessions, currentCallId],
   );
-  const activeSession = trackedSession || topPrioritySession;
+  const activeSession = trackedSession || pendingOutgoingSession || topPrioritySession;
 
   const syncResponse = (response: WhatsAppCallManageResponse) => {
     setBootstrap((current) => {
@@ -362,6 +363,10 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
         setCurrentCallId(response.callId);
       }
 
+      if (response.callSession || response.callId) {
+        setPendingOutgoingSession(null);
+      }
+
       if (nextPayload.action === 'reject' || nextPayload.action === 'terminate') {
         releaseBrowserSession({ clearSessionDescription: true });
       }
@@ -377,11 +382,40 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
   };
 
   const startOutgoingCall = (to: string, callbackData?: string) =>
-    sendCallAction({
-      action: 'connect',
-      to,
-      bizOpaqueCallbackData: callbackData,
-    });
+    {
+      const now = new Date().toISOString();
+      const optimisticCallId = `pending:${Date.now()}`;
+
+      setCurrentCallId(optimisticCallId);
+      setPendingOutgoingSession({
+        id: optimisticCallId,
+        callId: optimisticCallId,
+        contactWaId: to,
+        contactName: null,
+        displayPhone: to,
+        direction: 'outgoing',
+        state: 'dialing',
+        startedAt: now,
+        connectedAt: null,
+        updatedAt: now,
+        endedAt: null,
+        offerSdp: null,
+        answerSdp: null,
+        bizOpaqueCallbackData: callbackData || null,
+        lastEvent: 'initiating_call',
+        raw: {},
+      });
+
+      return sendCallAction({
+        action: 'connect',
+        to,
+        bizOpaqueCallbackData: callbackData,
+      }).catch((nextError) => {
+        setPendingOutgoingSession(null);
+        setCurrentCallId(null);
+        throw nextError;
+      });
+    };
 
   const answerIncomingCall = (session?: WhatsAppCallSessionRecord | null) =>
     sendCallAction({

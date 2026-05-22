@@ -548,6 +548,30 @@ export interface SendCallPermissionRequestResponse {
   message: ConversationMessage;
 }
 
+export type WorkspaceOptionType = 'label' | 'attribute';
+
+export interface WorkspaceOptionDefinition {
+  id: string;
+  userId: string;
+  type: WorkspaceOptionType;
+  name: string;
+  valueType: 'text' | 'number' | 'date' | 'boolean' | 'select' | string;
+  options: string[];
+  color: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceOptionInput {
+  type: WorkspaceOptionType;
+  name: string;
+  valueType?: WorkspaceOptionDefinition['valueType'];
+  options?: string[];
+  color?: string | null;
+  description?: string | null;
+}
+
 export type WhatsAppCallSettingStatus = 'enabled' | 'disabled' | string;
 export type WhatsAppCallIconVisibility = 'visible' | 'hidden' | string;
 

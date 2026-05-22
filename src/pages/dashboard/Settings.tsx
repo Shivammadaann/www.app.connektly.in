@@ -30,6 +30,7 @@ import {
   ReceiptText,
   ShieldCheck,
   SlidersHorizontal,
+  Tag,
   TicketPercent,
   Trash2,
   User,
@@ -74,6 +75,8 @@ import type {
   InviteWorkspaceUserInput,
   NotificationPreferencesUpdateInput,
   UpdateWorkspaceTeamMemberInput,
+  WorkspaceOptionDefinition,
+  WorkspaceOptionInput,
   WorkspaceTeamMember,
 } from '../../lib/types';
 
@@ -92,6 +95,7 @@ const SETTINGS_TAB_IDS = [
   'security',
   'notifications',
   'organization',
+  'labels-attributes',
   'team',
   'roles',
   'subscription',
@@ -133,6 +137,7 @@ const SETTINGS_GROUPS: Array<{
     icon: Globe,
     items: [
       { id: 'organization', label: 'Organization Details', icon: Globe },
+      { id: 'labels-attributes', label: 'Labels & Attributes', icon: Tag },
       { id: 'team', label: 'Team / Users', icon: Users },
       { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
@@ -427,6 +432,15 @@ const INITIAL_WEBHOOK_FORM: DeveloperWebhookCreateInput = {
   name: '',
   url: '',
   events: ['message.received', 'message.read'],
+};
+
+const INITIAL_WORKSPACE_OPTION_FORM: WorkspaceOptionInput = {
+  type: 'label',
+  name: '',
+  valueType: 'text',
+  options: [],
+  color: '#5b45ff',
+  description: '',
 };
 
 type SecurityFactor = Factor<'totp' | 'phone' | 'webauthn', 'verified' | 'unverified'>;
@@ -814,6 +828,14 @@ export default function Settings() {
   const [isUpdatingTeamMember, setIsUpdatingTeamMember] = useState(false);
   const [teamMemberBeingRemoved, setTeamMemberBeingRemoved] = useState<WorkspaceTeamMember | null>(null);
   const [isRemovingTeamMember, setIsRemovingTeamMember] = useState(false);
+  const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOptionDefinition[] | null>(null);
+  const [workspaceOptionForm, setWorkspaceOptionForm] = useState<WorkspaceOptionInput>(INITIAL_WORKSPACE_OPTION_FORM);
+  const [workspaceOptionChoicesDraft, setWorkspaceOptionChoicesDraft] = useState('');
+  const [workspaceOptionsError, setWorkspaceOptionsError] = useState<string | null>(null);
+  const [workspaceOptionsNotice, setWorkspaceOptionsNotice] = useState<string | null>(null);
+  const [isWorkspaceOptionsLoading, setIsWorkspaceOptionsLoading] = useState(false);
+  const [isCreatingWorkspaceOption, setIsCreatingWorkspaceOption] = useState(false);
+  const [deletingWorkspaceOptionId, setDeletingWorkspaceOptionId] = useState<string | null>(null);
   const [notificationSettingsForm, setNotificationSettingsForm] =
     useState<NotificationPreferencesUpdateInput>({
       enabled: true,
@@ -1007,6 +1029,40 @@ export default function Settings() {
   }, [activeTab, teamMembers]);
 
   useEffect(() => {
+    if (activeTab !== 'labels-attributes' || workspaceOptions !== null) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadWorkspaceOptions = async () => {
+      try {
+        setIsWorkspaceOptionsLoading(true);
+        setWorkspaceOptionsError(null);
+        const response = await appApi.getWorkspaceOptions();
+
+        if (!isCancelled) {
+          setWorkspaceOptions(response.options);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setWorkspaceOptionsError(error instanceof Error ? error.message : 'Failed to load labels and attributes.');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsWorkspaceOptionsLoading(false);
+        }
+      }
+    };
+
+    void loadWorkspaceOptions();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeTab, workspaceOptions]);
+
+  useEffect(() => {
     if (activeTab !== 'api-keys' || apiCredentials !== null) {
       return;
     }
@@ -1158,6 +1214,8 @@ export default function Settings() {
     typeof window !== 'undefined'
       ? new URL(clientConfig.apiBaseUrl, window.location.origin).toString().replace(/\/$/, '')
       : clientConfig.apiBaseUrl.replace(/\/$/, '');
+  const workspaceLabels = (workspaceOptions || []).filter((option) => option.type === 'label');
+  const workspaceAttributes = (workspaceOptions || []).filter((option) => option.type === 'attribute');
   const apiCredentialUsageExample = `fetch('${developerApiBaseUrl}/conversations', {
   headers: {
     'X-Connektly-Api-Key': '<API_KEY>',
@@ -2131,6 +2189,69 @@ export default function Settings() {
     });
   };
 
+  const handleWorkspaceOptionFormChange = <K extends keyof WorkspaceOptionInput>(
+    field: K,
+    value: WorkspaceOptionInput[K],
+  ) => {
+    setWorkspaceOptionsError(null);
+    setWorkspaceOptionsNotice(null);
+    setWorkspaceOptionForm((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === 'type' && value === 'label' ? { valueType: 'text', options: [] } : {}),
+    }));
+  };
+
+  const handleCreateWorkspaceOption = async () => {
+    const optionName = workspaceOptionForm.name.trim();
+
+    if (!optionName) {
+      setWorkspaceOptionsError(workspaceOptionForm.type === 'label' ? 'Enter a label name.' : 'Enter an attribute name.');
+      setWorkspaceOptionsNotice(null);
+      return;
+    }
+
+    const choices = workspaceOptionChoicesDraft
+      .split(',')
+      .map((choice) => choice.trim())
+      .filter(Boolean);
+
+    try {
+      setIsCreatingWorkspaceOption(true);
+      setWorkspaceOptionsError(null);
+      setWorkspaceOptionsNotice(null);
+      const response = await appApi.createWorkspaceOption({
+        ...workspaceOptionForm,
+        name: optionName,
+        options: workspaceOptionForm.type === 'attribute' && workspaceOptionForm.valueType === 'select' ? choices : [],
+      });
+
+      setWorkspaceOptions((current) => [...(current || []), response.option].sort((left, right) => left.name.localeCompare(right.name)));
+      setWorkspaceOptionForm(INITIAL_WORKSPACE_OPTION_FORM);
+      setWorkspaceOptionChoicesDraft('');
+      setWorkspaceOptionsNotice(response.option.type === 'label' ? 'Label created.' : 'Attribute created.');
+    } catch (error) {
+      setWorkspaceOptionsError(error instanceof Error ? error.message : 'Failed to create workspace option.');
+    } finally {
+      setIsCreatingWorkspaceOption(false);
+    }
+  };
+
+  const handleDeleteWorkspaceOption = async (option: WorkspaceOptionDefinition) => {
+    try {
+      setDeletingWorkspaceOptionId(option.id);
+      setWorkspaceOptionsError(null);
+      setWorkspaceOptionsNotice(null);
+      await appApi.deleteWorkspaceOption(option.id);
+      setWorkspaceOptions((current) => current?.filter((entry) => entry.id !== option.id) || current);
+      setWorkspaceOptionsNotice(option.type === 'label' ? 'Label deleted.' : 'Attribute deleted.');
+    } catch (error) {
+      setWorkspaceOptionsError(error instanceof Error ? error.message : 'Failed to delete workspace option.');
+    } finally {
+      setDeletingWorkspaceOptionId(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1320px]">
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -2575,6 +2696,183 @@ export default function Settings() {
                         Save Organization Details
                       </button>
                     </div>
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+
+            {activeTab === 'labels-attributes' ? (
+              <motion.div key="labels-attributes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+                {workspaceOptionsError ? (
+                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{workspaceOptionsError}</div>
+                ) : null}
+                {workspaceOptionsNotice ? (
+                  <div className="rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">{workspaceOptionsNotice}</div>
+                ) : null}
+
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Labels & Attributes</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Define the label and contact attribute options your team can reuse across Inbox, Contacts, Leads, and Automations.
+                  </p>
+                </div>
+
+                <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+                  <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-gray-900">Create option</h3>
+                    <div className="mt-5 space-y-5">
+                      <div>
+                        <span className="mb-2 block text-sm font-medium text-gray-700">Type</span>
+                        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 p-1">
+                          {(['label', 'attribute'] as const).map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => handleWorkspaceOptionFormChange('type', type)}
+                              className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                                workspaceOptionForm.type === type ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                              }`}
+                            >
+                              {type === 'label' ? 'Label' : 'Attribute'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-medium text-gray-700">
+                          {workspaceOptionForm.type === 'label' ? 'Label name' : 'Attribute name'}
+                        </span>
+                        <input
+                          type="text"
+                          value={workspaceOptionForm.name}
+                          onChange={(event) => handleWorkspaceOptionFormChange('name', event.target.value)}
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          placeholder={workspaceOptionForm.type === 'label' ? 'e.g. VIP' : 'e.g. City'}
+                        />
+                      </label>
+
+                      {workspaceOptionForm.type === 'label' ? (
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-medium text-gray-700">Color</span>
+                          <input
+                            type="color"
+                            value={workspaceOptionForm.color || '#5b45ff'}
+                            onChange={(event) => handleWorkspaceOptionFormChange('color', event.target.value)}
+                            className="h-11 w-full rounded-2xl border border-gray-200 bg-gray-50 px-2 py-1"
+                          />
+                        </label>
+                      ) : (
+                        <>
+                          <div>
+                            <span className="mb-2 block text-sm font-medium text-gray-700">Value type</span>
+                            <DropdownSelect
+                              value={workspaceOptionForm.valueType || 'text'}
+                              onChange={(nextValue) => handleWorkspaceOptionFormChange('valueType', nextValue)}
+                              options={[
+                                { value: 'text', label: 'Text' },
+                                { value: 'number', label: 'Number' },
+                                { value: 'date', label: 'Date' },
+                                { value: 'boolean', label: 'Yes / No' },
+                                { value: 'select', label: 'Dropdown' },
+                              ]}
+                              ariaLabel="Select attribute value type"
+                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                            />
+                          </div>
+                          {workspaceOptionForm.valueType === 'select' ? (
+                            <label className="block">
+                              <span className="mb-2 block text-sm font-medium text-gray-700">Dropdown values</span>
+                              <input
+                                type="text"
+                                value={workspaceOptionChoicesDraft}
+                                onChange={(event) => setWorkspaceOptionChoicesDraft(event.target.value)}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                                placeholder="Hot, Warm, Cold"
+                              />
+                            </label>
+                          ) : null}
+                        </>
+                      )}
+
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-medium text-gray-700">Description</span>
+                        <textarea
+                          value={workspaceOptionForm.description || ''}
+                          onChange={(event) => handleWorkspaceOptionFormChange('description', event.target.value)}
+                          rows={3}
+                          className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          placeholder="Optional note for your team"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleCreateWorkspaceOption()}
+                        disabled={isCreatingWorkspaceOption}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                      >
+                        {isCreatingWorkspaceOption ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        Create {workspaceOptionForm.type}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    {[
+                      { title: 'Labels', empty: 'No workspace labels yet.', items: workspaceLabels },
+                      { title: 'Attributes', empty: 'No workspace attributes yet.', items: workspaceAttributes },
+                    ].map((section) => (
+                      <div key={section.title} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="text-lg font-bold text-gray-900">{section.title}</h3>
+                          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
+                            {section.items.length}
+                          </span>
+                        </div>
+                        <div className="mt-5 space-y-3">
+                          {isWorkspaceOptionsLoading ? (
+                            <div className="flex items-center gap-2 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </div>
+                          ) : section.items.length > 0 ? (
+                            section.items.map((option) => (
+                              <div key={option.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      {option.type === 'label' ? (
+                                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: option.color || '#5b45ff' }} />
+                                      ) : null}
+                                      <p className="truncate text-sm font-semibold text-gray-900">{option.name}</p>
+                                    </div>
+                                    {option.description ? <p className="mt-1 text-xs leading-5 text-gray-500">{option.description}</p> : null}
+                                    {option.type === 'attribute' ? (
+                                      <p className="mt-1 text-xs text-gray-400">
+                                        {option.valueType}
+                                        {option.options.length ? ` - ${option.options.join(', ')}` : ''}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDeleteWorkspaceOption(option)}
+                                    disabled={deletingWorkspaceOptionId === option.id}
+                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-white hover:text-rose-600 disabled:opacity-60"
+                                    aria-label={`Delete ${option.name}`}
+                                  >
+                                    {deletingWorkspaceOptionId === option.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-500">{section.empty}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </motion.div>

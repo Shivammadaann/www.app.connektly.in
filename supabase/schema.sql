@@ -562,6 +562,25 @@ create index if not exists workspace_team_members_owner_idx
 create index if not exists workspace_team_members_member_idx
   on public.workspace_team_members (member_user_id);
 
+create table if not exists public.workspace_option_definitions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('label', 'attribute')),
+  name text not null,
+  value_type text not null default 'text',
+  options text[] not null default '{}',
+  color text,
+  description text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists workspace_option_definitions_user_type_idx
+  on public.workspace_option_definitions (user_id, type, created_at desc);
+
+create unique index if not exists workspace_option_definitions_user_type_name_key
+  on public.workspace_option_definitions (user_id, type, lower(name));
+
 create table if not exists public.user_notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -821,6 +840,11 @@ create trigger workspace_team_members_set_updated_at
 before update on public.workspace_team_members
 for each row execute function public.set_updated_at();
 
+drop trigger if exists workspace_option_definitions_set_updated_at on public.workspace_option_definitions;
+create trigger workspace_option_definitions_set_updated_at
+before update on public.workspace_option_definitions
+for each row execute function public.set_updated_at();
+
 drop trigger if exists user_notifications_set_updated_at on public.user_notifications;
 create trigger user_notifications_set_updated_at
 before update on public.user_notifications
@@ -882,6 +906,7 @@ alter table public.meta_lead_capture_configs enable row level security;
 alter table public.meta_lead_capture_events enable row level security;
 alter table public.razorpay_webhook_events enable row level security;
 alter table public.workspace_team_members enable row level security;
+alter table public.workspace_option_definitions enable row level security;
 alter table public.user_notifications enable row level security;
 alter table public.user_notification_preferences enable row level security;
 alter table public.developer_api_credentials enable row level security;
@@ -894,6 +919,13 @@ alter table public.email_campaigns enable row level security;
 drop policy if exists app_profiles_self_access on public.app_profiles;
 create policy app_profiles_self_access
 on public.app_profiles
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists workspace_option_definitions_self_access on public.workspace_option_definitions;
+create policy workspace_option_definitions_self_access
+on public.workspace_option_definitions
 for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
