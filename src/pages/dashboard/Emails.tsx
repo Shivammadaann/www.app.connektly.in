@@ -633,7 +633,7 @@ export default function Emails() {
 
   useEffect(() => {
     if (searchParams.get('setup') === '1') {
-      navigate('/dashboard/channels?channel=email&setup=1', { replace: true });
+      navigate('/dashboard/connections?section=channels&channel=email&setup=1', { replace: true });
     }
   }, [navigate, searchParams]);
 
@@ -720,7 +720,7 @@ export default function Emails() {
   };
 
   const openSetupModal = () => {
-    navigate('/dashboard/channels?channel=email&setup=1');
+    navigate('/dashboard/connections?section=channels&channel=email&setup=1');
   };
 
   const handleSaveConnection = async () => {

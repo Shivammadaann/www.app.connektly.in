@@ -570,7 +570,7 @@ export default function Catalog() {
             </div>
           </div>
           <Link
-            to="/dashboard/channels"
+            to="/dashboard/connections?section=channels"
             className="inline-flex items-center justify-center rounded-xl bg-amber-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-950"
           >
             Open Channels

@@ -34,7 +34,6 @@ import Contacts from './pages/dashboard/Contacts';
 import LeadList from './pages/dashboard/LeadList';
 import BusinessProfile from './pages/dashboard/BusinessProfile';
 import Catalog from './pages/dashboard/Catalog';
-import Channels from './pages/dashboard/Channels';
 import Insights from './pages/dashboard/Insights';
 import Integrations from './pages/dashboard/Integrations';
 import Notifications from './pages/dashboard/Notifications';
@@ -58,6 +57,14 @@ const Placeholder = ({ title }: { title: string }) => (
 
 const RootRoute = ({ session }: { session: Session | null }) => {
   return session ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+};
+
+const ChannelsRedirect = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  params.set('section', 'channels');
+
+  return <Navigate to={`/dashboard/connections?${params.toString()}`} replace />;
 };
 
 const ProtectedRoute = ({ children, session }: { children: ReactNode, session: Session | null }) => {
@@ -276,10 +283,10 @@ export default function App() {
               <Route path="commerce" element={<Navigate to="/dashboard/commerce/catalog" replace />} />
               <Route path="commerce/catalog" element={<Catalog />} />
               <Route path="profile" element={<BusinessProfile />} />
-              <Route path="channels" element={<Channels />} />
-              <Route path="channels/meta" element={<Navigate to="/dashboard/channels" replace />} />
-              <Route path="channels/other" element={<Navigate to="/dashboard/channels" replace />} />
-              <Route path="channel-status" element={<Channels />} />
+              <Route path="channels" element={<ChannelsRedirect />} />
+              <Route path="channels/meta" element={<ChannelsRedirect />} />
+              <Route path="channels/other" element={<ChannelsRedirect />} />
+              <Route path="channel-status" element={<ChannelsRedirect />} />
               <Route path="crm/analytics" element={<Placeholder title="CRM Analytics" />} />
               <Route path="crm/reports" element={<Placeholder title="CRM Reports" />} />
               <Route path="crm/leads" element={<Navigate to="/dashboard/leads" replace />} />

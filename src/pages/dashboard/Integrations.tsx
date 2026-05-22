@@ -21,6 +21,7 @@ import { clientConfig, hasMetaAdsLoginConfig, hasMetaLeadCaptureLoginConfig } fr
 import { beginMetaAdsLogin, beginMetaLeadCaptureLogin } from '../../lib/meta-sdk';
 import { useAppData } from '../../context/AppDataContext';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import Channels from './Channels';
 import type {
   MetaLeadCaptureSetupResponse,
   MetaAdsIntegrationSetupResponse,
@@ -376,6 +377,7 @@ export default function Integrations() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const activeConnectionsSection = searchParams.get('section') === 'channels' ? 'channels' : 'integrations';
   const { bootstrap, refresh } = useAppData();
   const [metaSetup, setMetaSetup] = useState<MetaLeadCaptureSetupResponse | null>(null);
   const [metaAdsSetup, setMetaAdsSetup] = useState<MetaAdsIntegrationSetupResponse | null>(null);
@@ -1006,6 +1008,65 @@ export default function Integrations() {
   const selectedConnection =
     connections.find((connection) => connection.id === selectedConnectionId) || connections[0];
   const connectedConnectionCount = connections.filter((connection) => connection.connected).length;
+
+  const setConnectionsSection = (section: 'channels' | 'integrations') => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('section', section);
+
+      if (section === 'channels') {
+        next.delete('integration');
+      } else {
+        next.delete('channel');
+        next.delete('setup');
+      }
+
+      return next;
+    });
+  };
+
+  const renderSectionToggle = () => (
+    <div className="inline-flex w-fit rounded-2xl border border-gray-100 bg-white p-1 shadow-sm">
+      {[
+        { id: 'channels', label: 'Channels' },
+        { id: 'integrations', label: 'Integrations' },
+      ].map((section) => {
+        const isActive = activeConnectionsSection === section.id;
+
+        return (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => setConnectionsSection(section.id as 'channels' | 'integrations')}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              isActive
+                ? 'bg-[#2364ff] text-white shadow-sm shadow-[#2364ff]/20'
+                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            {section.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderConnectionsHeader = () => (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Connections</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+          Manage external platforms, providers, webhooks, API access, and messaging channels from one place.
+        </p>
+      </div>
+      <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
+        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+        {activeConnectionsSection === 'channels'
+          ? 'Channels'
+          : `${connectedConnectionCount} of ${connections.length} connected`}
+      </div>
+    </div>
+  );
   const selectedConnectionStatusLabel = selectedConnection.connected ? 'Connected' : 'Not connected';
 
   const metaRows: ConnectionStatusRow[] = [
@@ -1168,7 +1229,7 @@ export default function Integrations() {
       return (
         <button
           type="button"
-          onClick={() => navigate(whatsAppConnected ? '/dashboard/channels' : '/onboarding/channel-connection')}
+          onClick={() => navigate(whatsAppConnected ? '/dashboard/connections?section=channels' : '/onboarding/channel-connection')}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
         >
           <CheckCircle2 className="h-4 w-4" />
@@ -1181,7 +1242,7 @@ export default function Integrations() {
       return (
         <button
           type="button"
-          onClick={() => navigate(emailConnection ? '/dashboard/emails' : '/dashboard/channels?channel=email&setup=1')}
+          onClick={() => navigate(emailConnection ? '/dashboard/emails' : '/dashboard/connections?section=channels&channel=email&setup=1')}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
         >
           <CheckCircle2 className="h-4 w-4" />
@@ -1215,20 +1276,20 @@ export default function Integrations() {
     );
   };
 
+  if (activeConnectionsSection === 'channels') {
+    return (
+      <div className="mx-auto max-w-7xl space-y-6">
+        {renderConnectionsHeader()}
+        {renderSectionToggle()}
+        <Channels />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Connections</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-            Manage external platforms, providers, webhooks, and API access from one place.
-          </p>
-        </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          {connectedConnectionCount} of {connections.length} connected
-        </div>
-      </div>
+      {renderConnectionsHeader()}
+      {renderSectionToggle()}
 
       {error && !isMetaModalOpen && !isMetaAdsModalOpen && !isWooCommerceModalOpen ? (
         <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>

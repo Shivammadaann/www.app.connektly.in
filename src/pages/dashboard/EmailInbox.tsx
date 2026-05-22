@@ -393,7 +393,7 @@ export default function EmailInbox() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => navigate('/dashboard/channels?channel=email&setup=1')}
+                  onClick={() => navigate('/dashboard/connections?section=channels&channel=email&setup=1')}
                   className="mt-4 inline-flex h-10 items-center rounded-xl bg-[#5b45ff] px-4 text-sm font-semibold text-white transition duration-200 hover:bg-[#4f3df1] active:scale-95"
                 >
                   Connect email
@@ -491,7 +491,7 @@ export default function EmailInbox() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate('/dashboard/channels?channel=email&setup=1')}
+              onClick={() => navigate('/dashboard/connections?section=channels&channel=email&setup=1')}
               className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-gray-400 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-gray-100 hover:text-gray-700 active:translate-y-0 active:scale-[0.97]"
               aria-label="Mail settings"
               title="Mail settings"

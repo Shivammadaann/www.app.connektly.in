@@ -1501,7 +1501,7 @@ export default function MetaAds() {
                   </p>
                   {!setup?.whatsAppAccounts.length ? (
                     <Link
-                      to="/dashboard/channels"
+                      to="/dashboard/connections?section=channels"
                       className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-[#5b45ff]"
                     >
                       Open Channels <Link2 className="h-3.5 w-3.5" />

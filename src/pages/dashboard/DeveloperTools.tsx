@@ -282,7 +282,7 @@ export default function DeveloperTools() {
             Connect a WhatsApp Business Account to view activity logs and audit trails.
           </p>
           <Link
-            to="/dashboard/channels"
+            to="/dashboard/connections?section=channels"
             className="mt-6 inline-flex items-center rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#4c38e0]"
           >
             Open channel setup

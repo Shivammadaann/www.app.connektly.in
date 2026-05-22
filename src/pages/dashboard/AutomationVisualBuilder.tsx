@@ -197,7 +197,7 @@ export default function AutomationVisualBuilder() {
             </p>
             <div className="mt-6">
               <Link
-                to="/dashboard/channels"
+                to="/dashboard/connections?section=channels"
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
               >
                 Open Channels

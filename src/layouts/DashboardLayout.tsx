@@ -28,7 +28,6 @@ import {
   GitMerge, 
   Phone, 
   Settings, 
-  Activity,
   Bell,
   Workflow,
   Menu,
@@ -671,17 +670,8 @@ export default function DashboardLayout() {
       icon: Puzzle,
       label: 'Connections',
       path: '/dashboard/connections',
-      activePaths: ['/dashboard/integrations', '/dashboard/integrations/meta-lead-capture'],
-      activePrefixes: ['/dashboard/connections', '/dashboard/developer'],
-    },
-    {
-      id: 'channels',
-      type: 'link',
-      icon: Activity,
-      label: 'Channels',
-      path: '/dashboard/channels',
-      activePaths: ['/dashboard/channel-status'],
-      activePrefixes: ['/dashboard/channels'],
+      activePaths: ['/dashboard/integrations', '/dashboard/integrations/meta-lead-capture', '/dashboard/channel-status'],
+      activePrefixes: ['/dashboard/connections', '/dashboard/developer', '/dashboard/channels'],
     },
   ];
 

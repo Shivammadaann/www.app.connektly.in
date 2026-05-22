@@ -234,13 +234,13 @@ export default function Home() {
     {
       label: 'WhatsApp',
       connected: Boolean(bootstrap?.channel),
-      path: '/dashboard/channels',
+      path: '/dashboard/connections?section=channels',
       icon: <ChannelBrandIcon channel="whatsapp" className="h-8 w-8" />,
     },
     {
       label: 'Instagram',
       connected: Boolean(bootstrap?.instagramChannel),
-      path: '/dashboard/channels',
+      path: '/dashboard/connections?section=channels',
       icon: <ChannelBrandIcon channel="instagram" className="h-8 w-8" />,
     },
     {
