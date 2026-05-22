@@ -14,7 +14,6 @@ import {
   BadgeCheck,
   Building2,
   CheckCircle2,
-  ExternalLink,
   Globe,
   Image,
   Link as LinkIcon,

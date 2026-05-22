@@ -262,23 +262,6 @@ export default function EmailInbox() {
     void loadInbox();
   }, [loadInbox]);
 
-  const folderCounts = useMemo(() => {
-    const counts = new Map<MailFolderId, number>();
-
-    for (const folder of mailFolders) {
-      counts.set(folder.id, 0);
-    }
-
-    for (const message of messages) {
-      const folder = normalizeFolder(message.folder);
-      counts.set(folder, (counts.get(folder) || 0) + 1);
-    }
-
-    counts.set('inbox', messages.length);
-
-    return counts;
-  }, [messages]);
-
   const filteredMessages = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     const folderMessages =

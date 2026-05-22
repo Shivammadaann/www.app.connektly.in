@@ -21,7 +21,6 @@ import {
   Search,
   Send,
   Server,
-  ShieldAlert,
   Trash2,
   Users,
   X,

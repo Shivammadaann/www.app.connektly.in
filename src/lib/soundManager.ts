@@ -1,5 +1,5 @@
-import notificationSoundUrl from '../../Notification.mp3';
-import whatsappIncomingCallSoundUrl from '../../whatsapp_incoming_call.mp3';
+import notificationSoundUrl from '../../assets/Notification.mp3';
+import whatsappIncomingCallSoundUrl from '../../assets/whatsapp_incoming_call.mp3';
 import type { NotificationPreferences, NotificationSoundPreset } from './types';
 
 type SoundKind = 'notification' | 'incoming_call' | 'outgoing_call' | 'call_connected';

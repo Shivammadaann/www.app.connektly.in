@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Loader2,
   RefreshCcw,
   ShieldCheck,
   Wrench,

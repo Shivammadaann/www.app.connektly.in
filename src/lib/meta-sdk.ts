@@ -98,22 +98,6 @@ function buildOauthState(flowState: MetaOAuthFlowState) {
   return `${flowState}:${generateOauthNonce()}`;
 }
 
-function extractFlowState(oauthState: string): MetaOAuthFlowState {
-  const [candidate] = oauthState.split(':');
-
-  if (
-    candidate === 'core_onboarding' ||
-    candidate === 'ads_flow' ||
-    candidate === 'lead_capture_flow' ||
-    candidate === 'instagram_flow' ||
-    candidate === 'messenger_flow'
-  ) {
-    return candidate;
-  }
-
-  return 'core_onboarding';
-}
-
 function getMetaLoginConfigurationId(key: MetaLoginConfigurationKey, label: string) {
   const configId = clientConfig.metaLoginConfigurations[key]?.trim();
 

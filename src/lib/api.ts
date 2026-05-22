@@ -1,5 +1,5 @@
 import { clientConfig } from './config';
-import { getCachedSession, supabase } from './supabase';
+import { getCachedSession } from './supabase';
 import type {
   ContactUpdateInput,
   ContactUpsertInput,

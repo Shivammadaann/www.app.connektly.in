@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
-  BarChart3,
   Bot,
   CheckCircle2,
   ChevronRight,
@@ -11,7 +10,6 @@ import {
   MessageSquarePlus,
   Phone,
   Plug,
-  Send,
   Sparkles,
   Target,
   TrendingDown,

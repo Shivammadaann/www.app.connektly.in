@@ -1,6 +1,5 @@
 import {
   Copy,
-  Loader2,
   Pencil,
   Plus,
   RefreshCcw,

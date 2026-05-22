@@ -267,10 +267,6 @@ function getStatusClassName(status: string) {
   }
 }
 
-function getFieldTypeLabel(type: WhatsAppFlowFieldType) {
-  return FIELD_TYPE_OPTIONS.find((option) => option.value === type)?.label || type;
-}
-
 function ModalShell({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: ReactNode }) {
   useEscapeKey(true, onClose);
 
@@ -458,7 +454,7 @@ function FlowEditor({
               </button>
             </div>
             <div className="divide-y divide-gray-100">
-              {draft.fields.map((field, index) => (
+              {draft.fields.map((field) => (
                 <div key={field.clientId} className="grid gap-3 px-4 py-4 lg:grid-cols-[1.2fr_1fr_0.8fr_auto_auto]">
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-medium text-gray-600">Label</span>

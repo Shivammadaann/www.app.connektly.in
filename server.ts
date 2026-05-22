@@ -884,10 +884,6 @@ function majorAmountToMinorUnits(value: number) {
   return Math.max(Math.round(value * 100), 0);
 }
 
-function minorAmountToMajorUnits(value: number) {
-  return Math.max(Math.round(value), 0) / 100;
-}
-
 function getWalletFeatureFlags(): WalletFeatureFlags {
   return {
     enablePlatformWallet,
@@ -3396,28 +3392,6 @@ function getMessageText(message: Record<string, unknown>) {
   }
 }
 
-function getMediaInfo(raw: Record<string, unknown>) {
-  const type = typeof raw.type === 'string' ? raw.type : null;
-
-  if (!type || !['image', 'video', 'audio', 'document', 'sticker'].includes(type)) {
-    return null;
-  }
-
-  const payload = raw[type] as { id?: string; mime_type?: string; filename?: string; caption?: string } | undefined;
-
-  if (!payload?.id) {
-    return null;
-  }
-
-  return {
-    mediaId: payload.id,
-    mimeType: payload.mime_type || null,
-    fileName: payload.filename || null,
-    caption: payload.caption || null,
-    mediaType: type,
-  };
-}
-
 function getMessengerThreadIdentity(senderId: string) {
   return `messenger:${senderId}`;
 }
@@ -3735,17 +3709,6 @@ function buildMetaApiError(
   return error;
 }
 
-function getMetaApiErrorCode(error: unknown) {
-  const directCode = (error as { metaCode?: unknown } | null)?.metaCode;
-  if (typeof directCode === 'number') {
-    return directCode;
-  }
-
-  const message = mapDbError(error);
-  const match = message.match(/\(code\s+(\d+)\)\s*$/i);
-  return match ? Number(match[1]) : null;
-}
-
 async function metaRequestDetailed<T>({
   accessToken,
   path: graphPath,
@@ -3997,25 +3960,6 @@ async function exchangeInstagramLongLivedAccessToken(accessToken: string) {
   };
 
   return payload.access_token;
-}
-
-async function normalizeInstagramLongLivedToken(
-  longLivedToken: string | undefined | null,
-  accessToken: string | undefined | null,
-) {
-  const normalizedLongLivedToken = normalizeOptionalString(longLivedToken);
-
-  if (normalizedLongLivedToken) {
-    return normalizedLongLivedToken;
-  }
-
-  const normalizedAccessToken = normalizeOptionalString(accessToken);
-
-  if (!normalizedAccessToken) {
-    throw new Error('Instagram Business Login did not return a usable access token.');
-  }
-
-  return exchangeInstagramLongLivedAccessToken(normalizedAccessToken);
 }
 
 type WhatsAppPhoneNumberSnapshot = {
@@ -17295,14 +17239,6 @@ function getTemplateFlowButtonIndex(raw: Record<string, unknown> | null | undefi
   return getTemplateFlowButton(raw)?.index || null;
 }
 
-function templateComponentsIncludeHeader(components: Array<Record<string, unknown>>) {
-  return components.some((component) => normalizeOptionalString(component.type)?.toLowerCase() === 'header');
-}
-
-function templateComponentsIncludeBody(components: Array<Record<string, unknown>>) {
-  return components.some((component) => normalizeOptionalString(component.type)?.toLowerCase() === 'body');
-}
-
 function templateMessageComponentHasParameters(component: Record<string, unknown> | null | undefined) {
   return Array.isArray(component?.parameters) && component.parameters.filter(isRecord).length > 0;
 }
@@ -17350,15 +17286,6 @@ function removeTemplateMessageComponents(
     }
 
     return normalizeOptionalString(component.sub_type)?.toLowerCase() !== normalizedSubType;
-  });
-}
-
-function templateComponentsIncludeFlowButton(components: Array<Record<string, unknown>>) {
-  return components.some((component) => {
-    return (
-      normalizeOptionalString(component.type)?.toLowerCase() === 'button' &&
-      normalizeOptionalString(component.sub_type)?.toLowerCase() === 'flow'
-    );
   });
 }
 
@@ -19328,8 +19255,6 @@ app.post('/api/meta/webhook', async (req, res) => {
 
     for (const entry of payload.entry || []) {
       for (const change of entry.changes || []) {
-        const changeField =
-          change && typeof change.field === 'string' ? change.field.trim().toLowerCase() : null;
         const value = change.value;
 
         const metadata = value && isRecord(value.metadata) ? (value.metadata as Record<string, unknown>) : null;

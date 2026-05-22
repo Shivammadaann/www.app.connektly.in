@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Copy,
   FileText,
-  ListChecks,
   Loader2,
   MessageSquareText,
   Pencil,
@@ -259,10 +258,6 @@ function getFilterSubject(triggerType: EditableTriggerType) {
     default:
       return 'WhatsApp message';
   }
-}
-
-function getConditionLabel(type: AutomationRuleFilterType) {
-  return FILTER_TYPE_OPTIONS.find((option) => option.value === type)?.label || 'Filter';
 }
 
 function getConditionSummary(condition: AutomationRuleFilterCondition) {
