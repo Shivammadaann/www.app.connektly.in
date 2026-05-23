@@ -19729,8 +19729,11 @@ function handleMessengerWebhookVerification(req: Request, res: Response) {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
+  const validTokens = new Set(
+    [messengerWebhookVerifyToken, instagramWebhookVerifyToken].filter(Boolean),
+  );
 
-  if (mode === 'subscribe' && token === messengerWebhookVerifyToken) {
+  if (mode === 'subscribe' && validTokens.has(String(token || ''))) {
     res.status(200).send(challenge);
     return;
   }
@@ -19742,8 +19745,11 @@ function handleInstagramWebhookVerification(req: Request, res: Response) {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
+  const validTokens = new Set(
+    [instagramWebhookVerifyToken, messengerWebhookVerifyToken].filter(Boolean),
+  );
 
-  if (mode === 'subscribe' && token === instagramWebhookVerifyToken) {
+  if (mode === 'subscribe' && validTokens.has(String(token || ''))) {
     res.status(200).send(challenge);
     return;
   }
@@ -19757,6 +19763,13 @@ async function handleMessengerWebhookEvent(req: Request, res: Response) {
       object?: string;
       entry?: Array<Record<string, unknown>>;
     };
+    const entries = Array.isArray(payload.entry) ? payload.entry : [];
+
+    console.info('Messenger/Page webhook received:', {
+      object: payload.object || null,
+      entries: entries.length,
+      path: req.path,
+    });
 
     if (payload.object === 'page') {
       await processMessengerWebhookPayload(payload);
@@ -20189,6 +20202,13 @@ async function handleInstagramWebhookEvent(req: Request, res: Response) {
       object?: string;
       entry?: Array<Record<string, unknown>>;
     };
+    const entries = Array.isArray(payload.entry) ? payload.entry : [];
+
+    console.info('Instagram webhook received:', {
+      object: payload.object || null,
+      entries: entries.length,
+      path: req.path,
+    });
 
     if (payload.object === 'instagram') {
       await processInstagramWebhookPayload(payload);
