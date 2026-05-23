@@ -1573,17 +1573,16 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
         flowState: session.flowState,
         oauthState: session.oauthState,
       });
+      const instagramLongLivedToken = token.accessToken;
       const { accounts } = await appApi.getInstagramConnectionOptions({
-        accessToken: token.accessToken,
-        longLivedToken: null,
+        longLivedToken: instagramLongLivedToken,
         flowState: session.flowState,
         oauthState: session.oauthState,
       });
 
       if (accounts.length === 1) {
         await appApi.connectInstagramBusinessLogin({
-          accessToken: token.accessToken,
-          longLivedToken: null,
+          longLivedToken: instagramLongLivedToken,
           pageId: accounts[0].pageId,
           flowState: session.flowState,
           oauthState: session.oauthState,
@@ -1595,8 +1594,8 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       }
 
       setInstagramSelection({
-        accessToken: token.accessToken,
-        longLivedToken: null,
+        accessToken: null,
+        longLivedToken: instagramLongLivedToken,
         flowState: session.flowState,
         oauthState: session.oauthState,
         accounts,
@@ -1620,16 +1619,22 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       setIsSavingInstagramSelection(true);
       clearMessages();
       await appApi.connectInstagramBusinessLogin({
-        ...(instagramSelection.accessToken
+        ...(instagramSelection.longLivedToken
           ? {
-              accessToken: instagramSelection.accessToken,
               longLivedToken: instagramSelection.longLivedToken,
               flowState: instagramSelection.flowState || undefined,
               oauthState: instagramSelection.oauthState || undefined,
             }
           : {}),
         pageId,
-        ...(!instagramSelection.accessToken
+        ...(!instagramSelection.longLivedToken && instagramSelection.accessToken
+          ? {
+              accessToken: instagramSelection.accessToken,
+              flowState: instagramSelection.flowState || undefined,
+              oauthState: instagramSelection.oauthState || undefined,
+            }
+          : {}),
+        ...(!instagramSelection.longLivedToken && !instagramSelection.accessToken
           ? {
               flowState: instagramSelection.flowState || undefined,
               oauthState: instagramSelection.oauthState || undefined,
