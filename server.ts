@@ -3574,6 +3574,13 @@ function parseMessengerInboundEvent(event: Record<string, unknown>) {
   return null;
 }
 
+function isMessengerPageMessagingEvent(event: Record<string, unknown>, pageId: string) {
+  const recipient = isRecord(event.recipient) ? event.recipient : null;
+  const recipientId = normalizeOptionalIdentifier(recipient?.id);
+
+  return Boolean(recipientId && recipientId === pageId);
+}
+
 function parseInstagramInboundEvent(event: Record<string, unknown>, instagramAccountId?: string | null) {
   const sender = isRecord(event.sender) ? event.sender : null;
   const recipient = isRecord(event.recipient) ? event.recipient : null;
@@ -10482,6 +10489,13 @@ async function sendRemoteInstagramTextMessage(args: {
       path: `${args.instagramAccountId}/messages`,
       body: messagePayload,
       label: 'Facebook Graph Instagram account messages',
+    });
+    attempts.push({
+      accessToken: args.pageAccessToken,
+      graphHost: 'graph.instagram.com',
+      path: `${args.instagramAccountId}/messages`,
+      body: messagePayload,
+      label: 'Instagram Graph Instagram account messages with Page token',
     });
     attempts.push({
       accessToken: args.pageAccessToken,
@@ -19865,6 +19879,10 @@ async function processMessengerWebhookPayload(payload: {
       : [];
 
     for (const event of events) {
+      if (!isMessengerPageMessagingEvent(event, pageId)) {
+        continue;
+      }
+
       const inboundEvent = parseMessengerInboundEvent(event);
 
       if (!inboundEvent) {
