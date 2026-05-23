@@ -124,6 +124,7 @@ export function mapConversationThreadRecord(row: Record<string, unknown>): Conve
     id: String(row.id),
     contactWaId,
     contactName: normalizeOptionalString(row.contact_name),
+    username: normalizeOptionalString(row.username),
     displayPhone,
     email: normalizeOptionalString(row.email),
     source: normalizeOptionalString(row.source),

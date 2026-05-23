@@ -103,12 +103,20 @@ function getContactName(contact: ConversationThread) {
 }
 
 function getContactPhone(contact: ConversationThread) {
+  if (getConversationDisplayChannel(contact) !== 'whatsapp') {
+    return contact.username || getConversationDisplayDetail(contact) || '';
+  }
+
   return getConversationDisplayDetail(contact) || contact.displayPhone || formatContactIdentity(contact.contactWaId) || contact.contactWaId || '';
 }
 
 function getContactIdentifierLabel(contact: ConversationThread) {
+  if (getConversationDisplayChannel(contact) === 'instagram') {
+    return `Instagram: ${contact.username || getConversationDisplayName(contact)}`;
+  }
+
   if (getConversationDisplayChannel(contact) === 'messenger') {
-    return `Messenger PSID: ${contact.displayPhone || contact.contactWaId}`;
+    return `Messenger: ${contact.username || getConversationDisplayName(contact)}`;
   }
 
   return `WA ID: ${formatContactIdentity(contact.contactWaId) || contact.contactWaId}`;

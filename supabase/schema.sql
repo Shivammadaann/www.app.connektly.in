@@ -308,6 +308,7 @@ create table if not exists public.conversation_threads (
   meta_channel_id uuid references public.meta_channels(id) on delete set null,
   contact_wa_id text not null,
   contact_name text,
+  username text,
   display_phone text,
   email text,
   source text,
@@ -328,6 +329,7 @@ create table if not exists public.conversation_threads (
 );
 
 alter table public.conversation_threads add column if not exists email text;
+alter table public.conversation_threads add column if not exists username text;
 alter table public.conversation_threads add column if not exists source text;
 alter table public.conversation_threads add column if not exists remark text;
 alter table public.conversation_threads add column if not exists attributes jsonb not null default '{}'::jsonb;

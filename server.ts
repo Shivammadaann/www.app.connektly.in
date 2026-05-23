@@ -11470,6 +11470,7 @@ function mapThread(row: Record<string, unknown>): ConversationThread {
     id: String(row.id),
     contactWaId: normalizeContactIdentity(row.contact_wa_id) || String(row.contact_wa_id),
     contactName: (row.contact_name as string | null) || null,
+    username: normalizeOptionalString(row.username),
     displayPhone: getThreadDisplayPhone(row),
     email: (row.email as string | null) || null,
     source: (row.source as string | null) || null,
@@ -12410,6 +12411,7 @@ async function enrichMessengerThreadProfiles(
     const { attributes } = getMessengerProfileEnrichmentMetadata(row);
     const payload: Record<string, unknown> = {
       source: 'Messenger',
+      username: profile?.name || normalizeOptionalString(row.username) || null,
       display_phone: senderId,
       attributes: {
         ...attributes,
@@ -12548,6 +12550,7 @@ async function syncMessengerPageConversations(args: {
       metaChannelId: null,
       contactWaId: getMessengerThreadIdentity(customerId),
       contactName,
+      username: contactName,
       displayPhone: customerId,
       source: 'Messenger',
       remark: latestMessageBody,
@@ -12674,6 +12677,7 @@ async function enrichInstagramThreadProfiles(
     const displayHandle = profile.username ? `@${profile.username}` : null;
     const payload: Record<string, unknown> = {
       source: 'Instagram',
+      username: displayHandle || profile.name || normalizeOptionalString(row.username) || null,
       display_phone: displayHandle || normalizeOptionalString(row.display_phone) || senderId,
       updated_at: new Date().toISOString(),
     };
@@ -18199,6 +18203,7 @@ async function upsertThread(args: {
   metaChannelId: string | null;
   contactWaId: string;
   contactName?: string | null;
+  username?: string | null;
   displayPhone?: string | null;
   email?: string | null;
   source?: string | null;
@@ -18255,6 +18260,7 @@ async function upsertThread(args: {
     meta_channel_id: args.metaChannelId ?? existingRow?.meta_channel_id ?? null,
     contact_wa_id: contactWaId,
     contact_name: args.contactName ?? existingRow?.contact_name ?? null,
+    username: args.username ?? existingRow?.username ?? null,
     display_phone:
       explicitDisplayPhone ??
       (canonicalPhone ? `+${canonicalPhone}` : normalizeOptionalString(existingRow?.display_phone)) ??
@@ -19957,6 +19963,7 @@ async function processMessengerWebhookPayload(payload: {
         metaChannelId: null,
         contactWaId: getMessengerThreadIdentity(inboundEvent.senderId),
         contactName: fetchedContactName,
+        username: fetchedContactName,
         displayPhone: inboundEvent.senderId,
         source: 'Messenger',
         remark: inboundEvent.body,
@@ -20185,6 +20192,7 @@ async function processInstagramWebhookPayload(payload: {
         metaChannelId: null,
         contactWaId: getInstagramThreadIdentity(inboundEvent.senderId),
         contactName,
+        username: displayHandle || profile?.name || null,
         displayPhone: contactValue,
         source: 'Instagram',
         remark: inboundEvent.body,

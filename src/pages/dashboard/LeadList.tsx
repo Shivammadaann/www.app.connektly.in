@@ -56,12 +56,20 @@ function getLeadName(thread: ConversationThread) {
 }
 
 function getLeadPhone(thread: ConversationThread) {
+  if (getConversationDisplayChannel(thread) !== 'whatsapp') {
+    return thread.username || getConversationDisplayDetail(thread) || '';
+  }
+
   return getConversationDisplayDetail(thread) || thread.displayPhone || formatContactIdentity(thread.contactWaId) || thread.contactWaId;
 }
 
 function getLeadIdentifierLabel(thread: ConversationThread) {
+  if (getConversationDisplayChannel(thread) === 'instagram') {
+    return `Instagram: ${thread.username || getConversationDisplayName(thread)}`;
+  }
+
   if (getConversationDisplayChannel(thread) === 'messenger') {
-    return `Messenger PSID: ${thread.displayPhone || thread.contactWaId}`;
+    return `Messenger: ${thread.username || getConversationDisplayName(thread)}`;
   }
 
   return `WA ID: ${formatContactIdentity(thread.contactWaId) || thread.contactWaId}`;

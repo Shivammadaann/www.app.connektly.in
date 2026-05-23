@@ -221,6 +221,12 @@ function ContactDetailsContent({
   isMarketingOptUpdating?: boolean;
 }) {
   const isMarketingOptedIn = !activeThread?.marketingOptedOut;
+  const isExternalMessagingThread =
+    activeThreadChannel === 'instagram' || activeThreadChannel === 'messenger';
+  const usernameLabel = activeThreadChannel === 'instagram' ? 'Instagram Username' : 'Messenger Name';
+  const usernameValue =
+    activeThread?.username ||
+    (isExternalMessagingThread ? getConversationDisplayDetail(activeThread) : null);
 
   return (
     <div className="h-full bg-white px-4 py-3">
@@ -269,13 +275,23 @@ function ContactDetailsContent({
           onToggle={() => onToggleSection('contact')}
         >
           <div className="space-y-1">
-            <div className="-mx-2 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-2 py-1.5 transition hover:bg-gray-50">
-              <Phone className="mt-0.5 h-4 w-4 text-gray-400" />
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-gray-400">Phone</p>
-                <p className="truncate text-sm font-medium text-gray-900">{getConversationDisplayDetail(activeThread) || 'No phone available'}</p>
+            {isExternalMessagingThread ? (
+              <div className="-mx-2 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-2 py-1.5 transition hover:bg-gray-50">
+                <User className="mt-0.5 h-4 w-4 text-gray-400" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-gray-400">{usernameLabel}</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{usernameValue || 'Username unavailable'}</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="-mx-2 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-2 py-1.5 transition hover:bg-gray-50">
+                <Phone className="mt-0.5 h-4 w-4 text-gray-400" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-gray-400">Phone</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{getConversationDisplayDetail(activeThread) || 'No phone available'}</p>
+                </div>
+              </div>
+            )}
             <div className="-mx-2 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-2 py-1.5 transition hover:bg-gray-50">
               <Mail className="mt-0.5 h-4 w-4 text-gray-400" />
               <div className="min-w-0">
@@ -283,40 +299,42 @@ function ContactDetailsContent({
                 <p className="truncate text-sm font-medium text-gray-900">No email synced</p>
               </div>
             </div>
-            <div className="-mx-2 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-2 py-2 transition hover:bg-gray-50">
-              <ToggleLeft className="mt-0.5 h-4 w-4 text-gray-400" />
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium text-gray-400">WhatsApp Marketing</p>
-                    <p className="mt-0.5 text-sm font-medium text-gray-900">
-                      {isMarketingOptedIn ? 'Opted In' : 'Opted Out'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={isMarketingOptedIn}
-                    onClick={onToggleMarketingOptIn}
-                    disabled={!activeThread || !onToggleMarketingOptIn || isMarketingOptUpdating}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                      isMarketingOptedIn ? 'border-emerald-400 bg-emerald-500' : 'border-gray-300 bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                        isMarketingOptedIn ? 'translate-x-5' : 'translate-x-0.5'
+            {activeThreadChannel === 'whatsapp' ? (
+              <div className="-mx-2 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-2 py-2 transition hover:bg-gray-50">
+                <ToggleLeft className="mt-0.5 h-4 w-4 text-gray-400" />
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium text-gray-400">WhatsApp Marketing</p>
+                      <p className="mt-0.5 text-sm font-medium text-gray-900">
+                        {isMarketingOptedIn ? 'Opted In' : 'Opted Out'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isMarketingOptedIn}
+                      onClick={onToggleMarketingOptIn}
+                      disabled={!activeThread || !onToggleMarketingOptIn || isMarketingOptUpdating}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isMarketingOptedIn ? 'border-emerald-400 bg-emerald-500' : 'border-gray-300 bg-gray-300'
                       }`}
-                    />
-                  </button>
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                          isMarketingOptedIn ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">
+                    {activeThread?.marketingOptedOut
+                      ? 'Marketing template campaigns are blocked for this contact.'
+                      : 'This contact can receive WhatsApp marketing campaign templates.'}
+                  </p>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-gray-500">
-                  {activeThread?.marketingOptedOut
-                    ? 'Marketing template campaigns are blocked for this contact.'
-                    : 'This contact can receive WhatsApp marketing campaign templates.'}
-                </p>
               </div>
-            </div>
+            ) : null}
           </div>
         </DetailsAccordionSection>
 
@@ -1625,6 +1643,7 @@ function areThreadsEquivalent(left: ConversationThread, right: ConversationThrea
     left.id === right.id &&
     left.contactWaId === right.contactWaId &&
     left.contactName === right.contactName &&
+    left.username === right.username &&
     left.displayPhone === right.displayPhone &&
     left.email === right.email &&
     left.source === right.source &&
@@ -3097,7 +3116,7 @@ export default function Inbox() {
           return true;
         }
 
-        const haystack = `${getConversationDisplayName(thread)} ${thread.contactName || ''} ${thread.lastMessageText || ''} ${thread.displayPhone || ''}`.toLowerCase();
+        const haystack = `${getConversationDisplayName(thread)} ${thread.contactName || ''} ${thread.username || ''} ${thread.lastMessageText || ''} ${thread.displayPhone || ''}`.toLowerCase();
         return haystack.includes(deferredQuery.trim().toLowerCase());
       })
       .sort(sortThreadsReverseChronological);

@@ -399,6 +399,7 @@ export interface ConversationThread {
   id: string;
   contactWaId: string;
   contactName: string | null;
+  username: string | null;
   displayPhone: string | null;
   email: string | null;
   source: string | null;

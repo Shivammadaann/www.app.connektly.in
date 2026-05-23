@@ -55,13 +55,14 @@ export function getConversationDisplayName(thread: ConversationThread | null | u
 
   const channel = getConversationDisplayChannel(thread);
   const contactName = normalizeOptionalString(thread.contactName);
+  const username = normalizeOptionalString(thread.username);
 
   if (channel === 'messenger') {
-    return isPlaceholderMessengerName(contactName) ? 'Messenger User' : contactName;
+    return isPlaceholderMessengerName(contactName) ? username || 'Messenger User' : contactName;
   }
 
   if (channel === 'instagram') {
-    return contactName || thread.displayPhone || 'Instagram User';
+    return contactName || username || 'Instagram User';
   }
 
   return contactName || thread.displayPhone || formatContactIdentity(thread.contactWaId) || thread.contactWaId || 'Contact';
@@ -75,9 +76,13 @@ export function getConversationDisplayDetail(thread: ConversationThread | null |
   const channel = getConversationDisplayChannel(thread);
 
   if (channel === 'messenger') {
-    return isPlaceholderMessengerName(thread.contactName)
+    return thread.username || (isPlaceholderMessengerName(thread.contactName)
       ? 'Profile unavailable from Meta'
-      : thread.displayPhone || thread.contactWaId;
+      : thread.displayPhone || thread.contactWaId);
+  }
+
+  if (channel === 'instagram') {
+    return thread.username || thread.contactName || '';
   }
 
   return thread.displayPhone || formatContactIdentity(thread.contactWaId) || thread.contactWaId || '';
