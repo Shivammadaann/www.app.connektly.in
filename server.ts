@@ -272,8 +272,8 @@ const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABA
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const metaAppId = process.env.META_APP_ID || process.env.VITE_META_APP_ID || '';
 const metaAppSecret = process.env.META_APP_SECRET || '';
-const instagramAppId = process.env.INSTAGRAM_APP_ID || metaAppId;
-const instagramAppSecret = process.env.INSTAGRAM_APP_SECRET || metaAppSecret;
+const instagramAppId = process.env.INSTAGRAM_APP_ID || process.env.VITE_INSTAGRAM_APP_ID || '1364707755710909';
+const instagramAppSecret = process.env.INSTAGRAM_APP_SECRET || '';
 const metaRedirectUri = process.env.META_REDIRECT_URI || '';
 const metaWebhookVerifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || '';
 const messengerWebhookVerifyToken = process.env.MESSENGER_WEBHOOK_VERIFY_TOKEN || metaWebhookVerifyToken;
@@ -308,6 +308,12 @@ const DEFAULT_INSTAGRAM_WEBHOOK_FIELDS = [
   'messaging_postbacks',
   'message_reactions',
   'message_reads',
+] as const;
+const DEFAULT_INSTAGRAM_LOGIN_WEBHOOK_FIELDS = [
+  'messages',
+  'messaging_seen',
+  'messaging_postbacks',
+  'message_reactions',
 ] as const;
 const DEVELOPER_API_SCOPES: DeveloperApiScope[] = [
   'messages:read',
@@ -3998,17 +4004,16 @@ async function exchangeEmbeddedSignupCode(
 }
 
 async function exchangeInstagramLongLivedAccessToken(accessToken: string) {
-  if (!instagramAppId || !instagramAppSecret) {
+  if (!instagramAppSecret) {
     throw new Error(
-      'Instagram Business Login did not return a long-lived token, and INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET are not configured for token exchange.',
+      'Instagram Login did not return a long-lived token, and INSTAGRAM_APP_SECRET is not configured for token exchange.',
     );
   }
 
-  const url = new URL(`https://graph.facebook.com/${graphVersion}/oauth/access_token`);
-  url.searchParams.set('grant_type', 'fb_exchange_token');
-  url.searchParams.set('client_id', instagramAppId);
+  const url = new URL('https://graph.instagram.com/access_token');
+  url.searchParams.set('grant_type', 'ig_exchange_token');
   url.searchParams.set('client_secret', instagramAppSecret);
-  url.searchParams.set('fb_exchange_token', accessToken);
+  url.searchParams.set('access_token', accessToken);
 
   const response = await fetch(url);
 
@@ -4034,6 +4039,62 @@ async function exchangeInstagramLongLivedAccessToken(accessToken: string) {
   };
 
   return payload.access_token;
+}
+
+async function exchangeInstagramLoginCode(
+  code: string,
+  options: {
+    redirectUri: string;
+  },
+) {
+  if (!instagramAppId || !instagramAppSecret) {
+    throw new Error('INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET are required for Instagram Login.');
+  }
+
+  const body = new URLSearchParams();
+  body.set('client_id', instagramAppId);
+  body.set('client_secret', instagramAppSecret);
+  body.set('grant_type', 'authorization_code');
+  body.set('redirect_uri', options.redirectUri);
+  body.set('code', code);
+
+  const response = await fetch('https://api.instagram.com/oauth/access_token', {
+    method: 'POST',
+    body,
+  });
+
+  if (!response.ok) {
+    let message = `Failed to exchange Instagram authorization code (${response.status}).`;
+
+    try {
+      const payload = (await response.json()) as {
+        error_message?: string;
+        error_description?: string;
+      };
+      message = payload.error_message || payload.error_description || message;
+    } catch {
+      // Keep the generic status message.
+    }
+
+    throw new Error(message);
+  }
+
+  const payload = (await response.json()) as {
+    access_token?: string;
+    user_id?: string | number;
+    permissions?: string[];
+  };
+  const shortLivedToken = normalizeOptionalString(payload.access_token);
+
+  if (!shortLivedToken) {
+    throw new Error('Instagram Login did not return an access token.');
+  }
+
+  return {
+    accessToken: await exchangeInstagramLongLivedAccessToken(shortLivedToken),
+    userId: normalizeOptionalIdentifier(payload.user_id),
+    permissions: Array.isArray(payload.permissions) ? payload.permissions.filter((entry): entry is string => typeof entry === 'string') : [],
+  };
 }
 
 type WhatsAppPhoneNumberSnapshot = {
@@ -8652,6 +8713,20 @@ async function subscribeInstagramPageToWebhook(accessToken: string, pageId: stri
   });
 }
 
+async function subscribeInstagramAccountToWebhook(accessToken: string, instagramAccountId: string) {
+  return metaRequestDetailed<{
+    success?: boolean;
+  }>({
+    accessToken,
+    graphHost: 'graph.instagram.com',
+    path: `${instagramAccountId}/subscribed_apps`,
+    method: 'POST',
+    query: {
+      subscribed_fields: DEFAULT_INSTAGRAM_LOGIN_WEBHOOK_FIELDS.join(','),
+    },
+  });
+}
+
 async function fetchInstagramAccountProfile(
   userAccessToken: string,
   pageAccessToken: string,
@@ -8684,6 +8759,22 @@ async function fetchInstagramAccountProfile(
       query,
     });
   }
+}
+
+async function fetchInstagramLoginProfile(accessToken: string) {
+  return metaRequestDetailed<{
+    id?: string;
+    username?: string;
+    name?: string;
+    profile_picture_url?: string;
+  }>({
+    accessToken,
+    graphHost: 'graph.instagram.com',
+    path: 'me',
+    query: {
+      fields: 'id,username,name,profile_picture_url',
+    },
+  });
 }
 
 async function fetchMessengerUserProfile(accessToken: string, senderId: string) {
@@ -11212,7 +11303,7 @@ function mapInstagramChannel(row: Record<string, unknown> | null): InstagramChan
     instagramUsername: normalizeOptionalString(row.instagram_username),
     instagramName: normalizeOptionalString(row.instagram_name),
     profilePictureUrl: normalizeOptionalString(row.profile_picture_url),
-    pageId: String(row.page_id),
+    pageId: normalizeOptionalIdentifier(row.page_id),
     pageName: normalizeOptionalString(row.page_name),
     userAccessTokenLast4: normalizeOptionalString(row.user_access_token_last4),
     pageAccessTokenLast4: normalizeOptionalString(row.page_access_token_last4),
@@ -15420,14 +15511,24 @@ async function getInstagramChannelWithToken(userId: string) {
   }
 
   const row = data as Record<string, unknown>;
-  const pageAccessToken = decryptAccessToken(String(row.page_access_token_ciphertext));
   const userAccessTokenCiphertext = normalizeOptionalString(row.user_access_token_ciphertext);
+  const pageAccessTokenCiphertext = normalizeOptionalString(row.page_access_token_ciphertext);
+  const userAccessToken = userAccessTokenCiphertext
+    ? decryptAccessToken(userAccessTokenCiphertext)
+    : pageAccessTokenCiphertext
+      ? decryptAccessToken(pageAccessTokenCiphertext)
+      : null;
+  const pageAccessToken = pageAccessTokenCiphertext ? decryptAccessToken(pageAccessTokenCiphertext) : userAccessToken;
+
+  if (!userAccessToken) {
+    throw new Error('Instagram channel is missing its access token. Reconnect Instagram.');
+  }
 
   return {
     row,
-    accessToken: pageAccessToken,
-    pageAccessToken,
-    userAccessToken: userAccessTokenCiphertext ? decryptAccessToken(userAccessTokenCiphertext) : pageAccessToken,
+    accessToken: userAccessToken,
+    pageAccessToken: pageAccessToken || undefined,
+    userAccessToken,
   };
 }
 
@@ -17011,8 +17112,8 @@ async function saveMetaChannel(args: {
 async function saveInstagramChannel(args: {
   userId: string;
   userAccessToken: string;
-  pageAccessToken: string;
-  pageId: string;
+  pageAccessToken?: string | null;
+  pageId?: string | null;
   pageName: string | null;
   instagramAccountId: string;
   instagramUsername: string | null;
@@ -17021,9 +17122,17 @@ async function saveInstagramChannel(args: {
 }) {
   let webhookSubscribed = false;
   let webhookLastError: string | null = null;
+  const webhookFields =
+    args.pageAccessToken && args.pageId
+      ? [...DEFAULT_INSTAGRAM_WEBHOOK_FIELDS]
+      : [...DEFAULT_INSTAGRAM_LOGIN_WEBHOOK_FIELDS];
 
   try {
-    await subscribeInstagramPageToWebhook(args.pageAccessToken, args.pageId);
+    if (args.pageAccessToken && args.pageId) {
+      await subscribeInstagramPageToWebhook(args.pageAccessToken, args.pageId);
+    } else {
+      await subscribeInstagramAccountToWebhook(args.userAccessToken, args.instagramAccountId);
+    }
     webhookSubscribed = true;
   } catch (error) {
     webhookLastError = mapDbError(error);
@@ -17031,22 +17140,22 @@ async function saveInstagramChannel(args: {
 
   const payload = {
     user_id: args.userId,
-    connection_method: 'business_login',
+    connection_method: args.pageAccessToken && args.pageId ? 'business_login' : 'instagram_login',
     status: 'connected',
     instagram_account_id: args.instagramAccountId,
     instagram_username: args.instagramUsername,
     instagram_name: args.instagramName,
     profile_picture_url: args.profilePictureUrl,
-    page_id: args.pageId,
+    page_id: args.pageId || null,
     page_name: args.pageName,
     user_access_token_ciphertext: encryptAccessToken(args.userAccessToken),
     user_access_token_last4: last4(args.userAccessToken),
-    page_access_token_ciphertext: encryptAccessToken(args.pageAccessToken),
-    page_access_token_last4: last4(args.pageAccessToken),
+    page_access_token_ciphertext: args.pageAccessToken ? encryptAccessToken(args.pageAccessToken) : null,
+    page_access_token_last4: args.pageAccessToken ? last4(args.pageAccessToken) : null,
     metadata: {
       webhookSubscription: {
         subscribed: webhookSubscribed,
-        fields: [...DEFAULT_INSTAGRAM_WEBHOOK_FIELDS],
+        fields: webhookFields,
         lastError: webhookLastError,
         updatedAt: new Date().toISOString(),
       },
@@ -17076,11 +17185,12 @@ async function updateInstagramWebhookSubscription(args: {
   row: Record<string, unknown>;
   subscribed: boolean;
   lastError: string | null;
+  fields: string[];
 }) {
   const metadata = isRecord(args.row.metadata) ? { ...args.row.metadata } : {};
   metadata.webhookSubscription = {
     subscribed: args.subscribed,
-    fields: [...DEFAULT_INSTAGRAM_WEBHOOK_FIELDS],
+    fields: args.fields,
     lastError: args.lastError,
     updatedAt: new Date().toISOString(),
   };
@@ -17106,20 +17216,30 @@ async function updateInstagramWebhookSubscription(args: {
 }
 
 async function activateInstagramWebhookSubscription(userId: string) {
-  const { row, accessToken } = await getInstagramChannelWithToken(userId);
+  const { row, accessToken, pageAccessToken } = await getInstagramChannelWithToken(userId);
   const pageId = normalizeOptionalIdentifier(row.page_id);
+  const instagramAccountId = normalizeOptionalIdentifier(row.instagram_account_id);
+  const webhookFields =
+    pageId && pageAccessToken
+      ? [...DEFAULT_INSTAGRAM_WEBHOOK_FIELDS]
+      : [...DEFAULT_INSTAGRAM_LOGIN_WEBHOOK_FIELDS];
 
-  if (!pageId) {
-    throw new Error('Instagram channel is missing the linked Facebook Page ID.');
+  if (!instagramAccountId) {
+    throw new Error('Instagram channel is missing the Instagram account ID.');
   }
 
   try {
-    await subscribeInstagramPageToWebhook(accessToken, pageId);
+    if (pageId && pageAccessToken) {
+      await subscribeInstagramPageToWebhook(pageAccessToken, pageId);
+    } else {
+      await subscribeInstagramAccountToWebhook(accessToken, instagramAccountId);
+    }
     return updateInstagramWebhookSubscription({
       userId,
       row,
       subscribed: true,
       lastError: null,
+      fields: webhookFields,
     });
   } catch (error) {
     await updateInstagramWebhookSubscription({
@@ -17127,6 +17247,7 @@ async function activateInstagramWebhookSubscription(userId: string) {
       row,
       subscribed: false,
       lastError: mapDbError(error),
+      fields: webhookFields,
     });
     throw error;
   }
@@ -17178,38 +17299,23 @@ async function saveMessengerChannel(args: {
 }
 
 async function listInstagramConnectableAccounts(longLivedToken: string) {
-  const pages = await fetchInstagramPages(longLivedToken);
-  const connectablePages = pages.filter(
-    (page) => normalizeOptionalString(page.access_token) && normalizeOptionalString(page.instagram_business_account?.id),
-  );
+  const profile = await fetchInstagramLoginProfile(longLivedToken);
+  const instagramAccountId = normalizeOptionalIdentifier(profile.id);
 
-  const accounts = await Promise.all(
-    connectablePages.map(async (page) => {
-      const pageAccessToken = normalizeOptionalString(page.access_token);
-      const instagramAccountId = normalizeOptionalString(page.instagram_business_account?.id);
+  if (!instagramAccountId) {
+    return [];
+  }
 
-      if (!pageAccessToken || !instagramAccountId) {
-        return null;
-      }
-
-      const profile = await fetchInstagramAccountProfile(
-        longLivedToken,
-        pageAccessToken,
-        instagramAccountId,
-      ).catch(() => null);
-
-      return {
-        pageId: String(page.id),
-        pageName: normalizeOptionalString(page.name),
-        instagramAccountId,
-        instagramUsername: normalizeOptionalString(profile?.username),
-        instagramName: normalizeOptionalString(profile?.name),
-        profilePictureUrl: normalizeOptionalString(profile?.profile_picture_url),
-      } as InstagramConnectableAccount;
-    }),
-  );
-
-  return accounts.filter(Boolean) as InstagramConnectableAccount[];
+  return [
+    {
+      pageId: instagramAccountId,
+      pageName: null,
+      instagramAccountId,
+      instagramUsername: normalizeOptionalString(profile.username),
+      instagramName: normalizeOptionalString(profile.name),
+      profilePictureUrl: normalizeOptionalString(profile.profile_picture_url),
+    },
+  ];
 }
 
 async function listMessengerConnectablePages(userAccessToken: string) {
@@ -21731,14 +21837,21 @@ app.post('/api/meta/oauth/exchange', async (req, res) => {
       throw new Error('A valid Meta OAuth flow state is required.');
     }
 
-    const accessToken = await exchangeEmbeddedSignupCode(normalizedCode, {
-      redirectUri: normalizedRedirectUri,
-      requestReferer: req.get('referer') || undefined,
-      requestOrigin: req.get('origin') || undefined,
-    });
+    const exchangeResult =
+      normalizedFlowState === 'instagram_flow'
+        ? await exchangeInstagramLoginCode(normalizedCode, {
+            redirectUri: normalizedRedirectUri,
+          })
+        : {
+            accessToken: await exchangeEmbeddedSignupCode(normalizedCode, {
+              redirectUri: normalizedRedirectUri,
+              requestReferer: req.get('referer') || undefined,
+              requestOrigin: req.get('origin') || undefined,
+            }),
+          };
 
     res.json({
-      accessToken,
+      accessToken: exchangeResult.accessToken,
       flowState: normalizedFlowState,
       oauthState: normalizeOptionalString(oauthState),
     } satisfies MetaOAuthCodeExchangeResponse);
@@ -22048,7 +22161,7 @@ app.post('/api/instagram/connect/options', async (req, res) => {
 
     if (accounts.length === 0) {
       throw new Error(
-        'Meta did not return any Instagram Professional account connected to a Facebook Page for this login.',
+        'Instagram Login did not return an Instagram Professional account for this login.',
       );
     }
 
@@ -22060,58 +22173,29 @@ app.post('/api/instagram/connect/options', async (req, res) => {
 
 app.post('/api/instagram/connect/business-login', async (req, res) => {
   try {
-    const { longLivedToken, accessToken, pageId } = req.body as ConnectInstagramBusinessLoginInput;
+    const { longLivedToken, accessToken } = req.body as ConnectInstagramBusinessLoginInput;
     const normalizedToken = await resolveInstagramBusinessToken(
       req.authedUser!.id,
       longLivedToken,
       accessToken,
     );
-    const pages = await fetchInstagramPages(normalizedToken);
-    const connectablePages = pages.filter(
-      (page) =>
-        normalizeOptionalString(page.access_token) &&
-        normalizeOptionalString(page.instagram_business_account?.id),
-    );
+    const profile = await fetchInstagramLoginProfile(normalizedToken);
+    const instagramAccountId = normalizeOptionalIdentifier(profile.id);
 
-    if (connectablePages.length === 0) {
-      throw new Error(
-        'Meta did not return any Instagram Professional account connected to a Facebook Page for this login.',
-      );
+    if (!instagramAccountId) {
+      throw new Error('Instagram Login did not return an Instagram Professional account ID.');
     }
 
-    const selectedPage =
-      (pageId
-        ? connectablePages.find((page) => String(page.id) === pageId)
-        : connectablePages.length === 1
-          ? connectablePages[0]
-          : null) || null;
-
-    if (!selectedPage) {
-      throw new Error('Select the Instagram account you want to connect before saving it.');
-    }
-
-    const pageAccessToken = normalizeOptionalString(selectedPage.access_token);
-    const instagramAccountId = normalizeOptionalString(selectedPage.instagram_business_account?.id);
-
-    if (!pageAccessToken || !instagramAccountId) {
-      throw new Error('Meta returned an incomplete Instagram account payload for the selected Page.');
-    }
-
-    const profile = await fetchInstagramAccountProfile(
-      normalizedToken,
-      pageAccessToken,
-      instagramAccountId,
-    ).catch(() => null);
     const channel = await saveInstagramChannel({
       userId: req.authedUser!.id,
       userAccessToken: normalizedToken,
-      pageAccessToken,
-      pageId: String(selectedPage.id),
-      pageName: normalizeOptionalString(selectedPage.name),
+      pageAccessToken: null,
+      pageId: null,
+      pageName: null,
       instagramAccountId,
-      instagramUsername: normalizeOptionalString(profile?.username),
-      instagramName: normalizeOptionalString(profile?.name),
-      profilePictureUrl: normalizeOptionalString(profile?.profile_picture_url),
+      instagramUsername: normalizeOptionalString(profile.username),
+      instagramName: normalizeOptionalString(profile.name),
+      profilePictureUrl: normalizeOptionalString(profile.profile_picture_url),
     });
 
     res.json({ channel });

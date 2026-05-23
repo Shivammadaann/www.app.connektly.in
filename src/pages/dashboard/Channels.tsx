@@ -1089,8 +1089,8 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
         connected: isInstagramConnected,
         icon: 'instagram',
         description: isInstagramConnected
-          ? 'Instagram is connected through Meta Business Login and linked to the selected Facebook Page.'
-          : 'Connect an Instagram Professional account and its linked Facebook Page through Meta Business Login.',
+          ? 'Instagram is connected through Instagram Login.'
+          : 'Connect an Instagram Professional account through Instagram Login.',
       },
       {
         id: 'messenger',
@@ -1191,17 +1191,10 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
           statusTone: 'text-green-700 bg-green-50 border-green-200',
         },
         {
-          label: 'Connected Facebook Page',
-          account: instagramChannel?.pageName || instagramChannel?.pageId || 'Page connected',
-          detail: `Page ID: ${instagramChannel?.pageId}`,
-          statusText: 'Connected',
-          statusTone: 'text-[#0f2e82] bg-[#eff5ff] border-[#cdddff]',
-        },
-        {
           label: 'Connection Method',
-          account: 'Meta Business Login',
+          account: 'Instagram Login',
           detail:
-            'The workspace stores both the Instagram user token and the linked Page token for later channel actions.',
+            'The workspace uses Instagram Login and an Instagram user token. A linked Facebook Page is not required.',
           statusText: 'Live',
           statusTone: 'text-pink-700 bg-pink-50 border-pink-200',
         },
@@ -1225,18 +1218,18 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
         {
           label: 'Account Connection',
           account: 'Instagram is not connected to this workspace.',
-          detail: 'Connect a Professional Instagram account that is linked to a Facebook Page.',
+          detail: 'Connect a Professional Instagram account with Instagram Login.',
           statusText: 'Not connected',
           statusTone: 'text-gray-700 bg-gray-50 border-gray-200',
         },
         {
           label: 'Connection Flow',
           account: hasInstagramBusinessLoginConfig
-            ? 'Meta Business Login is configured for this workspace.'
-            : 'Instagram Business Login is not configured yet.',
+            ? 'Instagram Login is configured for this workspace.'
+            : 'Instagram Login is not configured yet.',
           detail: hasInstagramBusinessLoginConfig
-            ? 'The Connect button will open Meta in a popup and return the linked Instagram/Page accounts.'
-            : 'Add the Instagram App ID and Config ID to enable this channel.',
+            ? 'The Connect button will open Instagram in a popup and return the Professional account.'
+            : 'Add the Instagram App ID to enable this channel.',
           statusText: hasInstagramBusinessLoginConfig ? 'Ready' : 'Blocked',
           statusTone: hasInstagramBusinessLoginConfig
             ? 'text-blue-700 bg-blue-50 border-blue-200'
@@ -2445,7 +2438,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                         : account.instagramName || account.instagramAccountId}
                     </p>
                     <p className="mt-1 text-sm text-gray-500">
-                      {account.pageName || 'Connected Facebook Page'} - Page ID {account.pageId}
+                      Instagram ID {account.instagramAccountId}
                     </p>
                   </div>
 

@@ -9,7 +9,7 @@ import type { ConversationThreadStatus } from './lead-status';
 
 export type SetupType = 'exclusive' | 'coexistence';
 export type ChannelConnectionMethod = 'embedded_signup' | 'manual';
-export type InstagramConnectionMethod = 'business_login';
+export type InstagramConnectionMethod = 'business_login' | 'instagram_login';
 export type MessengerConnectionMethod = 'facebook_login' | 'manual';
 
 export interface AppProfile {
@@ -145,7 +145,7 @@ export interface InstagramChannelConnection {
   instagramUsername: string | null;
   instagramName: string | null;
   profilePictureUrl: string | null;
-  pageId: string;
+  pageId: string | null;
   pageName: string | null;
   userAccessTokenLast4: string | null;
   pageAccessTokenLast4: string | null;

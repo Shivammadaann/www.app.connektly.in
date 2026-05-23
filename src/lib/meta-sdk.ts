@@ -170,6 +170,27 @@ function buildConfiguredLoginUrl(args: {
   return url.toString();
 }
 
+function buildInstagramLoginUrl(args: {
+  oauthState: string;
+  redirectUri: string;
+}) {
+  const url = new URL('https://www.instagram.com/oauth/authorize');
+
+  url.searchParams.set('client_id', clientConfig.instagram.appId);
+  url.searchParams.set('redirect_uri', args.redirectUri);
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', [
+    'instagram_business_basic',
+    'instagram_business_manage_messages',
+    'instagram_business_manage_comments',
+  ].join(','));
+  url.searchParams.set('state', args.oauthState);
+  url.searchParams.set('enable_fb_login', '0');
+  url.searchParams.set('force_authentication', '1');
+
+  return url.toString();
+}
+
 function beginConfiguredOAuthLogin(args: {
   flowState: MetaOAuthFlowState;
   configKey: MetaLoginConfigurationKey;
@@ -487,6 +508,93 @@ export async function beginMetaAdsLogin(options: { flowState?: MetaOAuthFlowStat
   });
 }
 
+function beginInstagramOAuthLogin(options: { flowState?: MetaOAuthFlowState } = {}) {
+  const flowState = options.flowState || 'instagram_flow';
+
+  if (!clientConfig.instagram.appId) {
+    throw new Error('Instagram Login is not configured. Set VITE_INSTAGRAM_APP_ID first.');
+  }
+
+  const oauthState = buildOauthState(flowState);
+  const redirectUri = buildMetaOAuthRedirectUri();
+  const popup = window.open(
+    buildInstagramLoginUrl({
+      oauthState,
+      redirectUri,
+    }),
+    'connektly-instagram-login',
+    'popup=yes,width=560,height=760,menubar=no,toolbar=no,location=yes,status=no',
+  );
+
+  if (!popup) {
+    throw new Error('Instagram Login popup was blocked by the browser.');
+  }
+
+  popup.focus();
+
+  return new Promise<{
+    code: string;
+    redirectUri: string;
+    flowState: MetaOAuthFlowState;
+    oauthState: string;
+  }>((resolve, reject) => {
+    let settled = false;
+
+    const cleanup = () => {
+      settled = true;
+      window.clearInterval(closePoll);
+      window.clearTimeout(timeout);
+      window.removeEventListener('message', handleMessage);
+    };
+
+    const rejectWith = (message: string) => {
+      cleanup();
+      reject(new Error(message));
+    };
+
+    const handleMessage = (event: MessageEvent<MetaConfiguredLoginMessage>) => {
+      if (event.origin !== window.location.origin || event.data?.type !== META_CONFIGURED_LOGIN_EVENT || settled) {
+        return;
+      }
+
+      if (event.data.error) {
+        rejectWith(event.data.error);
+        return;
+      }
+
+      const state = event.data.state || '';
+      const code = event.data.code || '';
+
+      if (state !== oauthState || !code) {
+        rejectWith('Instagram Login finished without a valid authorization code.');
+        return;
+      }
+
+      cleanup();
+      resolve({
+        code,
+        redirectUri,
+        flowState,
+        oauthState,
+      });
+    };
+
+    const closePoll = window.setInterval(() => {
+      if (!settled && popup.closed) {
+        rejectWith('Instagram Login popup was closed before authorization finished.');
+      }
+    }, 600);
+
+    const timeout = window.setTimeout(() => {
+      if (!settled) {
+        rejectWith('Instagram Login timed out. Please try again.');
+      }
+    }, 120000);
+
+    window.addEventListener('message', handleMessage);
+  });
+}
+
 export async function beginMetaCatalogLogin(options: { flowState?: MetaOAuthFlowState } = {}) {
   return beginConfiguredOAuthLogin({
     flowState: options.flowState || 'catalog_flow',
@@ -506,10 +614,5 @@ export async function beginMetaLeadCaptureLogin(options: { flowState?: MetaOAuth
 }
 
 export async function beginInstagramBusinessLogin(options: { flowState?: MetaOAuthFlowState } = {}) {
-  return beginConfiguredOAuthLogin({
-    flowState: options.flowState || 'instagram_flow',
-    configKey: 'instagramInboxConnection',
-    label: 'Instagram Business Login',
-    popupName: 'connektly-instagram-business-login',
-  });
+  return beginInstagramOAuthLogin(options);
 }
