@@ -201,28 +201,6 @@ export default function Signup() {
         <div className="space-y-4">
           {error ? <AuthAlert tone={isSuccessNotice ? 'success' : 'error'}>{error}</AuthAlert> : null}
 
-          <div className="grid grid-cols-2 gap-3">
-            <SocialLoginButton
-              provider="google"
-              loading={oauthLoadingProvider === 'google'}
-              disabled={oauthLoadingProvider !== null || isLoading}
-              onClick={() => void handleOAuthSignup('google')}
-            >
-              Google
-            </SocialLoginButton>
-
-            <SocialLoginButton
-              provider="facebook"
-              loading={oauthLoadingProvider === 'facebook'}
-              disabled={oauthLoadingProvider !== null || isLoading}
-              onClick={() => void handleOAuthSignup('facebook')}
-            >
-              Facebook
-            </SocialLoginButton>
-          </div>
-
-          <Divider />
-
           <form className="space-y-4" onSubmit={handleSignup}>
             <InputField
               label="Name"
@@ -285,6 +263,28 @@ export default function Signup() {
               Create account
             </PrimaryAuthButton>
           </form>
+
+          <Divider />
+
+          <div className="grid grid-cols-2 gap-3">
+            <SocialLoginButton
+              provider="google"
+              loading={oauthLoadingProvider === 'google'}
+              disabled={oauthLoadingProvider !== null || isLoading}
+              onClick={() => void handleOAuthSignup('google')}
+            >
+              Google
+            </SocialLoginButton>
+
+            <SocialLoginButton
+              provider="facebook"
+              loading={oauthLoadingProvider === 'facebook'}
+              disabled={oauthLoadingProvider !== null || isLoading}
+              onClick={() => void handleOAuthSignup('facebook')}
+            >
+              Facebook
+            </SocialLoginButton>
+          </div>
         </div>
       </AuthForm>
     </AuthLayout>

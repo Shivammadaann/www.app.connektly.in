@@ -83,18 +83,18 @@ export function AuthLayout({
           />
         </motion.aside>
 
-        <main className="m-4 flex min-h-[calc(100dvh-2rem)] flex-1 flex-col rounded-[32px] border border-[#E2E8F0] bg-white px-6 py-4 shadow-sm sm:m-6 sm:min-h-[calc(100dvh-3rem)] sm:px-10 lg:my-6 lg:mr-6 lg:ml-0 lg:w-[52%] lg:px-12 lg:py-10">
-          <div className="flex items-center justify-between gap-4 text-sm">
+        <main className="flex min-h-dvh w-full min-w-0 flex-1 flex-col rounded-b-[24px] border-x border-b border-[#E2E8F0] bg-white px-7 pt-5 pb-4 shadow-sm sm:m-6 sm:min-h-[calc(100dvh-3rem)] sm:rounded-[32px] sm:border sm:px-10 sm:py-4 lg:my-6 lg:mr-6 lg:ml-0 lg:w-[52%] lg:px-12 lg:py-10">
+          <div className="flex items-center justify-center gap-4 text-sm sm:justify-between">
             <a
               href={MAIN_WEBSITE_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 lg:hidden"
+              className="inline-flex items-center justify-center sm:gap-2 lg:hidden"
             >
-              <BrandMark className="h-9 w-9 shrink-0" />
-              <span className="font-semibold tracking-tight text-[#0F172A]">Connektly</span>
+              <BrandMark className="h-20 w-32 shrink-0 sm:h-9 sm:w-9" />
+              <span className="hidden font-semibold tracking-tight text-[#0F172A] sm:inline">Connektly</span>
             </a>
-            <div className="ml-auto text-[#64748B]">
+            <div className="ml-auto hidden text-[#64748B] sm:block">
               <span>{switchText}</span>
               <Link to={switchHref} className="ml-1 font-semibold text-[#4F46E5] transition hover:text-[#4338CA]">
                 {switchLabel}
@@ -102,19 +102,28 @@ export function AuthLayout({
             </div>
           </div>
 
-          <div className="flex flex-1 items-center justify-center py-8">
-            <div className="w-full max-w-[400px]">{children}</div>
+          <div className="flex flex-1 items-start justify-start pt-2 pb-8 sm:items-center sm:justify-center sm:py-8">
+            <div className="w-full min-w-0 max-w-[320px] sm:max-w-[400px]">
+              {children}
+
+              <div className="mt-7 text-center text-sm text-[#64748B] sm:hidden">
+                <span>{switchText}</span>
+                <Link to={switchHref} className="ml-1 font-semibold text-[#4F46E5] transition hover:text-[#4338CA]">
+                  {switchLabel}
+                </Link>
+              </div>
+            </div>
           </div>
 
           <footer className="border-t border-[#E2E8F0] pt-5">
-            <nav aria-label="Auth footer links" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <nav aria-label="Auth footer links" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:gap-x-4">
               {AUTH_FOOTER_LINKS.map((item) => (
                 <a
                   key={item.label}
                   href={item.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs font-medium text-[#64748B] transition hover:text-[#4F46E5]"
+                  className="text-[10px] font-medium text-[#64748B] transition hover:text-[#4F46E5] sm:text-xs"
                 >
                   {item.label}
                 </a>
@@ -145,9 +154,9 @@ export function AuthForm({
   return (
     <AuthCard>
       <motion.div {...authMotion.slideUp}>
-        {eyebrow ? <p className="text-xs font-medium leading-4 text-[#64748B]">{eyebrow}</p> : null}
-        <h2 className={`${eyebrow ? 'mt-2' : ''} text-[32px] font-semibold leading-10 tracking-tight text-[#0F172A]`}>{title}</h2>
-        {description ? <p className="mt-2 text-sm leading-5 text-[#64748B]">{description}</p> : null}
+        {eyebrow ? <p className="text-center text-xs font-medium leading-4 text-[#64748B] sm:text-left">{eyebrow}</p> : null}
+        <h2 className={`${eyebrow ? 'mt-2' : ''} text-center text-[32px] font-semibold leading-10 tracking-tight text-[#0F172A] sm:text-left`}>{title}</h2>
+        {description ? <p className="mt-2 text-center text-sm leading-5 text-[#64748B] sm:text-left">{description}</p> : null}
         <div className="mt-6">{children}</div>
       </motion.div>
     </AuthCard>
@@ -192,7 +201,7 @@ export function InputField({ label, rightElement, className = '', id, ...props }
         <input
           id={inputId}
           {...props}
-          className={`h-11 w-full rounded-2xl border border-[#4b42dd] bg-white px-3 text-sm leading-5 text-[#0F172A] outline-none transition placeholder:text-[#94A3B8] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 ${rightElement ? 'pr-11' : ''} ${className}`}
+          className={`h-9 w-full rounded-2xl border border-[#8B85FF] bg-white px-3 text-sm leading-5 text-[#0F172A] outline-none transition placeholder:text-[#94A3B8] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 sm:h-11 ${rightElement ? 'pr-11' : ''} ${className}`}
         />
         {rightElement}
       </div>
@@ -228,7 +237,7 @@ export function PasswordField({
           <button
             type="button"
             onClick={() => setIsVisible((current) => !current)}
-            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-[#64748B] transition hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+            className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-[#64748B] transition hover:bg-[#F1F5F9] hover:text-[#0F172A] sm:h-8 sm:w-8"
             aria-label={isVisible ? 'Hide password' : 'Show password'}
           >
             {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -289,7 +298,7 @@ export function SocialLoginButton({
       {...authMotion.buttonPress}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#4b42dd] bg-white px-4 text-sm font-medium text-[#0F172A] transition hover:border-[#4b42dd] hover:bg-[#F8FAFC] disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex h-9 min-w-0 w-full items-center justify-center gap-2 rounded-full border border-[#8B85FF] bg-white px-3 text-sm font-medium text-[#0F172A] transition hover:border-[#4F46E5] hover:bg-[#F8FAFC] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-4"
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : provider === 'google' ? <GoogleIcon /> : <FacebookIcon />}
       <span>{children}</span>
@@ -323,7 +332,7 @@ export function PrimaryAuthButton({
       type="submit"
       {...authMotion.buttonPress}
       disabled={disabled}
-      className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#4F46E5] px-4 text-sm font-medium text-white transition hover:bg-[#4338CA] disabled:cursor-not-allowed disabled:bg-[#CBD5E1]"
+      className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-[#4F46E5] px-4 text-sm font-medium text-white transition hover:bg-[#4338CA] disabled:cursor-not-allowed disabled:bg-[#CBD5E1] sm:h-11"
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
       {loading ? loadingLabel : children}

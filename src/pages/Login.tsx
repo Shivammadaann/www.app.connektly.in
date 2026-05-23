@@ -582,28 +582,6 @@ export default function Login() {
           {error ? <AuthAlert>{error}</AuthAlert> : null}
           {recoveryMessage ? <AuthAlert tone="success">{recoveryMessage}</AuthAlert> : null}
 
-          <div className="grid grid-cols-2 gap-3">
-            <SocialLoginButton
-              provider="google"
-              loading={oauthLoadingProvider === 'google'}
-              disabled={oauthLoadingProvider !== null || isLoading || isPreparingMfa}
-              onClick={() => void handleOAuthLogin('google')}
-            >
-              Google
-            </SocialLoginButton>
-
-            <SocialLoginButton
-              provider="facebook"
-              loading={oauthLoadingProvider === 'facebook'}
-              disabled={oauthLoadingProvider !== null || isLoading || isPreparingMfa}
-              onClick={() => void handleOAuthLogin('facebook')}
-            >
-              Facebook
-            </SocialLoginButton>
-          </div>
-
-          <Divider />
-
           <form className="space-y-4" onSubmit={handleLogin}>
             <InputField
               label="Email"
@@ -652,6 +630,28 @@ export default function Login() {
           >
             Forgot password?
           </button>
+
+          <Divider />
+
+          <div className="grid grid-cols-2 gap-3">
+            <SocialLoginButton
+              provider="google"
+              loading={oauthLoadingProvider === 'google'}
+              disabled={oauthLoadingProvider !== null || isLoading || isPreparingMfa}
+              onClick={() => void handleOAuthLogin('google')}
+            >
+              Google
+            </SocialLoginButton>
+
+            <SocialLoginButton
+              provider="facebook"
+              loading={oauthLoadingProvider === 'facebook'}
+              disabled={oauthLoadingProvider !== null || isLoading || isPreparingMfa}
+              onClick={() => void handleOAuthLogin('facebook')}
+            >
+              Facebook
+            </SocialLoginButton>
+          </div>
         </div>
       </AuthForm>
 
