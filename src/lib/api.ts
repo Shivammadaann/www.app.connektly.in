@@ -522,6 +522,11 @@ export const appApi = {
       method: 'POST',
     });
   },
+  syncInstagramConversations() {
+    return apiRequest<{ syncedThreads: number; syncedMessages: number }>('/instagram/channel/sync-conversations', {
+      method: 'POST',
+    });
+  },
   getMessengerConnectionOptions(payload: MessengerConnectionOptionsInput) {
     return apiRequest<{ pages: MessengerConnectablePage[] }>('/messenger/connect/options', {
       method: 'POST',

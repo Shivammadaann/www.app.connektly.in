@@ -188,6 +188,7 @@ const __dirname = path.dirname(__filename);
 const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT || process.env.API_PORT || 3001);
 const graphVersion = process.env.META_GRAPH_VERSION || 'v24.0';
+const instagramGraphVersion = process.env.INSTAGRAM_GRAPH_VERSION || 'v25.0';
 const officialBusinessAccountGraphVersion = process.env.META_OBA_GRAPH_VERSION || 'v25.0';
 const obaStatusCacheTtlMs = 5 * 60 * 1000;
 
@@ -8861,6 +8862,84 @@ async function fetchMessengerPageConversations(accessToken: string, pageId: stri
   return response.data || [];
 }
 
+type InstagramConversationSummary = {
+  id?: string;
+  updated_time?: string | number;
+};
+
+type InstagramConversationMessageEdge = {
+  id?: string;
+  created_time?: string | number;
+};
+
+type InstagramConversationMessageParticipant = {
+  id?: string;
+  username?: string;
+};
+
+type InstagramConversationMessageDetail = {
+  id?: string;
+  created_time?: string | number;
+  from?: InstagramConversationMessageParticipant | null;
+  to?: {
+    data?: InstagramConversationMessageParticipant[];
+  } | null;
+  message?: string;
+  attachments?: {
+    data?: Array<Record<string, unknown>>;
+  } | null;
+  shares?: {
+    data?: Array<Record<string, unknown>>;
+  } | null;
+};
+
+async function fetchInstagramConversations(accessToken: string, instagramAccountId: string) {
+  const response = await metaRequestDetailed<{
+    data?: InstagramConversationSummary[];
+  }>({
+    accessToken,
+    graphHost: 'graph.instagram.com',
+    version: instagramGraphVersion,
+    path: `${instagramAccountId}/conversations`,
+    query: {
+      platform: 'instagram',
+      limit: 25,
+    },
+  });
+
+  return response.data || [];
+}
+
+async function fetchInstagramConversationMessages(accessToken: string, conversationId: string) {
+  const response = await metaRequestDetailed<{
+    messages?: {
+      data?: InstagramConversationMessageEdge[];
+    };
+  }>({
+    accessToken,
+    graphHost: 'graph.instagram.com',
+    version: instagramGraphVersion,
+    path: conversationId,
+    query: {
+      fields: 'messages.limit(20){id,created_time}',
+    },
+  });
+
+  return response.messages?.data || [];
+}
+
+async function fetchInstagramConversationMessageDetail(accessToken: string, messageId: string) {
+  return metaRequestDetailed<InstagramConversationMessageDetail>({
+    accessToken,
+    graphHost: 'graph.instagram.com',
+    version: instagramGraphVersion,
+    path: messageId,
+    query: {
+      fields: 'id,created_time,from,to,message,attachments,shares',
+    },
+  });
+}
+
 type InstagramMessagingUserProfile = {
   id: string;
   name: string | null;
@@ -12694,6 +12773,209 @@ async function syncMessengerPageConversations(args: {
           conversation_id: normalizeOptionalIdentifier(conversation.id),
           ...message,
           sender_profile: profile,
+        },
+      });
+      syncedMessages += 1;
+    }
+  }
+
+  return {
+    syncedThreads,
+    syncedMessages,
+  };
+}
+
+function getInstagramConversationCounterparty(
+  message: InstagramConversationMessageDetail | null,
+  instagramAccountId: string,
+) {
+  const fromId = normalizeOptionalIdentifier(message?.from?.id);
+
+  if (fromId && fromId !== instagramAccountId) {
+    return {
+      id: fromId,
+      username: normalizeOptionalString(message?.from?.username),
+    };
+  }
+
+  const recipients = Array.isArray(message?.to?.data) ? message.to.data : [];
+  const recipient = recipients.find((entry) => {
+    const recipientId = normalizeOptionalIdentifier(entry.id);
+    return Boolean(recipientId && recipientId !== instagramAccountId);
+  });
+
+  if (!recipient) {
+    return null;
+  }
+
+  return {
+    id: normalizeOptionalIdentifier(recipient.id) || '',
+    username: normalizeOptionalString(recipient.username),
+  };
+}
+
+function getInstagramConversationMessageDirection(
+  message: InstagramConversationMessageDetail,
+  instagramAccountId: string,
+): ConversationMessage['direction'] {
+  return normalizeOptionalIdentifier(message.from?.id) === instagramAccountId ? 'outbound' : 'inbound';
+}
+
+function getInstagramConversationMessageBody(message: InstagramConversationMessageDetail) {
+  const text = normalizeOptionalString(message.message);
+
+  if (text) {
+    return text;
+  }
+
+  const attachmentCount = Array.isArray(message.attachments?.data) ? message.attachments.data.length : 0;
+  const shareCount = Array.isArray(message.shares?.data) ? message.shares.data.length : 0;
+
+  if (attachmentCount > 0) {
+    return attachmentCount > 1 ? `${attachmentCount} Instagram attachments` : 'Instagram attachment';
+  }
+
+  if (shareCount > 0) {
+    return shareCount > 1 ? `${shareCount} Instagram shares` : 'Instagram share';
+  }
+
+  return 'Instagram message';
+}
+
+async function syncInstagramConversations(args: {
+  userId: string;
+  instagramAccountId: string;
+  instagramUsername: string | null;
+  instagramName: string | null;
+  accessToken: string;
+  channelRow: Record<string, unknown>;
+}) {
+  const conversations = await fetchInstagramConversations(args.accessToken, args.instagramAccountId);
+  let syncedThreads = 0;
+  let syncedMessages = 0;
+
+  for (const conversation of conversations) {
+    const conversationId = normalizeOptionalIdentifier(conversation.id);
+
+    if (!conversationId) {
+      continue;
+    }
+
+    const messageEdges = await fetchInstagramConversationMessages(args.accessToken, conversationId);
+    const messageDetails: InstagramConversationMessageDetail[] = [];
+
+    for (const edge of messageEdges.slice(0, 20)) {
+      const messageId = normalizeOptionalString(edge.id);
+
+      if (!messageId) {
+        continue;
+      }
+
+      try {
+        messageDetails.push(await fetchInstagramConversationMessageDetail(args.accessToken, messageId));
+      } catch (error) {
+        console.warn(`Failed to fetch Instagram message ${messageId}:`, mapDbError(error));
+      }
+    }
+
+    const messages = messageDetails
+      .filter((message) => normalizeOptionalString(message.id))
+      .sort((left, right) => {
+        const leftTime = Date.parse(toIsoTimestamp(left.created_time) || '');
+        const rightTime = Date.parse(toIsoTimestamp(right.created_time) || '');
+
+        if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) {
+          return 0;
+        }
+
+        return leftTime - rightTime;
+      });
+    const latestMessage = messages[messages.length - 1] || null;
+    const counterparty = getInstagramConversationCounterparty(latestMessage, args.instagramAccountId);
+
+    if (!counterparty?.id) {
+      continue;
+    }
+
+    let profile: Awaited<ReturnType<typeof fetchInstagramMessagingUserProfileForChannel>> | null = null;
+
+    try {
+      profile = await fetchInstagramMessagingUserProfileForChannel(args.channelRow, counterparty.id);
+    } catch (error) {
+      console.warn(`Failed to fetch Instagram conversation profile ${counterparty.id}:`, mapDbError(error));
+    }
+
+    const username = profile?.username || counterparty.username || null;
+    const displayHandle = username ? `@${username.replace(/^@/, '')}` : null;
+    const contactName = profile?.name || displayHandle || counterparty.id;
+    const profilePictureUrl = profile?.profilePictureUrl || null;
+    const latestMessageBody = latestMessage ? getInstagramConversationMessageBody(latestMessage) : 'Instagram conversation';
+    const latestMessageAt =
+      toIsoTimestamp(latestMessage?.created_time) ||
+      toIsoTimestamp(conversation.updated_time) ||
+      new Date().toISOString();
+
+    const thread = await upsertThread({
+      userId: args.userId,
+      metaChannelId: null,
+      contactWaId: getInstagramThreadIdentity(counterparty.id),
+      contactName,
+      username: displayHandle || profile?.name || null,
+      displayPhone: displayHandle || counterparty.id,
+      source: 'Instagram',
+      remark: latestMessageBody,
+      avatarUrl: profilePictureUrl,
+      lastMessageText: latestMessageBody,
+      lastMessageAt: latestMessageAt,
+      unreadDelta: 0,
+    });
+    syncedThreads += 1;
+
+    for (const message of messages) {
+      const messageId = normalizeOptionalString(message.id);
+
+      if (!messageId) {
+        continue;
+      }
+
+      const existingMessageResult = await adminSupabase
+        .from('conversation_messages')
+        .select('id')
+        .eq('user_id', args.userId)
+        .eq('wa_message_id', messageId)
+        .maybeSingle();
+
+      if (existingMessageResult.error) {
+        throw existingMessageResult.error;
+      }
+
+      if (existingMessageResult.data) {
+        continue;
+      }
+
+      const direction = getInstagramConversationMessageDirection(message, args.instagramAccountId);
+
+      await insertMessage({
+        userId: args.userId,
+        threadId: thread.id,
+        waMessageId: messageId,
+        direction,
+        messageType: normalizeOptionalString(message.message) ? 'text' : 'unknown',
+        body: getInstagramConversationMessageBody(message),
+        senderName: direction === 'inbound' ? contactName : args.instagramName || args.instagramUsername,
+        senderWaId: getInstagramThreadIdentity(
+          direction === 'inbound' ? counterparty.id : args.instagramAccountId,
+        ),
+        recipientWaId: getInstagramThreadIdentity(
+          direction === 'inbound' ? args.instagramAccountId : counterparty.id,
+        ),
+        status: direction === 'inbound' ? 'received' : 'sent',
+        raw: {
+          source: 'instagram',
+          sync_source: 'instagram_conversations',
+          conversation_id: conversationId,
+          sender_profile: profile,
+          ...message,
         },
       });
       syncedMessages += 1;
@@ -22198,6 +22480,20 @@ app.post('/api/instagram/connect/business-login', async (req, res) => {
       profilePictureUrl: normalizeOptionalString(profile.profile_picture_url),
     });
 
+    try {
+      const { row } = await getInstagramChannelWithToken(req.authedUser!.id);
+      await syncInstagramConversations({
+        userId: req.authedUser!.id,
+        instagramAccountId,
+        instagramUsername: normalizeOptionalString(profile.username),
+        instagramName: normalizeOptionalString(profile.name),
+        accessToken: normalizedToken,
+        channelRow: row,
+      });
+    } catch (error) {
+      console.error('Failed to sync Instagram conversations after connect:', error);
+    }
+
     res.json({ channel });
   } catch (error) {
     sendError(res, 400, error);
@@ -22216,6 +22512,30 @@ app.post('/api/instagram/channel/webhook-subscription', async (req, res) => {
   try {
     const channel = await activateInstagramWebhookSubscription(req.authedUser!.id);
     res.json({ channel });
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.post('/api/instagram/channel/sync-conversations', async (req, res) => {
+  try {
+    const { row, accessToken } = await getInstagramChannelWithToken(req.authedUser!.id);
+    const instagramAccountId = normalizeOptionalIdentifier(row.instagram_account_id);
+
+    if (!instagramAccountId) {
+      throw new Error('Instagram account ID is missing from the connected channel.');
+    }
+
+    const result = await syncInstagramConversations({
+      userId: req.authedUser!.id,
+      instagramAccountId,
+      instagramUsername: normalizeOptionalString(row.instagram_username),
+      instagramName: normalizeOptionalString(row.instagram_name),
+      accessToken,
+      channelRow: row,
+    });
+
+    res.json(result);
   } catch (error) {
     sendError(res, 400, error);
   }
