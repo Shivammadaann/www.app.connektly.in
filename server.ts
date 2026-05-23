@@ -3085,6 +3085,10 @@ function getMetaCatalogWebhookCallbackUrl(req: Request) {
   return new URL('/api/meta/catalog/webhook', getRequestOrigin(req)).toString();
 }
 
+function getMessengerWebhookCallbackUrl() {
+  return new URL('/api/messenger/webhook', frontendOrigin).toString();
+}
+
 function getWooCommerceCallbackUrl(req: Request, userId: string) {
   return new URL(`/api/integrations/woocommerce/webhook/${encodeURIComponent(userId)}`, getRequestOrigin(req)).toString();
 }
@@ -8634,6 +8638,8 @@ async function subscribeMessengerPageToWebhook(accessToken: string, pageId: stri
 }
 
 async function subscribeInstagramPageToWebhook(accessToken: string, pageId: string) {
+  await subscribeMetaAppToPageMessagingWebhook(DEFAULT_INSTAGRAM_WEBHOOK_FIELDS);
+
   return metaRequestDetailed<{
     success?: boolean;
   }>({
@@ -15526,6 +15532,31 @@ async function disconnectChannelStorage(args: {
     metadata: args.metadataBuilder
       ? args.metadataBuilder(row, disconnectedAt)
       : getDisconnectedChannelMetadata(row, disconnectedAt),
+  });
+}
+
+async function subscribeMetaAppToPageMessagingWebhook(fields: readonly string[]) {
+  if (!metaAppId || !metaAppSecret) {
+    throw new Error('META_APP_ID and META_APP_SECRET are required to configure Meta Page webhooks.');
+  }
+
+  if (!messengerWebhookVerifyToken) {
+    throw new Error('MESSENGER_WEBHOOK_VERIFY_TOKEN is required to configure Meta Page webhooks.');
+  }
+
+  return metaRequestDetailed<{
+    success?: boolean;
+  }>({
+    accessToken: `${metaAppId}|${metaAppSecret}`,
+    path: `${metaAppId}/subscriptions`,
+    method: 'POST',
+    query: {
+      object: 'page',
+      callback_url: getMessengerWebhookCallbackUrl(),
+      fields: fields.join(','),
+      verify_token: messengerWebhookVerifyToken,
+      include_values: true,
+    },
   });
 }
 
