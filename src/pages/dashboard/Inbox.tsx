@@ -55,6 +55,7 @@ import { getCachedSession, supabase } from '../../lib/supabase';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import { getConversationDisplayDetail, getConversationDisplayName } from '../../lib/conversation-display';
 import ChannelBrandIcon from '../../components/ChannelBrandIcon';
+import ConfirmationDialog from '../../components/ConfirmationDialog';
 import type { ChannelBrand } from '../../components/ChannelBrandIcon';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import defaultProfilePictureUrl from '../../assets/profile.png';
@@ -2439,6 +2440,10 @@ export default function Inbox() {
   );
   const [isThreadListCollapsed, setIsThreadListCollapsed] = useState(false);
   const [isConversationActionsOpen, setIsConversationActionsOpen] = useState(false);
+  const [pendingBlockConfirmation, setPendingBlockConfirmation] = useState<{
+    waId: string;
+    contactName: string;
+  } | null>(null);
   const [openContactDetailSections, setOpenContactDetailSections] = useState<Record<ContactDetailsSection, boolean>>({
     contact: true,
     labels: false,
@@ -2477,6 +2482,7 @@ export default function Inbox() {
   const messagesViewportRef = useRef<HTMLDivElement | null>(null);
   const messagesContentRef = useRef<HTMLDivElement | null>(null);
   const templateTrayRef = useRef<HTMLDivElement | null>(null);
+  const conversationActionsRef = useRef<HTMLDivElement | null>(null);
   const selectedThreadIdRef = useRef<string | null>(null);
   const shouldStickToBottomRef = useRef(true);
 
@@ -2613,7 +2619,33 @@ export default function Inbox() {
 
   useEffect(() => {
     closeAddLabelModal();
+    setIsConversationActionsOpen(false);
+    setPendingBlockConfirmation(null);
   }, [selectedThreadId]);
+
+  useEffect(() => {
+    if (!isConversationActionsOpen || typeof document === 'undefined') {
+      return;
+    }
+
+    const handleOutsidePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+
+      if (target instanceof Node && conversationActionsRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsConversationActionsOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleOutsidePointerDown);
+    document.addEventListener('touchstart', handleOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsidePointerDown);
+      document.removeEventListener('touchstart', handleOutsidePointerDown);
+    };
+  }, [isConversationActionsOpen]);
 
   useEffect(() => {
     if (!activeThreadHasExpiredCustomerServiceWindow) {
@@ -3522,36 +3554,40 @@ export default function Inbox() {
     }
   };
 
-  const handleToggleActiveThreadBlock = async (shouldBlock: boolean) => {
-    if (!activeThreadSupportsWhatsAppActions) {
+  const handleToggleActiveThreadBlock = async (shouldBlock: boolean, targetWaIdOverride?: string) => {
+    if (!targetWaIdOverride && !activeThreadSupportsWhatsAppActions) {
       setError('Blocking is currently available only for WhatsApp conversations.');
-      return;
+      return false;
     }
 
-    if (!activeThreadWaId) {
-      return;
+    const targetWaId = targetWaIdOverride || activeThreadWaId;
+
+    if (!targetWaId) {
+      return false;
     }
 
     try {
-      setBlockActionWaId(activeThreadWaId);
+      setBlockActionWaId(targetWaId);
       setError(null);
 
       if (shouldBlock) {
-        await appApi.blockUsers([activeThreadWaId]);
+        await appApi.blockUsers([targetWaId]);
         setBlockedUsers((current) =>
-          current.some((entry) => entry.waId === activeThreadWaId)
+          current.some((entry) => entry.waId === targetWaId)
             ? current
-            : [...current, { waId: activeThreadWaId, messagingProduct: 'whatsapp' }],
+            : [...current, { waId: targetWaId, messagingProduct: 'whatsapp' }],
         );
-        return;
+        return true;
       }
 
-      await appApi.unblockUsers([activeThreadWaId]);
-      setBlockedUsers((current) => current.filter((entry) => entry.waId !== activeThreadWaId));
+      await appApi.unblockUsers([targetWaId]);
+      setBlockedUsers((current) => current.filter((entry) => entry.waId !== targetWaId));
+      return true;
     } catch (nextError) {
       const message =
         nextError instanceof Error ? nextError.message : 'Failed to update the WhatsApp block list.';
       setError(message);
+      return false;
     } finally {
       setBlockActionWaId(null);
     }
@@ -3713,6 +3749,17 @@ export default function Inbox() {
   };
 
   const activeContactName = getConversationDisplayName(activeThread);
+  const handleConfirmBlockContact = async () => {
+    if (!pendingBlockConfirmation) {
+      return;
+    }
+
+    const didBlock = await handleToggleActiveThreadBlock(true, pendingBlockConfirmation.waId);
+
+    if (didBlock) {
+      setPendingBlockConfirmation(null);
+    }
+  };
 
   const renderReplyTargetChip = (): ReactNode => {
     if (!replyTargetMessage) {
@@ -4182,7 +4229,7 @@ export default function Inbox() {
               {isContactPanelOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
             {activeThread ? (
-              <div className="relative">
+              <div ref={conversationActionsRef} className="relative">
                 <button
                   type="button"
                   onClick={() => setIsConversationActionsOpen((current) => !current)}
@@ -4206,13 +4253,31 @@ export default function Inbox() {
                         type="button"
                         onClick={() => {
                           setIsConversationActionsOpen(false);
-                          void handleToggleActiveThreadBlock(!activeThreadIsBlocked);
+                          if (activeThreadIsBlocked) {
+                            void handleToggleActiveThreadBlock(false);
+                            return;
+                          }
+
+                          if (activeThreadWaId) {
+                            setPendingBlockConfirmation({
+                              waId: activeThreadWaId,
+                              contactName: activeContactName,
+                            });
+                          }
                         }}
                         disabled={!activeThreadWaId || blockActionWaId === activeThreadWaId}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                          activeThreadIsBlocked
+                            ? 'text-gray-700 hover:bg-gray-50'
+                            : 'font-medium text-rose-600 hover:bg-rose-50'
+                        }`}
                       >
-                        {blockActionWaId === activeThreadWaId ? <Loader2 className="h-4 w-4 animate-spin text-gray-400" /> : <AlertCircle className="h-4 w-4 text-gray-400" />}
-                        <span>{activeThreadIsBlocked ? 'Unblock contact' : 'Block contact'}</span>
+                        {blockActionWaId === activeThreadWaId ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                        ) : (
+                          <AlertCircle className={`h-4 w-4 ${activeThreadIsBlocked ? 'text-gray-400' : 'text-rose-500'}`} />
+                        )}
+                        <span>{activeThreadIsBlocked ? 'Unblock Contact' : 'Block Contact'}</span>
                       </button>
                     ) : (
                       <div className="px-4 py-2.5 text-sm text-gray-500">No extra actions</div>
@@ -4699,6 +4764,18 @@ export default function Inbox() {
         : null}
 
       {renderTemplateSendModal()}
+
+      <ConfirmationDialog
+        isOpen={Boolean(pendingBlockConfirmation)}
+        title={`Block '${pendingBlockConfirmation?.contactName || 'Contact'}'?`}
+        description="This person won't be able to message or call you. They won't know that you blocked them."
+        cancelLabel="Cancel"
+        confirmLabel="Block"
+        tone="danger"
+        isLoading={Boolean(pendingBlockConfirmation && blockActionWaId === pendingBlockConfirmation.waId)}
+        onClose={() => setPendingBlockConfirmation(null)}
+        onConfirm={() => void handleConfirmBlockContact()}
+      />
 
       {isExpiredWindowInfoOpen && modalRoot
         ? createPortal(
