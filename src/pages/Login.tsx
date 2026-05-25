@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ClipboardEvent, FormEvent, KeyboardEvent, MutableRefObject, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
@@ -31,6 +31,13 @@ type PendingMfaChallenge = {
   factorName: string;
   email: string;
 };
+type CaptchaTokenWaiter = {
+  resolve: (token: string) => void;
+  reject: (error: Error) => void;
+  timeoutId: number;
+};
+
+const SECURITY_VERIFICATION_TIMEOUT_MS = 10000;
 
 function getRememberedEmail() {
   if (typeof window === 'undefined') {
@@ -146,7 +153,72 @@ export default function Login() {
   const [isPreparingMfa, setIsPreparingMfa] = useState(false);
   const [isVerifyingMfa, setIsVerifyingMfa] = useState(false);
   const mfaInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const captchaTokenRef = useRef<string | null>(null);
+  const captchaTokenWaitersRef = useRef<CaptchaTokenWaiter[]>([]);
+  const forgotPasswordCaptchaTokenRef = useRef<string | null>(null);
+  const forgotPasswordCaptchaTokenWaitersRef = useRef<CaptchaTokenWaiter[]>([]);
   const navigate = useNavigate();
+
+  const resolveCaptchaTokenWaiters = useCallback(
+    (waitersRef: MutableRefObject<CaptchaTokenWaiter[]>, nextToken: string | null) => {
+      if (!nextToken) {
+        return;
+      }
+
+      const waiters = waitersRef.current;
+      waitersRef.current = [];
+      waiters.forEach((waiter) => {
+        window.clearTimeout(waiter.timeoutId);
+        waiter.resolve(nextToken);
+      });
+    },
+    [],
+  );
+
+  const waitForCaptchaToken = useCallback(
+    (
+      tokenRef: MutableRefObject<string | null>,
+      waitersRef: MutableRefObject<CaptchaTokenWaiter[]>,
+      resetCaptcha: () => void,
+    ) => {
+      const currentToken = tokenRef.current;
+      if (currentToken) {
+        return Promise.resolve(currentToken);
+      }
+
+      return new Promise<string>((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          waitersRef.current = waitersRef.current.filter((waiter) => waiter.timeoutId !== timeoutId);
+          resetCaptcha();
+          reject(new Error('Security verification is taking longer than expected. Please try again.'));
+        }, SECURITY_VERIFICATION_TIMEOUT_MS);
+
+        waitersRef.current.push({ resolve, reject, timeoutId });
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    captchaTokenRef.current = captchaToken;
+    resolveCaptchaTokenWaiters(captchaTokenWaitersRef, captchaToken);
+  }, [captchaToken, resolveCaptchaTokenWaiters]);
+
+  useEffect(() => {
+    forgotPasswordCaptchaTokenRef.current = forgotPasswordCaptchaToken;
+    resolveCaptchaTokenWaiters(forgotPasswordCaptchaTokenWaitersRef, forgotPasswordCaptchaToken);
+  }, [forgotPasswordCaptchaToken, resolveCaptchaTokenWaiters]);
+
+  useEffect(() => {
+    return () => {
+      [...captchaTokenWaitersRef.current, ...forgotPasswordCaptchaTokenWaitersRef.current].forEach((waiter) => {
+        window.clearTimeout(waiter.timeoutId);
+        waiter.reject(new Error('Security verification was cancelled.'));
+      });
+      captchaTokenWaitersRef.current = [];
+      forgotPasswordCaptchaTokenWaitersRef.current = [];
+    };
+  }, []);
 
   const navigateAfterAuthenticatedLogin = async () => {
     try {
@@ -287,19 +359,20 @@ export default function Login() {
       return;
     }
 
-    if (hasTurnstileSiteKey && !captchaToken) {
-      setError('Security verification is still running. Please try again in a moment.');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
+      const verifiedCaptchaToken = hasTurnstileSiteKey
+        ? await waitForCaptchaToken(captchaTokenRef, captchaTokenWaitersRef, () =>
+            setCaptchaResetKey((current) => current + 1),
+          )
+        : undefined;
+
       rememberEmail(email);
       const loginPromise = supabase.auth.signInWithPassword({
         email,
         password,
-        options: hasTurnstileSiteKey ? { captchaToken: captchaToken || undefined } : undefined,
+        options: hasTurnstileSiteKey ? { captchaToken: verifiedCaptchaToken } : undefined,
       });
 
       const timeoutPromise = new Promise((_, reject) =>
@@ -428,14 +501,15 @@ export default function Login() {
   const handleOAuthLogin = async (provider: OAuthProvider) => {
     setError('');
 
-    if (hasTurnstileSiteKey && !captchaToken) {
-      setError(`Security verification is still running. Please try ${provider === 'google' ? 'Google' : 'Facebook'} again in a moment.`);
-      return;
-    }
-
     setOauthLoadingProvider(provider);
 
     try {
+      const verifiedCaptchaToken = hasTurnstileSiteKey
+        ? await waitForCaptchaToken(captchaTokenRef, captchaTokenWaitersRef, () =>
+            setCaptchaResetKey((current) => current + 1),
+          )
+        : undefined;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -448,7 +522,7 @@ export default function Login() {
               }
             : {}),
           ...(provider === 'facebook' ? { scopes: 'email,public_profile' } : {}),
-          ...(captchaToken ? { captchaToken } : {}),
+          ...(verifiedCaptchaToken ? { captchaToken: verifiedCaptchaToken } : {}),
         } as any,
       });
 
@@ -470,18 +544,19 @@ export default function Login() {
     setForgotPasswordError('');
     setForgotPasswordMessage('');
 
-    if (hasTurnstileSiteKey && !forgotPasswordCaptchaToken) {
-      setForgotPasswordError('Security verification is still running. Please try again in a moment.');
-      return;
-    }
-
     setIsSendingResetEmail(true);
 
     try {
+      const verifiedCaptchaToken = hasTurnstileSiteKey
+        ? await waitForCaptchaToken(forgotPasswordCaptchaTokenRef, forgotPasswordCaptchaTokenWaitersRef, () =>
+            setForgotPasswordCaptchaResetKey((current) => current + 1),
+          )
+        : undefined;
+
       await appApi.requestPasswordResetEmail({
         email: resetEmail.trim(),
         redirectTo: `${window.location.origin}/login?password_setup=recovery`,
-        captchaToken: forgotPasswordCaptchaToken || undefined,
+        captchaToken: verifiedCaptchaToken,
       });
 
       setForgotPasswordMessage('Password reset email sent. Please check your inbox.');

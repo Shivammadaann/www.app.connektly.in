@@ -1048,13 +1048,7 @@ export default function Integrations() {
   );
 
   const renderConnectionsHeader = () => (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Connections</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-          Manage external platforms, providers, webhooks, API access, and messaging channels from one place.
-        </p>
-      </div>
+    <div className="flex justify-end">
       <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
         {activeConnectionsSection === 'channels'
