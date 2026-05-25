@@ -2226,6 +2226,201 @@ function normalizeEmailAddress(value: unknown) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
 }
 
+function getOptionalEnvString(name: string) {
+  const value = process.env[name];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+async function getAppNotificationEmailConfig() {
+  try {
+    const { data, error } = await adminSupabase
+      .from('user_platform_settings')
+      .select('settings')
+      .eq('section', 'email_templates')
+      .maybeSingle();
+
+    if (!error && data && typeof data === 'object' && data.settings && typeof data.settings === 'object') {
+      const provider = (data.settings as Record<string, unknown>).provider as Record<string, unknown> | undefined;
+      if (provider && provider.enabled) {
+        const fromEmail = normalizeEmailAddress(String(provider.fromEmail || ''));
+        const smtpHost = typeof provider.smtpHost === 'string' ? provider.smtpHost.trim() : '';
+        const smtpPort = Number(provider.smtpPort);
+        const customTriggers = Array.isArray((data.settings as Record<string, unknown>).customTriggers)
+          ? ((data.settings as Record<string, unknown>).customTriggers as Array<Record<string, unknown>>)
+          : [];
+
+        if (fromEmail && smtpHost && Number.isFinite(smtpPort)) {
+          return {
+            smtpHost,
+            smtpPort,
+            smtpSecure: Boolean(provider.smtpSecure),
+            smtpUser: typeof provider.smtpUser === 'string' ? provider.smtpUser : null,
+            smtpPassword: typeof provider.smtpPassword === 'string' ? provider.smtpPassword : null,
+            fromEmail,
+            fromName: typeof provider.fromName === 'string' && provider.fromName.trim() ? provider.fromName : 'Connektly',
+            replyToEmail: normalizeEmailAddress(String(provider.replyToEmail || '')),
+            customTriggers,
+          };
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to load email provider from platform settings:', error);
+  }
+
+  return null;
+}
+
+async function resolveNotificationRecipientEmail(userId: string) {
+  const [authResult, profileResult] = await Promise.all([
+    adminSupabase.auth.admin.getUserById(userId),
+    adminSupabase.from('app_profiles').select('email').eq('user_id', userId).maybeSingle(),
+  ]);
+
+  if (authResult.error) {
+    throw authResult.error;
+  }
+
+  if (profileResult.error && !isMissingSchemaError(profileResult.error)) {
+    throw profileResult.error;
+  }
+
+  return (
+    normalizeEmailAddress(authResult.data.user?.email) ||
+    normalizeEmailAddress(profileResult.data?.email) ||
+    null
+  );
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderEmailTemplate(value: string, placeholders: Record<string, string>) {
+  return value.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => placeholders[key] ?? '');
+}
+
+async function sendTemplateApprovedNotificationEmail(args: {
+  userId: string;
+  title: string;
+  body: string;
+  targetPath?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  const config = await getAppNotificationEmailConfig();
+
+  if (!config) {
+    return;
+  }
+
+  const appOrigin = getOptionalEnvString('FRONTEND_ORIGIN') || 'https://app.connektly.in';
+  const targetUrl = args.targetPath
+    ? `${appOrigin.replace(/\/+$/, '')}/${args.targetPath.replace(/^\/+/, '')}`
+    : appOrigin;
+  const templateName = normalizeOptionalString(args.metadata?.templateName);
+  const language = normalizeOptionalString(args.metadata?.language);
+  const userEmail = await resolveNotificationRecipientEmail(args.userId);
+  const customTrigger = config.customTriggers.find((trigger) => String(trigger.triggerKey || '') === 'template_approved');
+
+  if (customTrigger && !customTrigger.enabled) {
+    return;
+  }
+
+  const recipientMode = String(customTrigger?.recipientMode || 'user');
+  const customRecipientEmail = normalizeEmailAddress(String(customTrigger?.customRecipientEmail || ''));
+  const recipientEmail = recipientMode === 'custom' ? customRecipientEmail : userEmail;
+
+  if (!recipientEmail) {
+    return;
+  }
+
+  const detailLines = [
+    templateName ? `Template: ${templateName}` : null,
+    language ? `Language: ${language}` : null,
+  ].filter((line): line is string => Boolean(line));
+  const placeholders = {
+    title: args.title,
+    body: args.body,
+    target_url: targetUrl,
+    template_name: templateName || '',
+    language: language || '',
+    user_email: userEmail || '',
+  };
+  const subject = customTrigger?.subject ? renderEmailTemplate(String(customTrigger.subject), placeholders) : args.title;
+  const text = customTrigger?.textBody
+    ? renderEmailTemplate(String(customTrigger.textBody), placeholders)
+    : [
+        args.body,
+        '',
+        ...detailLines,
+        detailLines.length > 0 ? '' : null,
+        `Open templates: ${targetUrl}`,
+      ]
+        .filter((line): line is string => line !== null)
+        .join('\n');
+  const html = customTrigger?.html
+    ? renderEmailTemplate(String(customTrigger.html), placeholders)
+    : `
+      <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+        <h2 style="margin: 0 0 12px;">${escapeHtml(args.title)}</h2>
+        <p style="margin: 0 0 16px;">${escapeHtml(args.body)}</p>
+        ${
+          detailLines.length > 0
+            ? `<ul style="margin: 0 0 20px; padding-left: 20px;">${detailLines
+                .map((line) => `<li>${escapeHtml(line)}</li>`)
+                .join('')}</ul>`
+            : ''
+        }
+        <p style="margin: 0;">
+          <a href="${escapeHtml(targetUrl)}" style="color: #5b45ff;">Open templates in Connektly</a>
+        </p>
+      </div>
+    `;
+  const transporter = nodemailer.createTransport({
+    host: config.smtpHost,
+    port: config.smtpPort,
+    secure: config.smtpSecure,
+    auth:
+      config.smtpUser && config.smtpPassword
+        ? {
+            user: config.smtpUser,
+            pass: config.smtpPassword,
+          }
+        : undefined,
+  });
+
+  await transporter.sendMail({
+    from: {
+      name: config.fromName,
+      address: config.fromEmail,
+    },
+    to: recipientEmail,
+    replyTo: config.replyToEmail || undefined,
+    subject,
+    text,
+    html,
+  });
+}
+
+function sendTemplateApprovedNotificationEmailInBackground(args: {
+  userId: string;
+  title: string;
+  body: string;
+  targetPath?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  setImmediate(() => {
+    sendTemplateApprovedNotificationEmail(args).catch((error) => {
+      console.error('Template approved notification email failed:', error);
+    });
+  });
+}
+
 async function verifyPasswordResetUserExists(email: string) {
   const perPage = 1000;
 
@@ -14124,7 +14319,19 @@ async function createUserNotification(args: {
     }
   }
 
-  return mapNotification(data as Record<string, unknown>);
+  const notification = mapNotification(data as Record<string, unknown>);
+
+  if (args.type === 'template_approved') {
+    sendTemplateApprovedNotificationEmailInBackground({
+      userId: args.userId,
+      title: args.title,
+      body: args.body,
+      targetPath: args.targetPath,
+      metadata,
+    });
+  }
+
+  return notification;
 }
 
 function getDisplayNameStatus(value: unknown) {
