@@ -2701,8 +2701,8 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                 <div className="mb-5 grid gap-3 sm:grid-cols-3">
                   {[
                     ['credentials', 'Account'],
-                    ['smtp', 'Outgoing Mail'],
                     ['imap', 'Incoming Mail'],
+                    ['smtp', 'Outgoing Mail'],
                   ].map(([step, label], index) => {
                     const isActiveStep = emailSetupStep === step;
                     const isCompleteStep =
@@ -2715,8 +2715,8 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                         key={step}
                         type="button"
                         onClick={() => {
-                          if (step === 'smtp' && !emailCredentialsStepIsComplete) return;
-                          if (step === 'imap' && !isSmtpVerified) return;
+                          if (step === 'imap' && !emailCredentialsStepIsComplete) return;
+                          if (step === 'smtp' && !isImapVerified) return;
                           setEmailSetupStep(step as EmailSetupStep);
                         }}
                         className={`rounded-2xl border px-4 py-3 text-left transition ${
@@ -2909,7 +2909,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                   {emailSetupStep !== 'credentials' ? (
                     <button
                       type="button"
-                      onClick={() => setEmailSetupStep(emailSetupStep === 'imap' ? 'smtp' : 'credentials')}
+                      onClick={() => setEmailSetupStep(emailSetupStep === 'smtp' ? 'imap' : 'credentials')}
                       disabled={isEmailSaving}
                       className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -2919,24 +2919,24 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                   {emailSetupStep === 'credentials' ? (
                     <button
                       type="button"
-                      onClick={() => setEmailSetupStep('smtp')}
+                      onClick={() => setEmailSetupStep('imap')}
                       disabled={!emailCredentialsStepIsComplete}
                       className="inline-flex items-center justify-center rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Next
                     </button>
                   ) : null}
-                  {emailSetupStep === 'smtp' ? (
+                  {emailSetupStep === 'imap' ? (
                     <button
                       type="button"
-                      onClick={() => setEmailSetupStep('imap')}
-                      disabled={!isSmtpVerified || isEmailVerifying}
+                      onClick={() => setEmailSetupStep('smtp')}
+                      disabled={!isImapVerified || isEmailVerifying}
                       className="inline-flex items-center justify-center rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Next
                     </button>
                   ) : null}
-                  {emailSetupStep === 'imap' ? (
+                  {emailSetupStep === 'smtp' ? (
                     <button
                       type="button"
                       onClick={() => void handleSaveEmailConnection()}

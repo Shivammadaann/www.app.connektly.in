@@ -2,6 +2,7 @@ import 'dotenv/config';
 import crypto from 'node:crypto';
 import dns from 'node:dns';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
@@ -16150,14 +16151,56 @@ async function getEmailConnectionWithPassword(userId: string) {
   };
 }
 
-function createEmailTransporter(
+async function resolveEmailHostForIpv4(host: string, protocol: 'SMTP' | 'IMAP') {
+  const normalizedHost = host.trim();
+  const hostFamily = net.isIP(normalizedHost);
+
+  if (hostFamily === 4) {
+    return { host: normalizedHost, servername: undefined };
+  }
+
+  if (hostFamily === 6) {
+    const error = new Error(
+      `${protocol} host is an IPv6 address, but this server cannot reach IPv6 mail routes. Use a hostname with an IPv4 A record or an IPv4 address.`,
+    ) as Error & { code?: string };
+    error.code = 'EIPV6UNSUPPORTED';
+    throw error;
+  }
+
+  try {
+    const addresses = await dns.promises.resolve4(normalizedHost);
+    const address = addresses.find((entry) => net.isIP(entry) === 4);
+
+    if (address) {
+      return { host: address, servername: normalizedHost };
+    }
+  } catch {
+    // Fall back to dns.lookup below so hosts-file and platform resolver entries still work.
+  }
+
+  try {
+    const lookupResult = await dns.promises.lookup(normalizedHost, { family: 4 });
+    return { host: lookupResult.address, servername: normalizedHost };
+  } catch {
+    const error = new Error(
+      `${protocol} host could not be resolved to an IPv4 address. Check the host name or use your provider's IPv4-capable mail host.`,
+    ) as Error & { code?: string };
+    error.code = 'EIPV4UNAVAILABLE';
+    throw error;
+  }
+}
+
+async function createEmailTransporter(
   config: Pick<ReturnType<typeof normalizeEmailConnectionInput>, 'smtpHost' | 'smtpPort' | 'smtpSecure' | 'authUser' | 'password'>,
 ) {
+  const resolvedHost = await resolveEmailHostForIpv4(config.smtpHost, 'SMTP');
+
   return nodemailer.createTransport({
-    host: config.smtpHost,
+    host: resolvedHost.host,
     port: config.smtpPort,
     secure: config.smtpSecure,
     family: 4,
+    servername: resolvedHost.servername,
     requireTLS: config.smtpPort === 587,
     auth: {
       user: config.authUser,
@@ -16167,7 +16210,7 @@ function createEmailTransporter(
     greetingTimeout: 30_000,
     socketTimeout: 45_000,
     tls: {
-      servername: config.smtpHost,
+      servername: resolvedHost.servername,
       family: 4,
     },
   });
@@ -16183,12 +16226,20 @@ function getEmailVerificationErrorMessage(error: unknown, protocol: 'SMTP' | 'IM
   const code = normalizeOptionalString((error as Error & { code?: unknown }).code);
   const message = error.message || fallback;
 
+  if (code === 'EIPV4UNAVAILABLE' || code === 'EIPV6UNSUPPORTED') {
+    return message;
+  }
+
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+    return `${protocol} host could not be resolved. Check the host name and try again.`;
+  }
+
   if (code === 'ETIMEDOUT' || /timed out|timeout/i.test(message)) {
     return `${protocol} connection timed out. Check the host, port, SSL/TLS setting, and whether your provider allows app-password access from this server.`;
   }
 
   if (code === 'ENETUNREACH' || /ENETUNREACH|network is unreachable/i.test(message)) {
-    return `${protocol} network route was unreachable. The verifier now prefers IPv4; if this continues, check whether the host and port are reachable from this server.`;
+    return `${protocol} network route was unreachable while connecting over IPv4. Check whether the host and port are open from this server, or try your provider's alternate ${protocol} host and port.`;
   }
 
   if (/certificate|tls|ssl/i.test(message)) {
@@ -16208,7 +16259,7 @@ async function verifySmtpConnection(
   const startedAt = Date.now();
 
   try {
-    const transporter = createEmailTransporter(config);
+    const transporter = await createEmailTransporter(config);
     await transporter.verify();
 
     return {
@@ -16229,22 +16280,29 @@ async function verifyImapConnection(
   config: Pick<ReturnType<typeof normalizeEmailConnectionInput>, 'imapHost' | 'imapPort' | 'imapSecure' | 'authUser' | 'password'>,
 ) {
   const startedAt = Date.now();
-  const client = new ImapFlow({
-    host: config.imapHost,
-    port: config.imapPort,
-    secure: config.imapSecure,
-    family: 4,
-    auth: {
-      user: config.authUser,
-      pass: config.password,
-    },
-    socketTimeout: 45_000,
-    greetingTimeout: 30_000,
-    connectionTimeout: 30_000,
-    logger: false,
-  } as unknown as ConstructorParameters<typeof ImapFlow>[0]);
+  let client: ImapFlow | null = null;
 
   try {
+    const resolvedHost = await resolveEmailHostForIpv4(config.imapHost, 'IMAP');
+    client = new ImapFlow({
+      host: resolvedHost.host,
+      port: config.imapPort,
+      secure: config.imapSecure,
+      servername: resolvedHost.servername,
+      auth: {
+        user: config.authUser,
+        pass: config.password,
+      },
+      socketTimeout: 45_000,
+      greetingTimeout: 30_000,
+      connectionTimeout: 30_000,
+      logger: false,
+      tls: {
+        servername: resolvedHost.servername,
+        family: 4,
+      },
+    } as unknown as ConstructorParameters<typeof ImapFlow>[0]);
+
     await client.connect();
     await client.mailboxOpen('INBOX', { readOnly: true });
 
@@ -16260,7 +16318,7 @@ async function verifyImapConnection(
       latencyMs: Date.now() - startedAt,
     };
   } finally {
-    await client.logout().catch(() => undefined);
+    await client?.logout().catch(() => undefined);
   }
 }
 
@@ -16542,17 +16600,12 @@ async function sendEmailCampaign(userId: string, input: EmailCampaignSendInput) 
   const normalizedInput = normalizeEmailCampaignInput(input);
   const { connection, password } = await getEmailConnectionWithPassword(userId);
   const template = await getEmailTemplateById(userId, normalizedInput.templateId);
-  const transporter = nodemailer.createTransport({
-    host: connection.smtpHost,
-    port: connection.smtpPort,
-    secure: connection.smtpSecure,
-    auth: {
-      user: connection.authUser,
-      pass: password,
-    },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 20_000,
+  const transporter = await createEmailTransporter({
+    smtpHost: connection.smtpHost,
+    smtpPort: connection.smtpPort,
+    smtpSecure: connection.smtpSecure,
+    authUser: connection.authUser,
+    password,
   });
 
   let deliveredCount = 0;
