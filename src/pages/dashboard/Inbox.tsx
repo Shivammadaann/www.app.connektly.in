@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, ReactNode } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -1708,6 +1709,7 @@ function MessageMediaAttachment({ message }: { message: ConversationMessage }) {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewZoom, setPreviewZoom] = useState(MEDIA_PREVIEW_MIN_ZOOM);
+  const modalRoot = typeof document === 'undefined' ? null : document.body;
 
   useEffect(() => {
     if (!media || !['image', 'video', 'audio', 'sticker'].includes(media.mediaType)) {
@@ -1898,8 +1900,8 @@ function MessageMediaAttachment({ message }: { message: ConversationMessage }) {
       </div>
 
       <AnimatePresence>
-        {isPreviewOpen && blobUrl && canOpenPreview ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-8">
+        {isPreviewOpen && blobUrl && canOpenPreview && modalRoot ? createPortal(
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-8">
             <button type="button" onClick={closePreview} className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" aria-label="Close media preview" />
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -1975,7 +1977,8 @@ function MessageMediaAttachment({ message }: { message: ConversationMessage }) {
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </motion.div>,
+          modalRoot,
         ) : null}
       </AnimatePresence>
     </>
@@ -2404,6 +2407,7 @@ export default function Inbox() {
   const { startOutgoingCall } = useCallManager();
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
+  const modalRoot = typeof document === 'undefined' ? null : document.body;
   const [threadFilter, setThreadFilter] = useState<InboxThreadFilter>('all');
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
@@ -3764,7 +3768,7 @@ export default function Inbox() {
   };
 
   const renderTemplateSendModal = (): ReactNode => {
-    if (!isTemplateSendModalOpen || !activeThreadSupportsWhatsAppActions) {
+    if (!isTemplateSendModalOpen || !activeThreadSupportsWhatsAppActions || !modalRoot) {
       return null;
     }
 
@@ -3785,8 +3789,8 @@ export default function Inbox() {
       : null;
     const hasSelectedTemplatePreview = Boolean(selectedTemplateSnapshot?.components.length);
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    return createPortal(
+      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
         <motion.button
           type="button"
           initial={{ opacity: 0 }}
@@ -3871,7 +3875,8 @@ export default function Inbox() {
             </button>
           </div>
         </motion.div>
-      </div>
+      </div>,
+      modalRoot,
     );
   };
 
@@ -4583,8 +4588,8 @@ export default function Inbox() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isAddLabelModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        {isAddLabelModalOpen && modalRoot ? createPortal(
+          <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -4682,7 +4687,8 @@ export default function Inbox() {
                 </div>
               </form>
             </motion.div>
-          </div>
+          </div>,
+          modalRoot,
         ) : null}
       </AnimatePresence>
 
@@ -4691,8 +4697,8 @@ export default function Inbox() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isExpiredWindowInfoOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        {isExpiredWindowInfoOpen && modalRoot ? createPortal(
+          <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -4742,16 +4748,18 @@ export default function Inbox() {
                 ) : null}
               </div>
             </motion.div>
-          </div>
+          </div>,
+          modalRoot,
         ) : null}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {isNewChatModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      {isNewChatModalOpen && modalRoot
+        ? createPortal(
+          <AnimatePresence>
+            <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsNewChatModalOpen(false)} className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" />
 
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden relative z-10 flex max-h-[88vh] flex-col">
               <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
                 <h3 className="text-xl font-bold text-gray-900">Start New Chat</h3>
                 <button onClick={() => setIsNewChatModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -4879,9 +4887,11 @@ export default function Inbox() {
                 </div>
               </div>
             </motion.div>
-          </div>
-        ) : null}
-      </AnimatePresence>
+            </div>
+          </AnimatePresence>,
+            modalRoot,
+          )
+        : null}
     </motion.div>
   );
 }

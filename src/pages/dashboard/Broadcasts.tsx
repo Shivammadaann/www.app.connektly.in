@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
-import { getConversationDisplayDetail, getConversationDisplayName } from '../../lib/conversation-display';
+import { getConversationDisplayName } from '../../lib/conversation-display';
 import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import CsvImportModal from '../../components/CsvImportModal';
@@ -242,6 +242,33 @@ function templateRequiresParameterMapping(template: MetaTemplate | null) {
   }
 
   return /\{\{\d+\}\}/.test(JSON.stringify(template.raw || {}));
+}
+
+function getCampaignContactPhone(contact: ConversationThread) {
+  const normalizedSource = (contact.source || '').trim().toLowerCase();
+  const normalizedIdentity = contact.contactWaId.trim().toLowerCase();
+
+  if (
+    normalizedSource === 'instagram' ||
+    normalizedSource === 'messenger' ||
+    normalizedIdentity.startsWith('instagram:') ||
+    normalizedIdentity.startsWith('messenger:')
+  ) {
+    return '';
+  }
+
+  const candidates = [contact.displayPhone, contact.contactWaId];
+
+  return (
+    candidates.find((candidate) => {
+      const digits = (candidate || '').replace(/\D/g, '');
+      return digits.length >= 7;
+    }) || ''
+  );
+}
+
+function isSelectableAudienceContact(contact: ConversationThread) {
+  return Boolean(getCampaignContactPhone(contact)) && !contact.marketingOptedOut;
 }
 
 function getBroadcastStatusClasses(status: BroadcastStatus) {
@@ -584,7 +611,7 @@ export default function Broadcasts() {
   const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
 
-  const contacts = bootstrap?.conversations || [];
+  const contacts = useMemo(() => bootstrap?.conversations || [], [bootstrap?.conversations]);
   const approvedTemplates = useMemo(
     () =>
       (bootstrap?.templates || []).filter(
@@ -600,14 +627,18 @@ export default function Broadcasts() {
     () => templateRequiresParameterMapping(selectedTemplate),
     [selectedTemplate],
   );
+  const audienceContacts = useMemo(
+    () => contacts.filter((contact) => Boolean(getCampaignContactPhone(contact))),
+    [contacts],
+  );
   const filteredAudienceContacts = useMemo(() => {
     const normalizedQuery = deferredAudienceQuery.trim().toLowerCase();
 
     if (!normalizedQuery) {
-      return contacts;
+      return audienceContacts;
     }
 
-    return contacts.filter((contact) => {
+    return audienceContacts.filter((contact) => {
       const haystack = [
         contact.contactName,
         contact.displayPhone,
@@ -621,10 +652,25 @@ export default function Broadcasts() {
 
       return haystack.includes(normalizedQuery);
     });
-  }, [contacts, deferredAudienceQuery]);
+  }, [audienceContacts, deferredAudienceQuery]);
+  const selectableFilteredAudienceContacts = useMemo(
+    () => filteredAudienceContacts.filter(isSelectableAudienceContact),
+    [filteredAudienceContacts],
+  );
+  const selectedAudienceContactIds = useMemo(() => {
+    const audienceContactIds = new Set(
+      audienceContacts.filter(isSelectableAudienceContact).map((contact) => contact.id),
+    );
+    return selectedContactIds.filter((contactId) => audienceContactIds.has(contactId));
+  }, [audienceContacts, selectedContactIds]);
+  const selectedAudienceContactCount = selectedAudienceContactIds.length;
+  const selectableFilteredContactIds = selectableFilteredAudienceContacts.map((contact) => contact.id);
+  const areAllFilteredContactsSelected =
+    selectableFilteredContactIds.length > 0 &&
+    selectableFilteredContactIds.every((contactId) => selectedContactIds.includes(contactId));
 
   const audienceCount =
-    composer.audienceSource === 'contacts' ? selectedContactIds.length : importedAudience.length;
+    composer.audienceSource === 'contacts' ? selectedAudienceContactCount : importedAudience.length;
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -633,6 +679,16 @@ export default function Broadcasts() {
 
     window.localStorage.setItem(CAMPAIGNS_STORAGE_KEY, JSON.stringify(pastBroadcasts));
   }, [pastBroadcasts]);
+
+  useEffect(() => {
+    const audienceContactIds = new Set(
+      audienceContacts.filter(isSelectableAudienceContact).map((contact) => contact.id),
+    );
+    setSelectedContactIds((current) => {
+      const nextSelectedContactIds = current.filter((contactId) => audienceContactIds.has(contactId));
+      return nextSelectedContactIds.length === current.length ? current : nextSelectedContactIds;
+    });
+  }, [audienceContacts]);
 
   const updateComposer = <K extends keyof BroadcastComposerState>(
     field: K,
@@ -653,7 +709,13 @@ export default function Broadcasts() {
   };
 
   const handleToggleContactSelection = (contactId: string) => {
-    const contact = contacts.find((item) => item.id === contactId);
+    const contact = audienceContacts.find((item) => item.id === contactId);
+
+    if (!contact || !getCampaignContactPhone(contact)) {
+      setError('Only WhatsApp contacts with contact numbers can be selected for campaigns.');
+      setNotice(null);
+      return;
+    }
 
     if (contact?.marketingOptedOut) {
       setError('This contact is opted out of WhatsApp marketing campaigns.');
@@ -666,6 +728,21 @@ export default function Broadcasts() {
         ? current.filter((id) => id !== contactId)
         : [...current, contactId],
     );
+  };
+
+  const handleToggleSelectAllFilteredContacts = () => {
+    if (selectableFilteredContactIds.length === 0) {
+      return;
+    }
+
+    setSelectedContactIds((current) => {
+      if (areAllFilteredContactsSelected) {
+        const visibleContactIds = new Set(selectableFilteredContactIds);
+        return current.filter((contactId) => !visibleContactIds.has(contactId));
+      }
+
+      return Array.from(new Set([...current, ...selectableFilteredContactIds]));
+    });
   };
 
   const handleImportAudienceCsv = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -785,14 +862,15 @@ export default function Broadcasts() {
 
       const recipients =
         composer.audienceSource === 'contacts'
-          ? selectedContactIds
-              .map((contactId) => contacts.find((contact) => contact.id === contactId) || null)
+          ? selectedAudienceContactIds
+              .map((contactId) => audienceContacts.find((contact) => contact.id === contactId) || null)
               .filter((contact): contact is ConversationThread => Boolean(contact))
               .map((contact) => ({
-                to: contact.displayPhone || contact.contactWaId,
+                to: getCampaignContactPhone(contact),
                 contactName: contact.contactName,
                 threadId: contact.id,
               }))
+              .filter((recipient) => Boolean(recipient.to))
           : importedAudience.map((contact) => ({
               to: contact.phone,
               contactName: contact.name,
@@ -1014,11 +1092,42 @@ export default function Broadcasts() {
                       />
                     </div>
 
+                    <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <label
+                        className={`inline-flex items-center gap-3 text-sm font-medium ${
+                          selectableFilteredContactIds.length > 0
+                            ? 'cursor-pointer text-gray-800'
+                            : 'cursor-not-allowed text-gray-400'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={areAllFilteredContactsSelected}
+                          disabled={selectableFilteredContactIds.length === 0}
+                          onChange={handleToggleSelectAllFilteredContacts}
+                          className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff] disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                        Select all shown contacts
+                      </label>
+                      <div className="flex flex-wrap gap-2 text-xs font-semibold text-gray-600">
+                        <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-200">
+                          {audienceContacts.length} total
+                        </span>
+                        <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-200">
+                          {filteredAudienceContacts.length} shown
+                        </span>
+                        <span className="rounded-full bg-[#f5f3ff] px-3 py-1 text-[#5b45ff] ring-1 ring-[#ddd6fe]">
+                          {selectedAudienceContactCount} selected
+                        </span>
+                      </div>
+                    </div>
+
                     <div className="max-h-[320px] overflow-y-auto rounded-2xl border border-gray-200">
                       {filteredAudienceContacts.length > 0 ? (
                         filteredAudienceContacts.map((contact) => {
                           const isSelected = selectedContactIds.includes(contact.id);
                           const isMarketingOptedOut = contact.marketingOptedOut;
+                          const contactPhone = getCampaignContactPhone(contact);
 
                           return (
                             <label
@@ -1043,7 +1152,7 @@ export default function Broadcasts() {
                                   {getConversationDisplayName(contact)}
                                 </p>
                                 <p className="mt-1 text-xs text-gray-500">
-                                  {getConversationDisplayDetail(contact) || contact.displayPhone || contact.contactWaId}
+                                  {contactPhone}
                                 </p>
                                 {isMarketingOptedOut ? (
                                   <span className="mt-2 inline-flex rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">

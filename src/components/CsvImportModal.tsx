@@ -35,14 +35,14 @@ export default function CsvImportModal({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
       <button
         type="button"
         aria-label="Close CSV import"
         onClick={onClose}
         className="absolute inset-0 cursor-default"
       />
-      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="relative max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
