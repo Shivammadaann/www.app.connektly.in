@@ -16,7 +16,7 @@ import MetaVerifiedIcon from '../../components/MetaVerifiedIcon';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import facebookIconUrl from '../../assets/Facebook.svg';
 import wooIconUrl from '../../assets/woo.svg';
-import { clientConfig, hasMetaAdsLoginConfig, hasMetaLeadCaptureLoginConfig } from '../../lib/config';
+import { hasMetaAdsLoginConfig, hasMetaLeadCaptureLoginConfig } from '../../lib/config';
 import { beginMetaAdsLogin, beginMetaLeadCaptureLogin } from '../../lib/meta-sdk';
 import { useAppData } from '../../context/AppDataContext';
 import { useEscapeKey } from '../../lib/useEscapeKey';
@@ -28,20 +28,13 @@ import type {
   EmailConnectionSummary,
 } from '../../lib/types';
 
-interface WebhookFormState {
-  appId: string;
-  pageIds: string;
-  formIds: string;
-  accessToken: string;
-}
-
 interface MetaAdsFormState {
   pageId: string;
   adAccountId: string;
 }
 
-type ConnectionId = 'meta-lead-capture' | 'meta-ads-manager' | 'email-provider' | 'woocommerce' | 'advanced';
-type ConnectionIcon = 'lead-capture' | 'ads' | 'email' | 'woocommerce' | 'advanced';
+type ConnectionId = 'meta-lead-capture' | 'meta-ads-manager' | 'woocommerce' | 'advanced';
+type ConnectionIcon = 'lead-capture' | 'ads' | 'woocommerce' | 'advanced';
 
 interface ConnectionListItem {
   id: ConnectionId;
@@ -191,30 +184,6 @@ function formatWooCommerceDelayOption(minutes: number) {
   return `${minutes} minutes`;
 }
 
-function splitList(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(/[\n,]+/)
-        .map((entry) => entry.trim())
-        .filter(Boolean),
-    ),
-  );
-}
-
-function joinList(values: string[]) {
-  return values.join('\n');
-}
-
-function buildWebhookForm(setup: MetaLeadCaptureSetupResponse | null) {
-  return {
-    appId: setup?.config.appId || clientConfig.meta.appId || '',
-    pageIds: joinList(setup?.config.pageIds || []),
-    formIds: joinList(setup?.config.formIds || []),
-    accessToken: '',
-  } satisfies WebhookFormState;
-}
-
 function buildMetaAdsForm(setup: MetaAdsIntegrationSetupResponse | null) {
   return {
     pageId: setup?.config?.pageId || setup?.pages[0]?.pageId || '',
@@ -282,10 +251,6 @@ function ConnectionListIcon({ icon, className = 'h-11 w-11' }: { icon: Connectio
 
   if (icon === 'ads') {
     return <IntegrationBrandIcon brand="ads" className={className} />;
-  }
-
-  if (icon === 'email') {
-    return <IntegrationBrandIcon brand="email" className={className} />;
   }
 
   if (icon === 'woocommerce') {
@@ -365,7 +330,18 @@ export default function Integrations() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeConnectionsSection = searchParams.get('section') === 'channels' ? 'channels' : 'integrations';
+  const pathParts = location.pathname.split('/').filter(Boolean);
+  const connectionSlug = pathParts[pathParts.length - 1];
+  const sectionParam = searchParams.get('section');
+  const hasIntegrationContext =
+    Boolean(searchParams.get('integration')) ||
+    ['meta', 'meta-lead-capture', 'meta-ads', 'meta-ads-manager', 'woocommerce', 'advanced'].includes(
+      connectionSlug,
+    );
+  const activeConnectionsSection =
+    sectionParam === 'integrations' || (sectionParam !== 'channels' && hasIntegrationContext)
+      ? 'integrations'
+      : 'channels';
   const { bootstrap, refresh } = useAppData();
   const [metaSetup, setMetaSetup] = useState<MetaLeadCaptureSetupResponse | null>(null);
   const [metaAdsSetup, setMetaAdsSetup] = useState<MetaAdsIntegrationSetupResponse | null>(null);
@@ -379,8 +355,6 @@ export default function Integrations() {
   const [isMetaAdsModalOpen, setIsMetaAdsModalOpen] = useState(false);
   const [isWooCommerceModalOpen, setIsWooCommerceModalOpen] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<ConnectionId>('meta-lead-capture');
-  const [metaModalMode, setMetaModalMode] = useState<'options' | 'webhook'>('options');
-  const [webhookForm, setWebhookForm] = useState<WebhookFormState>(() => buildWebhookForm(null));
   const [metaAdsForm, setMetaAdsForm] = useState<MetaAdsFormState>(() => buildMetaAdsForm(null));
   const [metaAdsAccessToken, setMetaAdsAccessToken] = useState('');
   const [metaAdsOauthState, setMetaAdsOauthState] = useState('');
@@ -395,25 +369,19 @@ export default function Integrations() {
   const [isConnectingFacebook, setIsConnectingFacebook] = useState(false);
   const [isConnectingAds, setIsConnectingAds] = useState(false);
   const [isSavingAds, setIsSavingAds] = useState(false);
-  const [isSavingWebhook, setIsSavingWebhook] = useState(false);
   const [isVerifyingWooCommerce, setIsVerifyingWooCommerce] = useState(false);
   const [isSavingWooCommerce, setIsSavingWooCommerce] = useState(false);
   const [isDisconnectingWooCommerce, setIsDisconnectingWooCommerce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [copiedField, setCopiedField] =
-    useState<'callback' | 'token' | 'woo-callback' | 'woo-secret' | null>(null);
+    useState<'woo-callback' | 'woo-secret' | null>(null);
 
   const loadMetaSetup = async () => {
     try {
       setIsMetaSetupLoading(true);
       const response = await appApi.getMetaLeadCaptureSetup();
       setMetaSetup(response);
-      setWebhookForm((current) => ({
-        ...buildWebhookForm(response),
-        accessToken: '',
-        appId: current.appId || response.config.appId || clientConfig.meta.appId || '',
-      }));
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Failed to load Meta Lead Capture setup.');
     } finally {
@@ -493,7 +461,6 @@ export default function Integrations() {
     if (integration === 'meta-lead-capture') {
       setSelectedConnectionId('meta-lead-capture');
       setIsMetaModalOpen(true);
-      setMetaModalMode('options');
       return;
     }
 
@@ -509,9 +476,6 @@ export default function Integrations() {
   }, [searchParams]);
 
   useEffect(() => {
-    const pathParts = location.pathname.split('/').filter(Boolean);
-    const connectionSlug = pathParts[pathParts.length - 1];
-
     if (connectionSlug === 'meta' || connectionSlug === 'meta-lead-capture') {
       setSelectedConnectionId('meta-lead-capture');
       return;
@@ -519,11 +483,6 @@ export default function Integrations() {
 
     if (connectionSlug === 'meta-ads' || connectionSlug === 'meta-ads-manager') {
       setSelectedConnectionId('meta-ads-manager');
-      return;
-    }
-
-    if (connectionSlug === 'email') {
-      setSelectedConnectionId('email-provider');
       return;
     }
 
@@ -543,8 +502,7 @@ export default function Integrations() {
     }
 
     return Boolean(
-      metaSetup.config.verifiedAt &&
-        metaSetup.config.pageIds.length &&
+      metaSetup.config.pageIds.length &&
         metaSetup.config.accessTokenLast4 &&
         metaSetup.config.status === 'ready',
     );
@@ -585,7 +543,6 @@ export default function Integrations() {
 
   const closeMetaModal = () => {
     setIsMetaModalOpen(false);
-    setMetaModalMode('options');
     setError(null);
     setSuccess(null);
     setSearchParams((current) => {
@@ -622,7 +579,6 @@ export default function Integrations() {
   const openMetaModal = () => {
     setSelectedConnectionId('meta-lead-capture');
     setIsMetaModalOpen(true);
-    setMetaModalMode('options');
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set('integration', 'meta-lead-capture');
@@ -779,7 +735,7 @@ export default function Integrations() {
     }
   };
 
-  const copyText = async (value: string, field: 'callback' | 'token' | 'woo-callback' | 'woo-secret') => {
+  const copyText = async (value: string, field: 'woo-callback' | 'woo-secret') => {
     try {
       await navigator.clipboard.writeText(value);
       setCopiedField(field);
@@ -808,14 +764,8 @@ export default function Integrations() {
         oauthState: session.oauthState,
       });
       setMetaSetup(response);
-      setWebhookForm((current) => ({
-        ...buildWebhookForm(response),
-        accessToken: '',
-        appId: current.appId || response.config.appId || clientConfig.meta.appId || '',
-      }));
-      setMetaModalMode('webhook');
       await refresh();
-      setSuccess('Lead Capture permissions connected. Finish or verify the webhook setup below to start capturing leads.');
+      setSuccess('Meta Lead Capture is connected with Facebook embedded login.');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Facebook connection failed.');
     } finally {
@@ -904,44 +854,6 @@ export default function Integrations() {
     }
   };
 
-  const handleSaveWebhook = async () => {
-    try {
-      setIsSavingWebhook(true);
-      setError(null);
-      setSuccess(null);
-
-      const pageIds = splitList(webhookForm.pageIds);
-      const formIds = splitList(webhookForm.formIds);
-      const hasToken = Boolean(webhookForm.accessToken.trim() || metaSetup?.config.accessTokenLast4);
-
-      let response = await appApi.saveMetaLeadCaptureSetup({
-        appId: webhookForm.appId.trim() || clientConfig.meta.appId || null,
-        pageIds,
-        formIds,
-        accessToken: webhookForm.accessToken.trim() || undefined,
-        defaultOwnerName: bootstrap?.profile?.fullName || null,
-        defaultLabels: ['meta lead'],
-        autoCreateLeads: true,
-      });
-
-      if (pageIds.length && hasToken) {
-        response = await appApi.subscribeMetaLeadCapturePages();
-      }
-
-      setMetaSetup(response);
-      setWebhookForm((current) => ({
-        ...buildWebhookForm(response),
-        accessToken: '',
-        appId: current.appId || response.config.appId || clientConfig.meta.appId || '',
-      }));
-      setSuccess('Meta Lead Capture webhook setup saved.');
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Failed to save the webhook setup.');
-    } finally {
-      setIsSavingWebhook(false);
-    }
-  };
-
   const connections: ConnectionListItem[] = [
     {
       id: 'meta-lead-capture',
@@ -950,7 +862,7 @@ export default function Integrations() {
       connected: metaLeadCaptureConnected,
       icon: 'lead-capture',
       description:
-        'Collect leads from Facebook lead forms using Meta OAuth or direct webhook setup.',
+        'Collect leads from Facebook lead forms using Facebook embedded login setup.',
     },
     {
       id: 'meta-ads-manager',
@@ -960,15 +872,6 @@ export default function Integrations() {
       icon: 'ads',
       description:
         'Connect a Facebook Page and ad account for Meta campaign setup and ad management.',
-    },
-    {
-      id: 'email-provider',
-      name: 'Email Provider',
-      shortStatus: emailConnection?.emailAddress || 'Not connected',
-      connected: Boolean(emailConnection),
-      icon: 'email',
-      description:
-        'Connect and manage the email sending provider used for email campaigns, saved templates, and follow-ups.',
     },
     {
       id: 'woocommerce',
@@ -1037,7 +940,13 @@ export default function Integrations() {
   );
 
   const renderConnectionsHeader = () => (
-    <div className="flex justify-end">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Connections</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Connect and manage channels, integrations, and account setup from here.
+        </p>
+      </div>
       <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
         {activeConnectionsSection === 'channels'
@@ -1079,49 +988,24 @@ export default function Integrations() {
       account: metaSetup?.config?.pageIds.length
         ? `${metaSetup.config.pageIds.length} Page${metaSetup.config.pageIds.length === 1 ? '' : 's'} configured`
         : 'No lead capture Page configured',
-      detail: metaSetup?.config?.verifiedAt
-        ? `Webhook verified on ${new Date(metaSetup.config.verifiedAt).toLocaleString()}`
-        : 'Use Facebook login or webhook setup to collect Meta leads.',
+      detail: metaSetup?.config?.accessTokenLast4
+        ? 'Facebook embedded login is connected and ready to sync lead forms.'
+        : 'Use Facebook embedded login to collect Meta leads.',
       statusText: metaLeadCaptureConnected ? 'Ready' : 'Optional',
       statusTone: metaLeadCaptureConnected
         ? 'text-green-700 bg-green-50 border-green-200'
         : 'text-gray-700 bg-gray-50 border-gray-200',
     },
     {
-      label: 'Webhook',
-      account: metaSetup?.config?.callbackUrl || 'Webhook callback not loaded',
+      label: 'Facebook Login',
+      account: metaSetup?.config?.accessTokenLast4
+        ? `Page access token saved, ending in ${metaSetup.config.accessTokenLast4}`
+        : 'Facebook embedded login is not connected',
       detail: metaSetup?.config?.accessTokenLast4
-        ? `Page access token saved, ending in ${metaSetup.config.accessTokenLast4}.`
-        : 'Save a Page access token so Connektly can retrieve lead details after each webhook event.',
+        ? 'Connektly can retrieve lead fields from the connected Facebook Pages.'
+        : 'Connect with Facebook so Connektly can retrieve lead fields from your Pages.',
       statusText: metaLeadCaptureConnected ? 'Ready' : 'Needs setup',
       statusTone: metaLeadCaptureConnected
-        ? 'text-blue-700 bg-blue-50 border-blue-200'
-        : 'text-yellow-700 bg-yellow-50 border-yellow-200',
-    },
-  ];
-
-  const emailRows: ConnectionStatusRow[] = [
-    {
-      label: 'Provider',
-      account: emailConnection?.emailAddress || 'Email provider is not connected',
-      detail: emailConnection
-        ? `SMTP: ${emailConnection.smtpHost}:${emailConnection.smtpPort}`
-        : 'Connect SMTP/IMAP before sending email campaigns or using the email inbox.',
-      statusText: emailConnection ? 'Connected' : 'Not connected',
-      statusTone: emailConnection
-        ? 'text-green-700 bg-green-50 border-green-200'
-        : 'text-gray-700 bg-gray-50 border-gray-200',
-    },
-    {
-      label: 'Verification',
-      account: emailConnection?.lastVerifiedAt
-        ? new Date(emailConnection.lastVerifiedAt).toLocaleString()
-        : 'Not verified yet',
-      detail: emailConnection?.displayName
-        ? `Sender name: ${emailConnection.displayName}`
-        : 'Verification confirms both sending and inbox credentials.',
-      statusText: emailConnection?.lastVerifiedAt ? 'Verified' : 'Pending',
-      statusTone: emailConnection?.lastVerifiedAt
         ? 'text-blue-700 bg-blue-50 border-blue-200'
         : 'text-yellow-700 bg-yellow-50 border-yellow-200',
     },
@@ -1163,11 +1047,9 @@ export default function Integrations() {
       ? leadCaptureRows
       : selectedConnection.id === 'meta-ads-manager'
         ? metaAdsRows
-        : selectedConnection.id === 'email-provider'
-          ? emailRows
-          : selectedConnection.id === 'woocommerce'
-            ? wooCommerceRows
-            : advancedRows;
+        : selectedConnection.id === 'woocommerce'
+          ? wooCommerceRows
+          : advancedRows;
 
   const renderPrimaryAction = () => {
     if (selectedConnection.id === 'meta-lead-capture') {
@@ -1177,7 +1059,7 @@ export default function Integrations() {
           onClick={openMetaModal}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
         >
-          <Webhook className="h-4 w-4" />
+          <img src={facebookIconUrl} alt="" className="h-4 w-4 object-contain" draggable={false} />
           {metaLeadCaptureConnected ? 'Manage Lead Capture' : 'Connect Lead Capture'}
         </button>
       );
@@ -1192,19 +1074,6 @@ export default function Integrations() {
         >
           <CheckCircle2 className="h-4 w-4" />
           {metaAdsConnected ? 'Manage Ads Manager' : 'Connect Ads Manager'}
-        </button>
-      );
-    }
-
-    if (selectedConnection.id === 'email-provider') {
-      return (
-        <button
-          type="button"
-          onClick={() => navigate(emailConnection ? '/dashboard/emails' : '/dashboard/connections?section=channels&channel=email&setup=1')}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          {emailConnection ? 'Open Email' : 'Connect provider'}
         </button>
       );
     }
@@ -1421,10 +1290,6 @@ export default function Integrations() {
                         buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
                       />
                     </div>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
-                    Required Meta App permissions: `ads_management`, `ads_read`, `pages_show_list`, `pages_read_engagement`, and `pages_manage_ads`. The business user must also have access to the Page and ad account in Meta Business Manager.
                   </div>
 
                   <div className="mt-6 flex flex-wrap justify-between gap-3">
@@ -1773,7 +1638,7 @@ export default function Integrations() {
       {isMetaModalOpen ? (
         <ModalShell
           title="Meta Lead Capture"
-          subtitle="Choose how you want to connect Meta lead capture inside Connektly."
+          subtitle="Connect Meta lead capture with Facebook embedded login."
           onClose={closeMetaModal}
         >
           <div className="space-y-6">
@@ -1784,217 +1649,69 @@ export default function Integrations() {
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>
             ) : null}
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <button
-                type="button"
-                onClick={handleFacebookConnect}
-                disabled={isConnectingFacebook || !hasMetaLeadCaptureLoginConfig}
-                className="rounded-[28px] border border-gray-200 bg-[#f8fbff] p-6 text-left shadow-sm transition hover:border-[#bfd5ff] hover:bg-[#f1f7ff] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center">
-                    <img src={facebookIconUrl} alt="" className="h-12 w-12 object-contain" draggable={false} />
+            <div className="rounded-[28px] border border-gray-200 bg-[#f8fbff] p-6 shadow-sm">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center">
+                    <img src={facebookIconUrl} alt="" className="h-14 w-14 object-contain" draggable={false} />
                   </div>
                   <div>
-                    <p className="text-lg font-semibold text-gray-900">Connect with Facebook</p>
-                    <p className="text-sm text-gray-500">Request lead permissions only</p>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#2364ff]">Facebook embedded login</p>
+                    <h3 className="mt-2 text-2xl font-bold text-gray-900">Connect Facebook Lead Ads</h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+                      Launch the Meta login flow to grant Page and lead retrieval permissions. Connektly uses this access to sync Facebook lead form submissions into your lead list.
+                    </p>
                   </div>
                 </div>
-                <p className="mt-5 text-sm leading-7 text-gray-600">
-                  Open a dedicated Meta OAuth flow for Pages and lead retrieval access. This does not launch WhatsApp onboarding.
+                {isMetaSetupLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#5b45ff]" /> : null}
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Pages</p>
+                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                    {metaSetup?.config?.pageIds.length
+                      ? `${metaSetup.config.pageIds.length} configured`
+                      : 'Not connected'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Lead access</p>
+                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                    {metaSetup?.config?.accessTokenLast4 ? `Token ends ${metaSetup.config.accessTokenLast4}` : 'Not granted'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Page subscriptions</p>
+                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                    {allLeadPagesSubscribed ? 'Connected' : 'Pending'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                <p className="max-w-2xl text-sm leading-6 text-gray-600">
+                  Required Meta permissions are requested during login. Make sure the Facebook user has access to the Pages and lead forms in Meta Business Manager.
                 </p>
-                <div className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#d9e8ff] px-4 py-3 text-sm font-medium text-[#1f4ed8]">
+                <button
+                  type="button"
+                  onClick={handleFacebookConnect}
+                  disabled={isConnectingFacebook || !hasMetaLeadCaptureLoginConfig}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                >
                   {isConnectingFacebook ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <img src={facebookIconUrl} alt="" className="h-4 w-4 object-contain" draggable={false} />
                   )}
-                  {hasMetaLeadCaptureLoginConfig ? 'Connect with Facebook' : 'Meta app ID unavailable'}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMetaModalMode('webhook')}
-                className="rounded-[28px] border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-gray-300 hover:shadow-md"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#111827] text-white">
-                    <Webhook className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900">Connect via webhook</p>
-                    <p className="text-sm text-gray-500">Paste callback details into Meta</p>
-                  </div>
-                </div>
-                <p className="mt-5 text-sm leading-7 text-gray-600">
-                  Configure callback URL, verify token, app ID, page ID, and form mapping for direct Meta lead capture sync.
-                </p>
-                <div className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">
-                  <Webhook className="h-4 w-4" /> Open webhook setup
-                </div>
-              </button>
-            </div>
-
-            {metaModalMode === 'webhook' ? (
-              <div className="rounded-[28px] border border-gray-200 bg-[#fcfcfd] p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-400">Webhook setup</p>
-                    <h3 className="mt-2 text-2xl font-bold text-gray-900">Connect Meta Lead Capture via webhook</h3>
-                    <p className="mt-2 max-w-3xl text-sm text-gray-500">
-                      Paste these details into Meta, then save your IDs below. The page access token remains required so Connektly can retrieve lead fields after each webhook hits the server.
-                    </p>
-                  </div>
-                  {isMetaSetupLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#5b45ff]" /> : null}
-                </div>
-
-                <div className="mt-6 grid gap-4 xl:grid-cols-2">
-                  <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Webhook callback URL</p>
-                    <p className="mt-3 break-all text-sm font-medium text-gray-900">{metaSetup?.config.callbackUrl || 'Loading...'}</p>
-                    {metaSetup?.config.callbackUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => void copyText(metaSetup.config.callbackUrl, 'callback')}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-                      >
-                        <Copy className="h-3.5 w-3.5" /> {copiedField === 'callback' ? 'Copied' : 'Copy URL'}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Webhook verify token</p>
-                    <p className="mt-3 break-all text-sm font-medium text-gray-900">{metaSetup?.config.verifyToken || 'Loading...'}</p>
-                    {metaSetup?.config.verifyToken ? (
-                      <button
-                        type="button"
-                        onClick={() => void copyText(metaSetup.config.verifyToken, 'token')}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-                      >
-                        <Copy className="h-3.5 w-3.5" /> {copiedField === 'token' ? 'Copied' : 'Copy token'}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-5 md:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-gray-700">Meta App ID</span>
-                    <input
-                      type="text"
-                      value={webhookForm.appId}
-                      onChange={(event) => setWebhookForm((current) => ({ ...current, appId: event.target.value }))}
-                      placeholder="Meta app ID"
-                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-gray-700">Meta Page ID</span>
-                    <textarea
-                      value={webhookForm.pageIds}
-                      onChange={(event) => setWebhookForm((current) => ({ ...current, pageIds: event.target.value }))}
-                      rows={3}
-                      placeholder={'One Page ID per line\n123456789012345'}
-                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-gray-700">Meta Form ID</span>
-                    <textarea
-                      value={webhookForm.formIds}
-                      onChange={(event) => setWebhookForm((current) => ({ ...current, formIds: event.target.value }))}
-                      rows={3}
-                      placeholder={'Optional. Leave blank to accept all forms.\n987654321098765'}
-                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-gray-700">Facebook Page Access Token</span>
-                    <input
-                      type="password"
-                      value={webhookForm.accessToken}
-                      onChange={(event) => setWebhookForm((current) => ({ ...current, accessToken: event.target.value }))}
-                      placeholder={
-                        metaSetup?.config.accessTokenLast4
-                          ? `Saved token ending in ${metaSetup.config.accessTokenLast4}. Enter a new one only if you want to replace it.`
-                          : 'Required to retrieve lead fields after webhook delivery'
-                      }
-                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                    />
-                  </label>
-                </div>
-
-                <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
-                    <p className="font-medium text-gray-900">Meta-side checklist</p>
-                    <p className="mt-2">1. Add the `Webhooks` product in Meta App Dashboard.</p>
-                    <p className="mt-1">2. Subscribe the app to the `Page` object and enable `leadgen`.</p>
-                    <p className="mt-1">3. Use the callback URL and verify token shown above.</p>
-                    <p className="mt-1">4. Grant page and form access in Leads Access Manager.</p>
-                  </div>
-                  <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
-                    <p className="font-medium text-gray-900">Current status</p>
-                    <p className="mt-2">Webhook verified: <span className="font-semibold text-gray-900">{metaSetup?.config.verifiedAt ? 'Yes' : 'Pending'}</span></p>
-                    <p className="mt-2">Page subscriptions active: <span className="font-semibold text-gray-900">{allLeadPagesSubscribed ? 'Yes' : 'Pending'}</span></p>
-                    <p className="mt-2">Last lead sync: <span className="font-semibold text-gray-900">{metaSetup?.config.lastLeadSyncedAt ? new Date(metaSetup.config.lastLeadSyncedAt).toLocaleString() : 'Not available'}</span></p>
-                  </div>
-                </div>
-
-                {metaSetup?.pageSubscriptions.length ? (
-                  <div className="mt-6 grid gap-3">
-                    {metaSetup.pageSubscriptions.map((subscription) => (
-                      <div key={subscription.pageId} className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="font-mono text-xs text-gray-700">{subscription.pageId}</p>
-                            <p className="mt-1 text-gray-500">
-                              {subscription.errorMessage
-                                ? subscription.errorMessage
-                                : subscription.subscribedFields.length
-                                  ? `Subscribed fields: ${subscription.subscribedFields.join(', ')}`
-                                  : 'No subscribed fields returned yet.'}
-                            </p>
-                          </div>
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                              subscription.subscribed
-                                ? 'border border-emerald-100 bg-emerald-50 text-emerald-700'
-                                : 'border border-amber-100 bg-amber-50 text-amber-700'
-                            }`}
-                          >
-                            {subscription.subscribed ? 'Connected' : 'Pending'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                <div className="mt-6 flex flex-wrap justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setMetaModalMode('options')}
-                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveWebhook()}
-                    disabled={isSavingWebhook}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:opacity-60"
-                  >
-                    {isSavingWebhook ? <Loader2 className="h-4 w-4 animate-spin" /> : <Webhook className="h-4 w-4" />}
-                    Save webhook setup
-                  </button>
-                </div>
+                  {hasMetaLeadCaptureLoginConfig
+                    ? metaLeadCaptureConnected
+                      ? 'Reconnect with Facebook'
+                      : 'Connect with Facebook'
+                    : 'Meta app ID unavailable'}
+                </button>
               </div>
-            ) : null}
+            </div>
           </div>
         </ModalShell>
       ) : null}

@@ -3386,6 +3386,10 @@ function getMessengerWebhookCallbackUrl() {
   return new URL('/api/messenger/webhook', frontendOrigin).toString();
 }
 
+function getInstagramWebhookCallbackUrl() {
+  return new URL('/api/instagram/webhook', frontendOrigin).toString();
+}
+
 function getWooCommerceCallbackUrl(req: Request, userId: string) {
   return new URL(`/api/integrations/woocommerce/webhook/${encodeURIComponent(userId)}`, getRequestOrigin(req)).toString();
 }
@@ -9004,8 +9008,43 @@ async function subscribeInstagramPageToWebhook(accessToken: string, pageId: stri
   });
 }
 
-async function subscribeInstagramAccountToWebhook(accessToken: string, instagramAccountId: string) {
+async function subscribeMetaAppToInstagramWebhook(fields: readonly string[]) {
+  if (!instagramAppId || !instagramAppSecret) {
+    throw new Error('INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET are required to configure Instagram webhooks.');
+  }
+
+  if (!instagramWebhookVerifyToken) {
+    throw new Error('INSTAGRAM_WEBHOOK_VERIFY_TOKEN is required to configure Instagram webhooks.');
+  }
+
   return metaRequestDetailed<{
+    success?: boolean;
+  }>({
+    accessToken: `${instagramAppId}|${instagramAppSecret}`,
+    path: `${instagramAppId}/subscriptions`,
+    method: 'POST',
+    version: instagramGraphVersion,
+    query: {
+      object: 'instagram',
+      callback_url: getInstagramWebhookCallbackUrl(),
+      fields: fields.join(','),
+      verify_token: instagramWebhookVerifyToken,
+      include_values: true,
+    },
+  });
+}
+
+async function subscribeInstagramAccountToWebhook(accessToken: string, instagramAccountId: string) {
+  let appWebhookLastError: string | null = null;
+
+  try {
+    await subscribeMetaAppToInstagramWebhook(DEFAULT_INSTAGRAM_LOGIN_WEBHOOK_FIELDS);
+  } catch (error) {
+    appWebhookLastError = mapDbError(error);
+    console.error('Failed to configure Instagram app webhook subscription:', error);
+  }
+
+  const accountSubscription = await metaRequestDetailed<{
     success?: boolean;
   }>({
     accessToken,
@@ -9016,6 +9055,11 @@ async function subscribeInstagramAccountToWebhook(accessToken: string, instagram
       subscribed_fields: DEFAULT_INSTAGRAM_LOGIN_WEBHOOK_FIELDS.join(','),
     },
   });
+
+  return {
+    ...accountSubscription,
+    appWebhookLastError,
+  };
 }
 
 async function fetchInstagramAccountProfile(
@@ -17838,6 +17882,7 @@ async function saveInstagramChannel(args: {
 }) {
   let webhookSubscribed = false;
   let webhookLastError: string | null = null;
+  let appWebhookLastError: string | null = null;
   const webhookFields =
     args.pageAccessToken && args.pageId
       ? [...DEFAULT_INSTAGRAM_WEBHOOK_FIELDS]
@@ -17847,7 +17892,11 @@ async function saveInstagramChannel(args: {
     if (args.pageAccessToken && args.pageId) {
       await subscribeInstagramPageToWebhook(args.pageAccessToken, args.pageId);
     } else {
-      await subscribeInstagramAccountToWebhook(args.userAccessToken, args.instagramAccountId);
+      const subscription = await subscribeInstagramAccountToWebhook(
+        args.userAccessToken,
+        args.instagramAccountId,
+      );
+      appWebhookLastError = subscription.appWebhookLastError;
     }
     webhookSubscribed = true;
   } catch (error) {
@@ -17873,6 +17922,8 @@ async function saveInstagramChannel(args: {
         subscribed: webhookSubscribed,
         fields: webhookFields,
         lastError: webhookLastError,
+        appLastError: appWebhookLastError,
+        callbackUrl: getInstagramWebhookCallbackUrl(),
         updatedAt: new Date().toISOString(),
       },
     },
@@ -17901,6 +17952,7 @@ async function updateInstagramWebhookSubscription(args: {
   row: Record<string, unknown>;
   subscribed: boolean;
   lastError: string | null;
+  appLastError?: string | null;
   fields: string[];
 }) {
   const metadata = isRecord(args.row.metadata) ? { ...args.row.metadata } : {};
@@ -17908,6 +17960,8 @@ async function updateInstagramWebhookSubscription(args: {
     subscribed: args.subscribed,
     fields: args.fields,
     lastError: args.lastError,
+    appLastError: args.appLastError ?? null,
+    callbackUrl: getInstagramWebhookCallbackUrl(),
     updatedAt: new Date().toISOString(),
   };
 
@@ -17945,16 +17999,21 @@ async function activateInstagramWebhookSubscription(userId: string) {
   }
 
   try {
+    let appWebhookLastError: string | null = null;
+
     if (pageId && pageAccessToken) {
       await subscribeInstagramPageToWebhook(pageAccessToken, pageId);
     } else {
-      await subscribeInstagramAccountToWebhook(accessToken, instagramAccountId);
+      const subscription = await subscribeInstagramAccountToWebhook(accessToken, instagramAccountId);
+      appWebhookLastError = subscription.appWebhookLastError;
     }
+
     return updateInstagramWebhookSubscription({
       userId,
       row,
       subscribed: true,
       lastError: null,
+      appLastError: appWebhookLastError,
       fields: webhookFields,
     });
   } catch (error) {
@@ -17963,6 +18022,7 @@ async function activateInstagramWebhookSubscription(userId: string) {
       row,
       subscribed: false,
       lastError: mapDbError(error),
+      appLastError: null,
       fields: webhookFields,
     });
     throw error;
