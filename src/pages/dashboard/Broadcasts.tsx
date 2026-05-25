@@ -21,6 +21,7 @@ import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import CsvImportModal from '../../components/CsvImportModal';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock';
 import type { ConversationThread, MetaTemplate } from '../../lib/types';
 
 const CAMPAIGNS_STORAGE_KEY = 'connektly-campaigns';
@@ -463,19 +464,7 @@ function PastCampaignsModal({
   pastBroadcasts: PastBroadcastRecord[];
 }) {
   useEscapeKey(isOpen, onClose);
-
-  useEffect(() => {
-    if (!isOpen || typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
+  useBodyScrollLock(isOpen);
 
   if (!isOpen || typeof document === 'undefined') {
     return null;

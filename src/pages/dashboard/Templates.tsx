@@ -30,6 +30,7 @@ import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
 import { sortMetaTemplates } from '../../lib/templates';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock';
 import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
@@ -568,19 +569,7 @@ export default function Templates() {
 
   useEscapeKey(isCreateOpen, closeCreateModal);
   useEscapeKey(Boolean(previewTemplate), closePreviewModal);
-
-  useEffect(() => {
-    if ((!isCreateOpen && !previewTemplate) || typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isCreateOpen, previewTemplate]);
+  useBodyScrollLock(isCreateOpen || Boolean(previewTemplate));
 
   const modalRoot = typeof document === 'undefined' ? null : document.body;
 

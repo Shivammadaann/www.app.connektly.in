@@ -20,6 +20,7 @@ import { clientConfig, hasMetaAdsLoginConfig, hasMetaLeadCaptureLoginConfig } fr
 import { beginMetaAdsLogin, beginMetaLeadCaptureLogin } from '../../lib/meta-sdk';
 import { useAppData } from '../../context/AppDataContext';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock';
 import Channels from './Channels';
 import type {
   MetaLeadCaptureSetupResponse,
@@ -238,19 +239,7 @@ function ModalShell({
   children: ReactNode;
 }) {
   useEscapeKey(true, onClose);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
+  useBodyScrollLock();
 
   if (typeof document === 'undefined') {
     return null;

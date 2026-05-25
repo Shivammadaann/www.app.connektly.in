@@ -19,6 +19,7 @@ import {
 import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import type {
   AutomationRule,
@@ -564,19 +565,7 @@ function TriggerEditorModal({
   onSubmit: () => void;
 }) {
   useEscapeKey(true, onClose);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
+  useBodyScrollLock();
 
   if (typeof document === 'undefined') {
     return null;

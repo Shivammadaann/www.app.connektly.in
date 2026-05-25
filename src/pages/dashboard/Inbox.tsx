@@ -58,6 +58,7 @@ import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import type { ChannelBrand } from '../../components/ChannelBrandIcon';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
+import { lockBodyScroll } from '../../lib/useBodyScrollLock';
 import defaultProfilePictureUrl from '../../assets/profile.png';
 import type {
   ConversationMessage,
@@ -1756,7 +1757,7 @@ function MessageMediaAttachment({ message }: { message: ConversationMessage }) {
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
+    const releaseBodyScrollLock = lockBodyScroll();
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsPreviewOpen(false);
@@ -1764,11 +1765,10 @@ function MessageMediaAttachment({ message }: { message: ConversationMessage }) {
       }
     };
 
-    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      releaseBodyScrollLock();
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isPreviewOpen]);

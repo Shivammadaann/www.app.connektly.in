@@ -1,8 +1,9 @@
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useBodyScrollLock } from '../lib/useBodyScrollLock';
 
 type ConfirmationDialogTone = 'danger' | 'warning' | 'default';
 
@@ -56,18 +57,7 @@ export default function ConfirmationDialog({
 
   useEscapeKey(isDismissable, onClose);
 
-  useEffect(() => {
-    if (!isOpen || typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
+  useBodyScrollLock(isOpen);
 
   if (typeof document === 'undefined') {
     return null;

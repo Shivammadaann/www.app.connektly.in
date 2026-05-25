@@ -16,6 +16,7 @@ import {
   type DashboardApiErrorEventDetail,
 } from '../lib/api';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { useBodyScrollLock } from '../lib/useBodyScrollLock';
 import { getAuthUserDisplayName, getAuthUserProfilePictureUrl } from '../lib/userProfile';
 import { getDefaultNotificationPreferences, getUnreadNotificationCount } from '../lib/notifications';
 import { playNotificationChime } from '../lib/soundManager';
@@ -303,21 +304,7 @@ export default function DashboardLayout() {
     setIsAccountMenuOpen(false);
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-
-    if (isMobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isMobileMenuOpen]);
+  useBodyScrollLock(isMobileMenuOpen);
 
   useEffect(() => {
     if (!isWalletMenuOpen) {
@@ -754,7 +741,7 @@ export default function DashboardLayout() {
 
   return (
     <CallManagerProvider>
-      <div className="dashboard-shell flex h-[100dvh] overflow-hidden font-sans">
+      <div className="dashboard-shell flex h-[100dvh] min-h-0 overflow-hidden font-sans">
       {/* Sidebar (Dark Theme) */}
       <aside
         className={`hidden md:flex flex-col bg-[#111827] text-gray-400 transition-[width] duration-300 z-20 ${
@@ -1063,7 +1050,7 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Header (Dark Theme) */}
         <header className="relative z-[45] h-16 shrink-0 items-center justify-between border-b border-gray-800 bg-[#111827] px-3 sm:px-6 flex">
           <div className="flex min-w-0 items-center flex-1">
@@ -1287,7 +1274,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Main Content Scrollable Area */}
-        <main className="dashboard-main relative flex-1 overflow-auto p-3 sm:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-6">
+        <main className="dashboard-main relative min-h-0 flex-1 overflow-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-6">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -left-16 top-0 h-72 w-72 rounded-full bg-[#dbe8ff]/75 blur-3xl" />
             <div className="absolute right-[-4rem] top-20 h-96 w-96 rounded-full bg-[#d7f5ec]/65 blur-3xl" />

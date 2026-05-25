@@ -23,6 +23,7 @@ import {
 import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
 import { useEscapeKey } from '../../lib/useEscapeKey';
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import type {
   WhatsAppFlow,
@@ -269,19 +270,7 @@ function getStatusClassName(status: string) {
 
 function ModalShell({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: ReactNode }) {
   useEscapeKey(true, onClose);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
+  useBodyScrollLock();
 
   if (typeof document === 'undefined') {
     return null;
