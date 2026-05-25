@@ -350,7 +350,7 @@ export default function OnboardingProfile() {
                     setName(event.target.value);
                     setError(null);
                   }}
-                  placeholder="Shivam Madaan"
+                  placeholder="John Doe"
                   className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
                   required
                 />

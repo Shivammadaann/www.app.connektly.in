@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { getCachedSession, supabase } from '../lib/supabase';
@@ -119,6 +119,7 @@ export default function DashboardLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const [activeCollapsedDropdown, setActiveCollapsedDropdown] = useState<string | null>(null);
+  const [collapsedFlyoutTop, setCollapsedFlyoutTop] = useState<number | null>(null);
   const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -156,6 +157,8 @@ export default function DashboardLayout() {
   const walletMenuRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const collapsedFlyoutRef = useRef<HTMLDivElement | null>(null);
+  const collapsedDropdownTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const previousLatestNotificationIdRef = useRef<string | null>(null);
   const hasInitializedNotificationSoundRef = useRef(false);
   const emailNotificationPollInFlightRef = useRef(false);
@@ -196,7 +199,67 @@ export default function DashboardLayout() {
 
   useEffect(() => {
     setActiveCollapsedDropdown(null);
+    setCollapsedFlyoutTop(null);
   }, [isDesktopSidebarCollapsed, location.pathname]);
+
+  const positionCollapsedFlyout = useCallback((dropdownId: string) => {
+    const trigger = collapsedDropdownTriggerRefs.current[dropdownId];
+
+    if (!trigger || typeof window === 'undefined') {
+      setCollapsedFlyoutTop(null);
+      return;
+    }
+
+    const triggerBounds = trigger.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const minimumTop = 72;
+    const maximumTop = Math.max(minimumTop, viewportHeight - 96);
+    const nextTop = Math.min(Math.max(triggerBounds.top, minimumTop), maximumTop);
+
+    setCollapsedFlyoutTop(nextTop);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopSidebarCollapsed || !activeCollapsedDropdown) {
+      setCollapsedFlyoutTop(null);
+      return;
+    }
+
+    const updateFlyoutPosition = () => positionCollapsedFlyout(activeCollapsedDropdown);
+
+    updateFlyoutPosition();
+    window.addEventListener('resize', updateFlyoutPosition);
+    window.addEventListener('scroll', updateFlyoutPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateFlyoutPosition);
+      window.removeEventListener('scroll', updateFlyoutPosition, true);
+    };
+  }, [activeCollapsedDropdown, isDesktopSidebarCollapsed, positionCollapsedFlyout]);
+
+  useEffect(() => {
+    if (!isDesktopSidebarCollapsed || !activeCollapsedDropdown) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const activeTrigger = collapsedDropdownTriggerRefs.current[activeCollapsedDropdown];
+
+      if (activeTrigger?.contains(target) || collapsedFlyoutRef.current?.contains(target)) {
+        return;
+      }
+
+      setActiveCollapsedDropdown(null);
+      setCollapsedFlyoutTop(null);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [activeCollapsedDropdown, isDesktopSidebarCollapsed]);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -794,9 +857,18 @@ export default function DashboardLayout() {
                 return (
                   <div key={item.id} className="space-y-1 relative">
                     <button
+                      ref={(element) => {
+                        collapsedDropdownTriggerRefs.current[item.id] = element;
+                      }}
                       onClick={() => {
                         if (isDesktopSidebarCollapsed) {
-                          setActiveCollapsedDropdown((currentValue) => currentValue === item.id ? null : item.id);
+                          if (activeCollapsedDropdown === item.id) {
+                            setActiveCollapsedDropdown(null);
+                            setCollapsedFlyoutTop(null);
+                          } else {
+                            positionCollapsedFlyout(item.id);
+                            setActiveCollapsedDropdown(item.id);
+                          }
                           return;
                         }
 
@@ -880,7 +952,13 @@ export default function DashboardLayout() {
                           initial={{ opacity: 0, x: -8, scale: 0.98 }}
                           animate={{ opacity: 1, x: 0, scale: 1 }}
                           exit={{ opacity: 0, x: -8, scale: 0.98 }}
-                          className="absolute left-full top-0 z-50 ml-3 w-64 rounded-2xl border border-gray-800 bg-[#111827] p-2 shadow-2xl"
+                          ref={collapsedFlyoutRef}
+                          style={{
+                            left: 92,
+                            top: collapsedFlyoutTop ?? 72,
+                            maxHeight: `calc(100vh - ${(collapsedFlyoutTop ?? 72) + 16}px)`,
+                          }}
+                          className="fixed z-[70] w-64 overflow-y-auto rounded-2xl border border-gray-800 bg-[#111827] p-2 shadow-2xl"
                         >
                           <div className="px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                             {item.label}

@@ -409,20 +409,17 @@ function TemplatePreviewCard({ template }: { template: MetaTemplate | null }) {
 }
 
 function SectionCard({
-  step,
   title,
   description,
   children,
 }: {
-  step: string;
   title: string;
   description: string;
   children: ReactNode;
 }) {
   return (
     <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-400">{step}</p>
-      <h3 className="mt-2 text-xl font-bold text-gray-900">{title}</h3>
+      <h3 className="text-xl font-bold text-gray-900">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-gray-500">{description}</p>
       <div className="mt-5">{children}</div>
     </section>
@@ -926,7 +923,6 @@ export default function Broadcasts() {
       >
             <div className="space-y-6">
               <SectionCard
-                step="Step 1"
                 title="What message do you want to send?"
                 description="Give the campaign a clear name and choose an approved WhatsApp marketing template message."
               >
@@ -974,7 +970,6 @@ export default function Broadcasts() {
               </SectionCard>
 
               <SectionCard
-                step="Step 2"
                 title="Who is your audience?"
                 description="Pick contacts from your workspace or import a CSV audience list. You can also download a sample CSV first."
               >
@@ -1104,7 +1099,6 @@ export default function Broadcasts() {
               </SectionCard>
 
               <SectionCard
-                step="Step 3"
                 title="When do you want to send it?"
                 description="Choose whether to send immediately or save the campaign for later. Automatic scheduled execution is not live yet."
               >
