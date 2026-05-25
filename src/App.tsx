@@ -296,9 +296,12 @@ export default function App() {
               <Route path="credits/whatsapp" element={<Navigate to="/dashboard/billing/wallet" replace />} />
               <Route path="integrations" element={<Integrations />} />
               <Route path="integrations/meta-lead-capture" element={<Navigate to="/dashboard/connections?integration=meta-lead-capture" replace />} />
+              <Route path="integrations/meta-ads-manager" element={<Navigate to="/dashboard/connections?integration=meta-ads" replace />} />
               <Route path="connections" element={<Integrations />} />
               <Route path="connections/meta" element={<Integrations />} />
-              <Route path="connections/whatsapp" element={<Integrations />} />
+              <Route path="connections/meta-lead-capture" element={<Integrations />} />
+              <Route path="connections/meta-ads-manager" element={<Integrations />} />
+              <Route path="connections/whatsapp" element={<ChannelsRedirect />} />
               <Route path="connections/email" element={<Integrations />} />
               <Route path="connections/woocommerce" element={<Integrations />} />
               <Route path="connections/advanced" element={<DeveloperTools />} />

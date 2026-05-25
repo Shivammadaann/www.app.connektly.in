@@ -11,7 +11,6 @@ import {
   X,
 } from 'lucide-react';
 import { appApi } from '../../lib/api';
-import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import IntegrationBrandIcon from '../../components/IntegrationBrandIcon';
 import MetaVerifiedIcon from '../../components/MetaVerifiedIcon';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
@@ -40,8 +39,8 @@ interface MetaAdsFormState {
   adAccountId: string;
 }
 
-type ConnectionId = 'meta' | 'whatsapp-business' | 'email-provider' | 'woocommerce' | 'advanced';
-type ConnectionIcon = 'meta' | 'whatsapp' | 'email' | 'woocommerce' | 'advanced';
+type ConnectionId = 'meta-lead-capture' | 'meta-ads-manager' | 'email-provider' | 'woocommerce' | 'advanced';
+type ConnectionIcon = 'lead-capture' | 'ads' | 'email' | 'woocommerce' | 'advanced';
 
 interface ConnectionListItem {
   id: ConnectionId;
@@ -288,12 +287,12 @@ function ModalShell({
 }
 
 function ConnectionListIcon({ icon, className = 'h-11 w-11' }: { icon: ConnectionIcon; className?: string }) {
-  if (icon === 'meta') {
-    return <IntegrationBrandIcon brand="meta" className={className} />;
+  if (icon === 'lead-capture') {
+    return <IntegrationBrandIcon brand="lead-capture" className={className} />;
   }
 
-  if (icon === 'whatsapp') {
-    return <ChannelBrandIcon channel="whatsapp" className={className} alt="" />;
+  if (icon === 'ads') {
+    return <IntegrationBrandIcon brand="ads" className={className} />;
   }
 
   if (icon === 'email') {
@@ -390,7 +389,7 @@ export default function Integrations() {
   const [isMetaModalOpen, setIsMetaModalOpen] = useState(false);
   const [isMetaAdsModalOpen, setIsMetaAdsModalOpen] = useState(false);
   const [isWooCommerceModalOpen, setIsWooCommerceModalOpen] = useState(false);
-  const [selectedConnectionId, setSelectedConnectionId] = useState<ConnectionId>('meta');
+  const [selectedConnectionId, setSelectedConnectionId] = useState<ConnectionId>('meta-lead-capture');
   const [metaModalMode, setMetaModalMode] = useState<'options' | 'webhook'>('options');
   const [webhookForm, setWebhookForm] = useState<WebhookFormState>(() => buildWebhookForm(null));
   const [metaAdsForm, setMetaAdsForm] = useState<MetaAdsFormState>(() => buildMetaAdsForm(null));
@@ -503,12 +502,14 @@ export default function Integrations() {
   useEffect(() => {
     const integration = searchParams.get('integration');
     if (integration === 'meta-lead-capture') {
+      setSelectedConnectionId('meta-lead-capture');
       setIsMetaModalOpen(true);
       setMetaModalMode('options');
       return;
     }
 
     if (integration === 'meta-ads') {
+      setSelectedConnectionId('meta-ads-manager');
       setIsMetaAdsModalOpen(true);
       return;
     }
@@ -522,13 +523,13 @@ export default function Integrations() {
     const pathParts = location.pathname.split('/').filter(Boolean);
     const connectionSlug = pathParts[pathParts.length - 1];
 
-    if (connectionSlug === 'meta') {
-      setSelectedConnectionId('meta');
+    if (connectionSlug === 'meta' || connectionSlug === 'meta-lead-capture') {
+      setSelectedConnectionId('meta-lead-capture');
       return;
     }
 
-    if (connectionSlug === 'whatsapp') {
-      setSelectedConnectionId('whatsapp-business');
+    if (connectionSlug === 'meta-ads' || connectionSlug === 'meta-ads-manager') {
+      setSelectedConnectionId('meta-ads-manager');
       return;
     }
 
@@ -543,7 +544,7 @@ export default function Integrations() {
     }
 
     if (connectionSlug === 'connections' || connectionSlug === 'integrations') {
-      setSelectedConnectionId('meta');
+      setSelectedConnectionId('meta-lead-capture');
     }
   }, [location.pathname]);
 
@@ -630,6 +631,7 @@ export default function Integrations() {
   };
 
   const openMetaModal = () => {
+    setSelectedConnectionId('meta-lead-capture');
     setIsMetaModalOpen(true);
     setMetaModalMode('options');
     setSearchParams((current) => {
@@ -640,6 +642,7 @@ export default function Integrations() {
   };
 
   const openMetaAdsModal = () => {
+    setSelectedConnectionId('meta-ads-manager');
     setIsMetaAdsModalOpen(true);
     setError(null);
     setSuccess(null);
@@ -950,31 +953,24 @@ export default function Integrations() {
     }
   };
 
-  const metaConnected =
-    metaLeadCaptureConnected ||
-    metaAdsConnected ||
-    Boolean(bootstrap?.instagramChannel) ||
-    Boolean(bootstrap?.messengerChannel);
-  const whatsAppConnected = Boolean(bootstrap?.channel);
-
   const connections: ConnectionListItem[] = [
     {
-      id: 'meta',
-      name: 'Meta',
-      shortStatus: metaConnected ? 'Meta assets connected' : 'Not connected',
-      connected: metaConnected,
-      icon: 'meta',
+      id: 'meta-lead-capture',
+      name: 'Meta Lead Capture',
+      shortStatus: metaLeadCaptureConnected ? 'Ready' : 'Not connected',
+      connected: metaLeadCaptureConnected,
+      icon: 'lead-capture',
       description:
-        'Manage Facebook Pages, Instagram, Messenger, Ads Manager, and lead forms connected to this workspace.',
+        'Collect leads from Facebook lead forms using Meta OAuth or direct webhook setup.',
     },
     {
-      id: 'whatsapp-business',
-      name: 'WhatsApp Business',
-      shortStatus: bootstrap?.channel?.displayPhoneNumber || (whatsAppConnected ? 'Connected' : 'Not connected'),
-      connected: whatsAppConnected,
-      icon: 'whatsapp',
+      id: 'meta-ads-manager',
+      name: 'Meta Ads Manager',
+      shortStatus: metaAdsSetup?.config?.adAccountName || (metaAdsConnected ? 'Ready' : 'Not connected'),
+      connected: metaAdsConnected,
+      icon: 'ads',
       description:
-        'Manage the WhatsApp Business Account, phone number connection, messaging setup, and channel health.',
+        'Connect a Facebook Page and ad account for Meta campaign setup and ad management.',
     },
     {
       id: 'email-provider',
@@ -1069,17 +1065,7 @@ export default function Integrations() {
   );
   const selectedConnectionStatusLabel = selectedConnection.connected ? 'Connected' : 'Not connected';
 
-  const metaRows: ConnectionStatusRow[] = [
-    {
-      label: 'Meta Assets',
-      account: metaConnected ? 'At least one Meta connection is ready.' : 'No Meta assets are connected yet.',
-      detail:
-        'Covers Instagram, Messenger, Meta Ads Manager, and lead capture setup for this workspace.',
-      statusText: metaConnected ? 'Connected' : 'Not connected',
-      statusTone: metaConnected
-        ? 'text-green-700 bg-green-50 border-green-200'
-        : 'text-gray-700 bg-gray-50 border-gray-200',
-    },
+  const metaAdsRows: ConnectionStatusRow[] = [
     {
       label: 'Meta Ads',
       account: metaAdsSetup?.config?.adAccountName || metaAdsSetup?.config?.adAccountId || 'No ad account selected',
@@ -1091,6 +1077,20 @@ export default function Integrations() {
         ? 'text-blue-700 bg-blue-50 border-blue-200'
         : 'text-yellow-700 bg-yellow-50 border-yellow-200',
     },
+    {
+      label: 'Page',
+      account: metaAdsSetup?.config?.pageName || metaAdsSetup?.config?.pageId || 'No Facebook Page selected',
+      detail: metaAdsConnected
+        ? 'This Page is available for Meta campaign setup.'
+        : 'Connect with Facebook, then choose the Page used for ads.',
+      statusText: metaAdsConnected ? 'Selected' : 'Needs setup',
+      statusTone: metaAdsConnected
+        ? 'text-green-700 bg-green-50 border-green-200'
+        : 'text-gray-700 bg-gray-50 border-gray-200',
+    },
+  ];
+
+  const leadCaptureRows: ConnectionStatusRow[] = [
     {
       label: 'Lead Capture',
       account: metaSetup?.config?.pageIds.length
@@ -1104,29 +1104,14 @@ export default function Integrations() {
         ? 'text-green-700 bg-green-50 border-green-200'
         : 'text-gray-700 bg-gray-50 border-gray-200',
     },
-  ];
-
-  const whatsappRows: ConnectionStatusRow[] = [
     {
-      label: 'Account',
-      account:
-        bootstrap?.channel?.displayPhoneNumber ||
-        bootstrap?.channel?.phoneNumberId ||
-        'No WhatsApp number connected',
-      detail: bootstrap?.channel?.businessAccountName
-        ? `Business account: ${bootstrap.channel.businessAccountName}`
-        : 'Connect a WhatsApp Business number before using WhatsApp messaging.',
-      statusText: whatsAppConnected ? 'Connected' : 'Disconnected',
-      statusTone: whatsAppConnected
-        ? 'text-green-700 bg-green-50 border-green-200'
-        : 'text-gray-700 bg-gray-50 border-gray-200',
-    },
-    {
-      label: 'Channel Health',
-      account: bootstrap?.channel?.qualityRating || 'Quality not returned yet',
-      detail: 'Open Channels for display name approval, quality rating, webhook, and two-step verification controls.',
-      statusText: whatsAppConnected ? 'Review in Channels' : 'Needs setup',
-      statusTone: whatsAppConnected
+      label: 'Webhook',
+      account: metaSetup?.config?.callbackUrl || 'Webhook callback not loaded',
+      detail: metaSetup?.config?.accessTokenLast4
+        ? `Page access token saved, ending in ${metaSetup.config.accessTokenLast4}.`
+        : 'Save a Page access token so Connektly can retrieve lead details after each webhook event.',
+      statusText: metaLeadCaptureConnected ? 'Ready' : 'Needs setup',
+      statusTone: metaLeadCaptureConnected
         ? 'text-blue-700 bg-blue-50 border-blue-200'
         : 'text-yellow-700 bg-yellow-50 border-yellow-200',
     },
@@ -1191,10 +1176,10 @@ export default function Integrations() {
   ];
 
   const selectedRows =
-    selectedConnection.id === 'meta'
-      ? metaRows
-      : selectedConnection.id === 'whatsapp-business'
-        ? whatsappRows
+    selectedConnection.id === 'meta-lead-capture'
+      ? leadCaptureRows
+      : selectedConnection.id === 'meta-ads-manager'
+        ? metaAdsRows
         : selectedConnection.id === 'email-provider'
           ? emailRows
           : selectedConnection.id === 'woocommerce'
@@ -1202,38 +1187,28 @@ export default function Integrations() {
             : advancedRows;
 
   const renderPrimaryAction = () => {
-    if (selectedConnection.id === 'meta') {
-      return (
-        <>
-          <button
-            type="button"
-            onClick={openMetaAdsModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            Meta Ads
-          </button>
-          <button
-            type="button"
-            onClick={openMetaModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2364ff]/20 bg-[#eff3ff] px-4 py-2.5 text-sm font-medium text-[#1d54d9] transition duration-200 hover:-translate-y-px hover:bg-[#e3ebff] active:scale-[0.97]"
-          >
-            <Webhook className="h-4 w-4" />
-            Lead Capture
-          </button>
-        </>
-      );
-    }
-
-    if (selectedConnection.id === 'whatsapp-business') {
+    if (selectedConnection.id === 'meta-lead-capture') {
       return (
         <button
           type="button"
-          onClick={() => navigate(whatsAppConnected ? '/dashboard/connections?section=channels' : '/onboarding/channel-connection')}
+          onClick={openMetaModal}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
+        >
+          <Webhook className="h-4 w-4" />
+          {metaLeadCaptureConnected ? 'Manage Lead Capture' : 'Connect Lead Capture'}
+        </button>
+      );
+    }
+
+    if (selectedConnection.id === 'meta-ads-manager') {
+      return (
+        <button
+          type="button"
+          onClick={openMetaAdsModal}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
         >
           <CheckCircle2 className="h-4 w-4" />
-          {whatsAppConnected ? 'Open Channels' : 'Connect'}
+          {metaAdsConnected ? 'Manage Ads Manager' : 'Connect Ads Manager'}
         </button>
       );
     }

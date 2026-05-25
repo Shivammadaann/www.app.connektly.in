@@ -1,19 +1,22 @@
 import type { ImgHTMLAttributes } from 'react';
 import adsIconUrl from '../assets/Ads.svg';
+import leadCaptureIconUrl from '../assets/leadcapture.svg';
 import mailIconUrl from '../assets/Mail.png';
 import metaIconUrl from '../assets/Meta.svg';
 
-export type IntegrationBrand = 'ads' | 'email' | 'meta';
+export type IntegrationBrand = 'ads' | 'email' | 'lead-capture' | 'meta';
 
 const INTEGRATION_BRAND_ICON_URLS: Record<IntegrationBrand, string> = {
   ads: adsIconUrl,
   email: mailIconUrl,
+  'lead-capture': leadCaptureIconUrl,
   meta: metaIconUrl,
 };
 
 const INTEGRATION_BRAND_ICON_LABELS: Record<IntegrationBrand, string> = {
   ads: 'Meta Ads Manager',
   email: 'Email Marketing',
+  'lead-capture': 'Meta Lead Capture',
   meta: 'Meta Lead Capture',
 };
 
