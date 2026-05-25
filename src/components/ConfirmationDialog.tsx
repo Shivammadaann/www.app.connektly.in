@@ -77,7 +77,7 @@ export default function ConfirmationDialog({
     <AnimatePresence>
       {isOpen ? (
         createPortal(
-          <div className="fixed inset-0 z-[140] flex items-center justify-center px-4 py-6">
+          <div className="fixed inset-0 z-[220] flex items-center justify-center px-4 py-6">
             <motion.button
               type="button"
               aria-hidden="true"

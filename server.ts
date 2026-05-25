@@ -2284,6 +2284,25 @@ function normalizeEmailPort(value: unknown, label: string) {
   return numeric;
 }
 
+function normalizeEmailHost(value: unknown) {
+  let host = normalizeEditableString(value);
+
+  if (!host) {
+    return '';
+  }
+
+  host = host.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').trim();
+  host = host.split(/[/?#]/)[0]?.trim() || '';
+  host = host.includes('@') ? host.split('@').pop()?.trim() || '' : host;
+
+  if (host.startsWith('[')) {
+    const bracketEndIndex = host.indexOf(']');
+    return bracketEndIndex > 0 ? host.slice(1, bracketEndIndex).trim() : host;
+  }
+
+  return host.replace(/:\d+$/, '').trim();
+}
+
 function normalizeSmtpSecure(port: number, value: unknown) {
   if (port === 465) {
     return true;
@@ -2313,8 +2332,8 @@ function normalizeEmailConnectionInput(input: EmailConnectionUpsertInput) {
   const emailAddress = normalizeEmailAddress(input.emailAddress);
   const authUser = normalizeEditableString(input.authUser);
   const password = typeof input.password === 'string' ? input.password.trim() : '';
-  const smtpHost = normalizeEditableString(input.smtpHost);
-  const imapHost = normalizeEditableString(input.imapHost);
+  const smtpHost = normalizeEmailHost(input.smtpHost);
+  const imapHost = normalizeEmailHost(input.imapHost);
 
   if (!displayName) {
     throw new Error('Display name is required.');
@@ -2391,7 +2410,7 @@ function normalizeEmailConnectionIdentityInput(
 
 function normalizeEmailSmtpVerificationInput(input: EmailConnectionVerifySmtpInput) {
   const identity = normalizeEmailConnectionIdentityInput(input);
-  const smtpHost = normalizeEditableString(input.smtpHost);
+  const smtpHost = normalizeEmailHost(input.smtpHost);
 
   if (!smtpHost) {
     throw new Error('SMTP host is required.');
@@ -2409,7 +2428,7 @@ function normalizeEmailSmtpVerificationInput(input: EmailConnectionVerifySmtpInp
 
 function normalizeEmailImapVerificationInput(input: EmailConnectionVerifyImapInput) {
   const identity = normalizeEmailConnectionIdentityInput(input);
-  const imapHost = normalizeEditableString(input.imapHost);
+  const imapHost = normalizeEmailHost(input.imapHost);
 
   if (!imapHost) {
     throw new Error('IMAP host is required.');
@@ -16156,15 +16175,11 @@ async function resolveEmailHostForIpv4(host: string, protocol: 'SMTP' | 'IMAP') 
   const hostFamily = net.isIP(normalizedHost);
 
   if (hostFamily === 4) {
-    return { host: normalizedHost, servername: undefined };
+    return { host: normalizedHost, servername: undefined, family: 4 as const };
   }
 
   if (hostFamily === 6) {
-    const error = new Error(
-      `${protocol} host is an IPv6 address, but this server cannot reach IPv6 mail routes. Use a hostname with an IPv4 A record or an IPv4 address.`,
-    ) as Error & { code?: string };
-    error.code = 'EIPV6UNSUPPORTED';
-    throw error;
+    return { host: normalizedHost, servername: undefined, family: 6 as const };
   }
 
   try {
@@ -16172,7 +16187,7 @@ async function resolveEmailHostForIpv4(host: string, protocol: 'SMTP' | 'IMAP') 
     const address = addresses.find((entry) => net.isIP(entry) === 4);
 
     if (address) {
-      return { host: address, servername: normalizedHost };
+      return { host: address, servername: normalizedHost, family: 4 as const };
     }
   } catch {
     // Fall back to dns.lookup below so hosts-file and platform resolver entries still work.
@@ -16180,13 +16195,9 @@ async function resolveEmailHostForIpv4(host: string, protocol: 'SMTP' | 'IMAP') 
 
   try {
     const lookupResult = await dns.promises.lookup(normalizedHost, { family: 4 });
-    return { host: lookupResult.address, servername: normalizedHost };
+    return { host: lookupResult.address, servername: normalizedHost, family: 4 as const };
   } catch {
-    const error = new Error(
-      `${protocol} host could not be resolved to an IPv4 address. Check the host name or use your provider's IPv4-capable mail host.`,
-    ) as Error & { code?: string };
-    error.code = 'EIPV4UNAVAILABLE';
-    throw error;
+    return { host: normalizedHost, servername: normalizedHost, family: undefined };
   }
 }
 
@@ -16199,7 +16210,7 @@ async function createEmailTransporter(
     host: resolvedHost.host,
     port: config.smtpPort,
     secure: config.smtpSecure,
-    family: 4,
+    ...(resolvedHost.family ? { family: resolvedHost.family } : {}),
     servername: resolvedHost.servername,
     requireTLS: config.smtpPort === 587,
     auth: {
@@ -16211,7 +16222,7 @@ async function createEmailTransporter(
     socketTimeout: 45_000,
     tls: {
       servername: resolvedHost.servername,
-      family: 4,
+      ...(resolvedHost.family ? { family: resolvedHost.family } : {}),
     },
   });
 }
@@ -16225,10 +16236,6 @@ function getEmailVerificationErrorMessage(error: unknown, protocol: 'SMTP' | 'IM
 
   const code = normalizeOptionalString((error as Error & { code?: unknown }).code);
   const message = error.message || fallback;
-
-  if (code === 'EIPV4UNAVAILABLE' || code === 'EIPV6UNSUPPORTED') {
-    return message;
-  }
 
   if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
     return `${protocol} host could not be resolved. Check the host name and try again.`;
@@ -16299,7 +16306,7 @@ async function verifyImapConnection(
       logger: false,
       tls: {
         servername: resolvedHost.servername,
-        family: 4,
+        ...(resolvedHost.family ? { family: resolvedHost.family } : {}),
       },
     } as unknown as ConstructorParameters<typeof ImapFlow>[0]);
 

@@ -2629,9 +2629,9 @@ export default function Inbox() {
     }
 
     const handleOutsidePointerDown = (event: MouseEvent | TouchEvent) => {
-      const target = event.target;
+      const target = event.target as Node | null;
 
-      if (target instanceof Node && conversationActionsRef.current?.contains(target)) {
+      if (target && conversationActionsRef.current?.contains(target)) {
         return;
       }
 
@@ -3749,6 +3749,28 @@ export default function Inbox() {
   };
 
   const activeContactName = getConversationDisplayName(activeThread);
+  const openBlockContactConfirmation = () => {
+    if (!activeThreadSupportsWhatsAppActions) {
+      setError('Blocking is currently available only for WhatsApp conversations.');
+      setIsConversationActionsOpen(false);
+      return;
+    }
+
+    const targetWaId = getThreadWaId(activeThread);
+
+    if (!targetWaId) {
+      setError('This conversation does not have a WhatsApp contact number to block.');
+      setIsConversationActionsOpen(false);
+      return;
+    }
+
+    setPendingBlockConfirmation({
+      waId: targetWaId,
+      contactName: getConversationDisplayName(activeThread),
+    });
+    setIsConversationActionsOpen(false);
+  };
+
   const handleConfirmBlockContact = async () => {
     if (!pendingBlockConfirmation) {
       return;
@@ -4251,21 +4273,25 @@ export default function Inbox() {
                     {activeThreadSupportsWhatsAppActions ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          setIsConversationActionsOpen(false);
+                        onPointerDown={(event) => {
                           if (activeThreadIsBlocked) {
+                            return;
+                          }
+
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openBlockContactConfirmation();
+                        }}
+                        onClick={() => {
+                          if (activeThreadIsBlocked) {
+                            setIsConversationActionsOpen(false);
                             void handleToggleActiveThreadBlock(false);
                             return;
                           }
 
-                          if (activeThreadWaId) {
-                            setPendingBlockConfirmation({
-                              waId: activeThreadWaId,
-                              contactName: activeContactName,
-                            });
-                          }
+                          openBlockContactConfirmation();
                         }}
-                        disabled={!activeThreadWaId || blockActionWaId === activeThreadWaId}
+                        disabled={Boolean(blockActionWaId && blockActionWaId === activeThreadWaId)}
                         className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
                           activeThreadIsBlocked
                             ? 'text-gray-700 hover:bg-gray-50'
