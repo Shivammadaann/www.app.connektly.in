@@ -11,7 +11,7 @@ import {
   RefreshCcw,
   X,
 } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { appApi } from '../../lib/api';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
@@ -34,6 +34,7 @@ import type {
 
 type ChannelId = 'whatsapp' | 'instagram' | 'messenger' | 'email';
 type ChannelIcon = ChannelBrand | 'email';
+type EmailSetupStep = 'credentials' | 'smtp' | 'imap';
 
 type ChannelListItem = {
   id: ChannelId;
@@ -264,11 +265,18 @@ function getDefaultEmailSecureForPort(port: string, protocol: 'smtp' | 'imap') {
   return normalizedPort === 993;
 }
 
+function normalizeEmail(value: string) {
+  const trimmed = value.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
+}
+
 function buildEmailConnectionPayload(form: EmailConnectionFormState): EmailConnectionUpsertInput {
+  const authUser = form.authUser.trim();
+
   return {
     displayName: form.displayName.trim(),
-    emailAddress: form.emailAddress.trim(),
-    authUser: form.authUser.trim(),
+    emailAddress: authUser,
+    authUser,
     password: form.password,
     smtpHost: form.smtpHost.trim(),
     smtpPort: Number(form.smtpPort),
@@ -953,6 +961,7 @@ function StatusTable({
 }
 
 export default function Channels({ hideHeader = false }: { hideHeader?: boolean }) {
+  const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const { bootstrap, businessProfile, refresh, refreshBusinessProfile } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -984,6 +993,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   const [isWhatsAppWebhookUpdating, setIsWhatsAppWebhookUpdating] = useState(false);
   const [emailConnection, setEmailConnection] = useState<EmailConnectionSummary | null>(null);
   const [isEmailSetupOpen, setIsEmailSetupOpen] = useState(false);
+  const [emailSetupStep, setEmailSetupStep] = useState<EmailSetupStep>('credentials');
   const [emailConnectionForm, setEmailConnectionForm] = useState<EmailConnectionFormState>(() =>
     buildEmailConnectionForm(null, bootstrap?.profile?.fullName || '', bootstrap?.profile?.email || ''),
   );
@@ -1004,7 +1014,6 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
     () =>
       Boolean(
         emailConnectionForm.displayName.trim() &&
-          emailConnectionForm.emailAddress.trim() &&
           emailConnectionForm.authUser.trim() &&
           emailConnectionForm.password &&
           emailConnectionForm.smtpHost.trim() &&
@@ -1014,6 +1023,35 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       ),
     [emailConnectionForm],
   );
+  const emailCredentialsStepIsComplete = useMemo(
+    () =>
+      Boolean(
+        emailConnectionForm.displayName.trim() &&
+          normalizeEmail(emailConnectionForm.authUser.trim()) &&
+          emailConnectionForm.password,
+      ),
+    [emailConnectionForm.authUser, emailConnectionForm.displayName, emailConnectionForm.password],
+  );
+  const emailSmtpStepIsComplete = useMemo(
+    () =>
+      Boolean(
+        emailCredentialsStepIsComplete &&
+          emailConnectionForm.smtpHost.trim() &&
+          emailConnectionForm.smtpPort.trim(),
+      ),
+    [emailConnectionForm.smtpHost, emailConnectionForm.smtpPort, emailCredentialsStepIsComplete],
+  );
+  const emailImapStepIsComplete = useMemo(
+    () =>
+      Boolean(
+        emailCredentialsStepIsComplete &&
+          emailConnectionForm.imapHost.trim() &&
+          emailConnectionForm.imapPort.trim(),
+      ),
+    [emailConnectionForm.imapHost, emailConnectionForm.imapPort, emailCredentialsStepIsComplete],
+  );
+  const isSmtpVerified = Boolean(emailVerification?.smtp.ok);
+  const isImapVerified = Boolean(emailVerification?.imap.ok);
   const activeBusinessProfile =
     businessProfile && whatsappChannel?.phoneNumberId === businessProfile.phoneNumberId
       ? businessProfile
@@ -1382,13 +1420,33 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       return;
     }
 
-    setEmailVerification(null);
     setEmailVerificationError(null);
     setIsEmailVerifying(false);
   }, [emailConnectionForm, isEmailSetupOpen]);
 
+  useEffect(() => {
+    setEmailVerification((current) => (current ? { ...current, smtp: { ok: false, message: '', latencyMs: null }, canConnect: false } : null));
+  }, [
+    emailConnectionForm.authUser,
+    emailConnectionForm.password,
+    emailConnectionForm.smtpHost,
+    emailConnectionForm.smtpPort,
+    emailConnectionForm.smtpSecure,
+  ]);
+
+  useEffect(() => {
+    setEmailVerification((current) => (current ? { ...current, imap: { ok: false, message: '', latencyMs: null }, canConnect: false } : null));
+  }, [
+    emailConnectionForm.authUser,
+    emailConnectionForm.password,
+    emailConnectionForm.imapHost,
+    emailConnectionForm.imapPort,
+    emailConnectionForm.imapSecure,
+  ]);
+
   const closeEmailSetupModal = () => {
     setIsEmailSetupOpen(false);
+    setEmailSetupStep('credentials');
     setEmailVerificationError(null);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
@@ -1401,6 +1459,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   const openEmailSetupModal = () => {
     clearMessages();
     setSelectedChannelId('email');
+    setEmailSetupStep('credentials');
     setEmailVerification(null);
     setEmailVerificationError(null);
     setEmailConnectionForm(
@@ -1423,6 +1482,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       setEmailConnection(response.connection);
       setSuccess('Email account connected successfully.');
       closeEmailSetupModal();
+      navigate('/dashboard/inbox/email');
     } catch (nextError) {
       setEmailVerificationError(nextError instanceof Error ? nextError.message : 'Failed to connect email.');
     } finally {
@@ -1451,6 +1511,88 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       setEmailVerificationError(
         nextError instanceof Error ? nextError.message : 'Connection verification failed.',
       );
+    } finally {
+      setIsEmailVerifying(false);
+    }
+  };
+
+  const handleVerifyEmailSmtpConnection = async () => {
+    if (!emailSmtpStepIsComplete) {
+      setEmailVerificationError('Fill the display name, email username, password, SMTP host, and SMTP port before verifying.');
+      return;
+    }
+
+    try {
+      setIsEmailVerifying(true);
+      setEmailVerificationError(null);
+      const payload = buildEmailConnectionPayload(emailConnectionForm);
+      const smtp = await appApi.verifyEmailSmtpConnection({
+        displayName: payload.displayName,
+        emailAddress: payload.emailAddress,
+        authUser: payload.authUser,
+        password: payload.password,
+        smtpHost: payload.smtpHost,
+        smtpPort: payload.smtpPort,
+        smtpSecure: payload.smtpSecure,
+      });
+
+      setEmailVerification((current) => ({
+        smtp,
+        imap: current?.imap || { ok: false, message: '', latencyMs: null },
+        canConnect: smtp.ok && Boolean(current?.imap.ok),
+      }));
+
+      if (!smtp.ok) {
+        setEmailVerificationError(smtp.message || 'SMTP verification failed.');
+      }
+    } catch (nextError) {
+      setEmailVerification((current) => ({
+        smtp: { ok: false, message: nextError instanceof Error ? nextError.message : 'SMTP verification failed.', latencyMs: null },
+        imap: current?.imap || { ok: false, message: '', latencyMs: null },
+        canConnect: false,
+      }));
+      setEmailVerificationError(nextError instanceof Error ? nextError.message : 'SMTP verification failed.');
+    } finally {
+      setIsEmailVerifying(false);
+    }
+  };
+
+  const handleVerifyEmailImapConnection = async () => {
+    if (!emailImapStepIsComplete) {
+      setEmailVerificationError('Fill the display name, email username, password, IMAP host, and IMAP port before verifying.');
+      return;
+    }
+
+    try {
+      setIsEmailVerifying(true);
+      setEmailVerificationError(null);
+      const payload = buildEmailConnectionPayload(emailConnectionForm);
+      const imap = await appApi.verifyEmailImapConnection({
+        displayName: payload.displayName,
+        emailAddress: payload.emailAddress,
+        authUser: payload.authUser,
+        password: payload.password,
+        imapHost: payload.imapHost,
+        imapPort: payload.imapPort,
+        imapSecure: payload.imapSecure,
+      });
+
+      setEmailVerification((current) => ({
+        smtp: current?.smtp || { ok: false, message: '', latencyMs: null },
+        imap,
+        canConnect: Boolean(current?.smtp.ok) && imap.ok,
+      }));
+
+      if (!imap.ok) {
+        setEmailVerificationError(imap.message || 'IMAP verification failed.');
+      }
+    } catch (nextError) {
+      setEmailVerification((current) => ({
+        smtp: current?.smtp || { ok: false, message: '', latencyMs: null },
+        imap: { ok: false, message: nextError instanceof Error ? nextError.message : 'IMAP verification failed.', latencyMs: null },
+        canConnect: false,
+      }));
+      setEmailVerificationError(nextError instanceof Error ? nextError.message : 'IMAP verification failed.');
     } finally {
       setIsEmailVerifying(false);
     }
@@ -2516,7 +2658,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       {typeof document !== 'undefined' ? createPortal(
       <AnimatePresence>
         {isEmailSetupOpen ? (
-          <div className="fixed inset-0 z-[130] overflow-y-auto">
+          <div className="fixed inset-0 z-[160] overflow-y-auto">
             <motion.button
               type="button"
               aria-label="Close email connection setup"
@@ -2556,175 +2698,205 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-                  <div className="space-y-5">
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-gray-700">Display Name</span>
-                          <input
-                            type="text"
-                            value={emailConnectionForm.displayName}
-                            onChange={(event) => setEmailConnectionForm((current) => ({ ...current, displayName: event.target.value }))}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-gray-700">Email Address</span>
-                          <input
-                            type="email"
-                            value={emailConnectionForm.emailAddress}
-                            onChange={(event) => setEmailConnectionForm((current) => ({ ...current, emailAddress: event.target.value }))}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-gray-700">SMTP / IMAP Username</span>
-                          <input
-                            type="text"
-                            value={emailConnectionForm.authUser}
-                            onChange={(event) => setEmailConnectionForm((current) => ({ ...current, authUser: event.target.value }))}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-gray-700">Password</span>
-                          <input
-                            type="password"
-                            value={emailConnectionForm.password}
-                            onChange={(event) => setEmailConnectionForm((current) => ({ ...current, password: event.target.value }))}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                          />
-                        </label>
-                      </div>
-                    </div>
+                <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                  {[
+                    ['credentials', 'Account'],
+                    ['smtp', 'Outgoing Mail'],
+                    ['imap', 'Incoming Mail'],
+                  ].map(([step, label], index) => {
+                    const isActiveStep = emailSetupStep === step;
+                    const isCompleteStep =
+                      (step === 'credentials' && emailCredentialsStepIsComplete) ||
+                      (step === 'smtp' && isSmtpVerified) ||
+                      (step === 'imap' && isImapVerified);
 
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                        <div className="mb-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">SMTP</p>
-                          <h3 className="mt-1 text-lg font-bold text-gray-900">Outgoing mail</h3>
-                        </div>
-                        <div className="space-y-4">
-                          <label className="block">
-                            <span className="mb-2 block text-sm font-medium text-gray-700">SMTP Host</span>
-                            <input
-                              type="text"
-                              value={emailConnectionForm.smtpHost}
-                              onChange={(event) => setEmailConnectionForm((current) => ({ ...current, smtpHost: event.target.value }))}
-                              placeholder="smtp.example.com"
-                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                            />
-                          </label>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <label className="block">
-                              <span className="mb-2 block text-sm font-medium text-gray-700">Port</span>
-                              <input
-                                type="number"
-                                value={emailConnectionForm.smtpPort}
-                                onChange={(event) => {
-                                  const smtpPort = event.target.value;
-                                  setEmailConnectionForm((current) => ({
-                                    ...current,
-                                    smtpPort,
-                                    smtpSecure: getDefaultEmailSecureForPort(smtpPort, 'smtp'),
-                                  }));
-                                }}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                              />
-                            </label>
-                            <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700">
-                              <input
-                                type="checkbox"
-                                checked={emailConnectionForm.smtpSecure}
-                                onChange={(event) => setEmailConnectionForm((current) => ({ ...current, smtpSecure: event.target.checked }))}
-                                className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
-                              />
-                              Secure
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                        <div className="mb-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">IMAP</p>
-                          <h3 className="mt-1 text-lg font-bold text-gray-900">Incoming mail</h3>
-                        </div>
-                        <div className="space-y-4">
-                          <label className="block">
-                            <span className="mb-2 block text-sm font-medium text-gray-700">IMAP Host</span>
-                            <input
-                              type="text"
-                              value={emailConnectionForm.imapHost}
-                              onChange={(event) => setEmailConnectionForm((current) => ({ ...current, imapHost: event.target.value }))}
-                              placeholder="imap.example.com"
-                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                            />
-                          </label>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <label className="block">
-                              <span className="mb-2 block text-sm font-medium text-gray-700">Port</span>
-                              <input
-                                type="number"
-                                value={emailConnectionForm.imapPort}
-                                onChange={(event) => {
-                                  const imapPort = event.target.value;
-                                  setEmailConnectionForm((current) => ({
-                                    ...current,
-                                    imapPort,
-                                    imapSecure: getDefaultEmailSecureForPort(imapPort, 'imap'),
-                                  }));
-                                }}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
-                              />
-                            </label>
-                            <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700">
-                              <input
-                                type="checkbox"
-                                checked={emailConnectionForm.imapSecure}
-                                onChange={(event) => setEmailConnectionForm((current) => ({ ...current, imapSecure: event.target.checked }))}
-                                className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
-                              />
-                              Secure
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {emailVerificationError ? (
-                      <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {emailVerificationError}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <aside className="space-y-4">
-                    <EmailVerificationCard
-                      label="SMTP status"
-                      result={emailVerification?.smtp || null}
-                      isLoading={isEmailVerifying}
-                    />
-                    <EmailVerificationCard
-                      label="IMAP status"
-                      result={emailVerification?.imap || null}
-                      isLoading={isEmailVerifying}
-                    />
-                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
-                        <Mail className="h-4 w-4" />
-                        Setup flow
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-blue-900/75">
-                        Fill the form, verify SMTP and IMAP, then save once both checks are ready.
-                      </p>
-                    </div>
-                  </aside>
+                    return (
+                      <button
+                        key={step}
+                        type="button"
+                        onClick={() => {
+                          if (step === 'smtp' && !emailCredentialsStepIsComplete) return;
+                          if (step === 'imap' && !isSmtpVerified) return;
+                          setEmailSetupStep(step as EmailSetupStep);
+                        }}
+                        className={`rounded-2xl border px-4 py-3 text-left transition ${
+                          isActiveStep
+                            ? 'border-[#5b45ff] bg-[#f5f3ff] text-[#3d2be0]'
+                            : isCompleteStep
+                              ? 'border-green-200 bg-green-50 text-green-800'
+                              : 'border-gray-200 bg-gray-50 text-gray-500'
+                        }`}
+                      >
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em]">Step {index + 1}</span>
+                        <span className="mt-1 block text-sm font-bold">{label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {emailSetupStep === 'credentials' ? (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-5">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-medium text-gray-700">Display Name</span>
+                        <input
+                          type="text"
+                          value={emailConnectionForm.displayName}
+                          onChange={(event) => setEmailConnectionForm((current) => ({ ...current, displayName: event.target.value }))}
+                          placeholder="John Doe"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-medium text-gray-700">SMTP / IMAP Username</span>
+                        <input
+                          type="email"
+                          value={emailConnectionForm.authUser}
+                          onChange={(event) => {
+                            const authUser = event.target.value;
+                            setEmailConnectionForm((current) => ({ ...current, authUser, emailAddress: authUser }));
+                          }}
+                          placeholder="you@example.com"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        />
+                        <p className="mt-2 text-xs text-gray-500">This is also the email address used for the mailbox.</p>
+                      </label>
+                      <label className="block md:col-span-2">
+                        <span className="mb-2 block text-sm font-medium text-gray-700">Password</span>
+                        <input
+                          type="password"
+                          value={emailConnectionForm.password}
+                          onChange={(event) => setEmailConnectionForm((current) => ({ ...current, password: event.target.value }))}
+                          placeholder="App password or mailbox password"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
+
+                {emailSetupStep === 'smtp' ? (
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-bold text-gray-900">Outgoing Mail Details</h3>
+                      <div className="mt-5 space-y-4">
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-medium text-gray-700">SMTP Host</span>
+                          <input
+                            type="text"
+                            value={emailConnectionForm.smtpHost}
+                            onChange={(event) => setEmailConnectionForm((current) => ({ ...current, smtpHost: event.target.value }))}
+                            placeholder="smtp.example.com"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          />
+                        </label>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="mb-2 block text-sm font-medium text-gray-700">Port</span>
+                            <input
+                              type="number"
+                              value={emailConnectionForm.smtpPort}
+                              onChange={(event) => {
+                                const smtpPort = event.target.value;
+                                setEmailConnectionForm((current) => ({
+                                  ...current,
+                                  smtpPort,
+                                  smtpSecure: getDefaultEmailSecureForPort(smtpPort, 'smtp'),
+                                }));
+                              }}
+                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            />
+                          </label>
+                          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={emailConnectionForm.smtpSecure}
+                              onChange={(event) => setEmailConnectionForm((current) => ({ ...current, smtpSecure: event.target.checked }))}
+                              className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                            />
+                            Secure
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleVerifyEmailSmtpConnection()}
+                          disabled={!emailSmtpStepIsComplete || isEmailVerifying || isEmailSaving}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isEmailVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                    <EmailVerificationCard label="SMTP status" result={emailVerification?.smtp || null} isLoading={isEmailVerifying} />
+                  </div>
+                ) : null}
+
+                {emailSetupStep === 'imap' ? (
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-bold text-gray-900">Incoming Mail Details</h3>
+                      <div className="mt-5 space-y-4">
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-medium text-gray-700">IMAP Host</span>
+                          <input
+                            type="text"
+                            value={emailConnectionForm.imapHost}
+                            onChange={(event) => setEmailConnectionForm((current) => ({ ...current, imapHost: event.target.value }))}
+                            placeholder="imap.example.com"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          />
+                        </label>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="mb-2 block text-sm font-medium text-gray-700">Port</span>
+                            <input
+                              type="number"
+                              value={emailConnectionForm.imapPort}
+                              onChange={(event) => {
+                                const imapPort = event.target.value;
+                                setEmailConnectionForm((current) => ({
+                                  ...current,
+                                  imapPort,
+                                  imapSecure: getDefaultEmailSecureForPort(imapPort, 'imap'),
+                                }));
+                              }}
+                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            />
+                          </label>
+                          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={emailConnectionForm.imapSecure}
+                              onChange={(event) => setEmailConnectionForm((current) => ({ ...current, imapSecure: event.target.checked }))}
+                              className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                            />
+                            Secure
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleVerifyEmailImapConnection()}
+                          disabled={!emailImapStepIsComplete || isEmailVerifying || isEmailSaving}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isEmailVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                    <EmailVerificationCard label="IMAP status" result={emailVerification?.imap || null} isLoading={isEmailVerifying} />
+                  </div>
+                ) : null}
+
+                {emailVerificationError ? (
+                  <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {emailVerificationError}
+                  </div>
+                ) : null}
               </div>
 
-              <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50 px-5 py-4 sm:flex-row sm:justify-between sm:px-6">
                 <button
                   type="button"
                   onClick={closeEmailSetupModal}
@@ -2733,24 +2905,49 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleVerifyEmailConnection()}
-                  disabled={!emailConnectionFormIsComplete || isEmailVerifying || isEmailSaving}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isEmailVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                  Verify Connection
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSaveEmailConnection()}
-                  disabled={!emailVerification?.canConnect || isEmailSaving || isEmailVerifying}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isEmailSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
-                  Connect Email Account
-                </button>
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  {emailSetupStep !== 'credentials' ? (
+                    <button
+                      type="button"
+                      onClick={() => setEmailSetupStep(emailSetupStep === 'imap' ? 'smtp' : 'credentials')}
+                      disabled={isEmailSaving}
+                      className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Back
+                    </button>
+                  ) : null}
+                  {emailSetupStep === 'credentials' ? (
+                    <button
+                      type="button"
+                      onClick={() => setEmailSetupStep('smtp')}
+                      disabled={!emailCredentialsStepIsComplete}
+                      className="inline-flex items-center justify-center rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Next
+                    </button>
+                  ) : null}
+                  {emailSetupStep === 'smtp' ? (
+                    <button
+                      type="button"
+                      onClick={() => setEmailSetupStep('imap')}
+                      disabled={!isSmtpVerified || isEmailVerifying}
+                      className="inline-flex items-center justify-center rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Next
+                    </button>
+                  ) : null}
+                  {emailSetupStep === 'imap' ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveEmailConnection()}
+                      disabled={!isSmtpVerified || !isImapVerified || isEmailSaving || isEmailVerifying}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isEmailSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
+                      Finish
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </motion.div>
             </div>

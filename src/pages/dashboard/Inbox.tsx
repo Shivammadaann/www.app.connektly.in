@@ -1899,9 +1899,10 @@ function MessageMediaAttachment({ message }: { message: ConversationMessage }) {
         {downloadError ? <p className="text-xs text-red-600">{downloadError}</p> : null}
       </div>
 
-      <AnimatePresence>
-        {isPreviewOpen && blobUrl && canOpenPreview && modalRoot ? createPortal(
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-8">
+      {isPreviewOpen && blobUrl && canOpenPreview && modalRoot
+        ? createPortal(
+          <AnimatePresence>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-8">
             <button type="button" onClick={closePreview} className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" aria-label="Close media preview" />
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -1977,10 +1978,11 @@ function MessageMediaAttachment({ message }: { message: ConversationMessage }) {
                 </button>
               </div>
             </motion.div>
-          </motion.div>,
-          modalRoot,
-        ) : null}
-      </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>,
+            modalRoot,
+          )
+        : null}
     </>
   );
 }
@@ -3790,7 +3792,8 @@ export default function Inbox() {
     const hasSelectedTemplatePreview = Boolean(selectedTemplateSnapshot?.components.length);
 
     return createPortal(
-      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
         <motion.button
           type="button"
           initial={{ opacity: 0 }}
@@ -3875,7 +3878,8 @@ export default function Inbox() {
             </button>
           </div>
         </motion.div>
-      </div>,
+        </div>
+      </AnimatePresence>,
       modalRoot,
     );
   };
@@ -4587,9 +4591,10 @@ export default function Inbox() {
         ) : null}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {isAddLabelModalOpen && modalRoot ? createPortal(
-          <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
+      {isAddLabelModalOpen && modalRoot
+        ? createPortal(
+          <AnimatePresence>
+            <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -4687,18 +4692,18 @@ export default function Inbox() {
                 </div>
               </form>
             </motion.div>
-          </div>,
-          modalRoot,
-        ) : null}
-      </AnimatePresence>
+            </div>
+          </AnimatePresence>,
+            modalRoot,
+          )
+        : null}
 
-      <AnimatePresence>
-        {renderTemplateSendModal()}
-      </AnimatePresence>
+      {renderTemplateSendModal()}
 
-      <AnimatePresence>
-        {isExpiredWindowInfoOpen && modalRoot ? createPortal(
-          <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
+      {isExpiredWindowInfoOpen && modalRoot
+        ? createPortal(
+          <AnimatePresence>
+            <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 sm:p-6">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -4748,10 +4753,11 @@ export default function Inbox() {
                 ) : null}
               </div>
             </motion.div>
-          </div>,
-          modalRoot,
-        ) : null}
-      </AnimatePresence>
+            </div>
+          </AnimatePresence>,
+            modalRoot,
+          )
+        : null}
 
       {isNewChatModalOpen && modalRoot
         ? createPortal(

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
+import dns from 'node:dns';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,7 +66,9 @@ import type {
   EmailConnectionStatus,
   EmailConnectionSummary,
   EmailConnectionUpsertInput,
+  EmailConnectionVerifyImapInput,
   EmailConnectionVerifyResponse,
+  EmailConnectionVerifySmtpInput,
   EmailMessage,
   EmailRecipient,
   EmailTemplate,
@@ -172,6 +175,8 @@ import type {
   WorkspaceOptionInput,
   WorkspaceTeamMember,
 } from './src/lib/types';
+
+dns.setDefaultResultOrder('ipv4first');
 
 declare global {
   namespace Express {
@@ -2345,6 +2350,74 @@ function normalizeEmailConnectionInput(input: EmailConnectionUpsertInput) {
     smtpHost,
     smtpPort,
     smtpSecure: normalizeSmtpSecure(smtpPort, input.smtpSecure),
+    imapHost,
+    imapPort,
+    imapSecure: normalizeImapSecure(imapPort, input.imapSecure),
+  };
+}
+
+function normalizeEmailConnectionIdentityInput(
+  input: Pick<EmailConnectionUpsertInput, 'displayName' | 'emailAddress' | 'authUser' | 'password'>,
+) {
+  const displayName = normalizeEditableString(input.displayName);
+  const emailAddress = normalizeEmailAddress(input.emailAddress);
+  const authUser = normalizeEditableString(input.authUser);
+  const password = typeof input.password === 'string' ? input.password.trim() : '';
+
+  if (!displayName) {
+    throw new Error('Display name is required.');
+  }
+
+  if (!emailAddress) {
+    throw new Error('A valid email address is required.');
+  }
+
+  if (!authUser) {
+    throw new Error('A valid SMTP/IMAP username is required.');
+  }
+
+  if (!password) {
+    throw new Error('Password is required.');
+  }
+
+  return {
+    displayName,
+    emailAddress,
+    authUser,
+    password,
+  };
+}
+
+function normalizeEmailSmtpVerificationInput(input: EmailConnectionVerifySmtpInput) {
+  const identity = normalizeEmailConnectionIdentityInput(input);
+  const smtpHost = normalizeEditableString(input.smtpHost);
+
+  if (!smtpHost) {
+    throw new Error('SMTP host is required.');
+  }
+
+  const smtpPort = normalizeEmailPort(input.smtpPort, 'SMTP port');
+
+  return {
+    ...identity,
+    smtpHost,
+    smtpPort,
+    smtpSecure: normalizeSmtpSecure(smtpPort, input.smtpSecure),
+  };
+}
+
+function normalizeEmailImapVerificationInput(input: EmailConnectionVerifyImapInput) {
+  const identity = normalizeEmailConnectionIdentityInput(input);
+  const imapHost = normalizeEditableString(input.imapHost);
+
+  if (!imapHost) {
+    throw new Error('IMAP host is required.');
+  }
+
+  const imapPort = normalizeEmailPort(input.imapPort, 'IMAP port');
+
+  return {
+    ...identity,
     imapHost,
     imapPort,
     imapSecure: normalizeImapSecure(imapPort, input.imapSecure),
@@ -16077,11 +16150,14 @@ async function getEmailConnectionWithPassword(userId: string) {
   };
 }
 
-function createEmailTransporter(config: ReturnType<typeof normalizeEmailConnectionInput>) {
+function createEmailTransporter(
+  config: Pick<ReturnType<typeof normalizeEmailConnectionInput>, 'smtpHost' | 'smtpPort' | 'smtpSecure' | 'authUser' | 'password'>,
+) {
   return nodemailer.createTransport({
     host: config.smtpHost,
     port: config.smtpPort,
     secure: config.smtpSecure,
+    family: 4,
     requireTLS: config.smtpPort === 587,
     auth: {
       user: config.authUser,
@@ -16092,6 +16168,7 @@ function createEmailTransporter(config: ReturnType<typeof normalizeEmailConnecti
     socketTimeout: 45_000,
     tls: {
       servername: config.smtpHost,
+      family: 4,
     },
   });
 }
@@ -16110,6 +16187,10 @@ function getEmailVerificationErrorMessage(error: unknown, protocol: 'SMTP' | 'IM
     return `${protocol} connection timed out. Check the host, port, SSL/TLS setting, and whether your provider allows app-password access from this server.`;
   }
 
+  if (code === 'ENETUNREACH' || /ENETUNREACH|network is unreachable/i.test(message)) {
+    return `${protocol} network route was unreachable. The verifier now prefers IPv4; if this continues, check whether the host and port are reachable from this server.`;
+  }
+
   if (/certificate|tls|ssl/i.test(message)) {
     return `${protocol} TLS verification failed. Check whether this port uses SSL/TLS directly or STARTTLS.`;
   }
@@ -16121,7 +16202,9 @@ function getEmailVerificationErrorMessage(error: unknown, protocol: 'SMTP' | 'IM
   return message;
 }
 
-async function verifySmtpConnection(config: ReturnType<typeof normalizeEmailConnectionInput>) {
+async function verifySmtpConnection(
+  config: Pick<ReturnType<typeof normalizeEmailConnectionInput>, 'smtpHost' | 'smtpPort' | 'smtpSecure' | 'authUser' | 'password'>,
+) {
   const startedAt = Date.now();
 
   try {
@@ -16142,12 +16225,15 @@ async function verifySmtpConnection(config: ReturnType<typeof normalizeEmailConn
   }
 }
 
-async function verifyImapConnection(config: ReturnType<typeof normalizeEmailConnectionInput>) {
+async function verifyImapConnection(
+  config: Pick<ReturnType<typeof normalizeEmailConnectionInput>, 'imapHost' | 'imapPort' | 'imapSecure' | 'authUser' | 'password'>,
+) {
   const startedAt = Date.now();
   const client = new ImapFlow({
     host: config.imapHost,
     port: config.imapPort,
     secure: config.imapSecure,
+    family: 4,
     auth: {
       user: config.authUser,
       pass: config.password,
@@ -16156,7 +16242,7 @@ async function verifyImapConnection(config: ReturnType<typeof normalizeEmailConn
     greetingTimeout: 30_000,
     connectionTimeout: 30_000,
     logger: false,
-  });
+  } as unknown as ConstructorParameters<typeof ImapFlow>[0]);
 
   try {
     await client.connect();
@@ -16192,6 +16278,14 @@ async function verifyEmailConnectionInput(
     imap,
     canConnect: smtp.ok && imap.ok,
   };
+}
+
+async function verifyEmailSmtpConnectionInput(input: EmailConnectionVerifySmtpInput) {
+  return verifySmtpConnection(normalizeEmailSmtpVerificationInput(input));
+}
+
+async function verifyEmailImapConnectionInput(input: EmailConnectionVerifyImapInput) {
+  return verifyImapConnection(normalizeEmailImapVerificationInput(input));
 }
 
 async function saveEmailConnection(userId: string, input: EmailConnectionUpsertInput) {
@@ -21059,6 +21153,22 @@ app.get('/api/email/connection', async (req, res) => {
 app.post('/api/email/connection/verify', async (req, res) => {
   try {
     res.json(await verifyEmailConnectionInput(req.body as EmailConnectionUpsertInput));
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.post('/api/email/connection/verify/smtp', async (req, res) => {
+  try {
+    res.json(await verifyEmailSmtpConnectionInput(req.body as EmailConnectionVerifySmtpInput));
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.post('/api/email/connection/verify/imap', async (req, res) => {
+  try {
+    res.json(await verifyEmailImapConnectionInput(req.body as EmailConnectionVerifyImapInput));
   } catch (error) {
     sendError(res, 400, error);
   }

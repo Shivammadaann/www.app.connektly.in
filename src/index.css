@@ -8,6 +8,7 @@ body,
 
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -17,6 +18,23 @@ body {
     radial-gradient(circle at top, rgba(221, 232, 251, 0.78), transparent 34%),
     linear-gradient(180deg, #f7fafe 0%, #ebf1f8 55%, #e6edf6 100%);
   color: #0f172a;
+}
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+:where(html, body, main, section, aside, div, nav, ul, ol, textarea) {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .dashboard-shell {
@@ -189,7 +207,7 @@ body {
 .overflow-x-auto {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 .scrollbar-hide {

@@ -23,7 +23,9 @@ import type {
   EmailCampaignSendInput,
   EmailConnectionSummary,
   EmailConnectionUpsertInput,
+  EmailConnectionVerifyImapInput,
   EmailConnectionVerifyResponse,
+  EmailConnectionVerifySmtpInput,
   EmailMessage,
   EmailTemplate,
   EmailTemplateSaveInput,
@@ -695,6 +697,18 @@ export const appApi = {
   },
   verifyEmailConnection(payload: EmailConnectionUpsertInput) {
     return apiRequest<EmailConnectionVerifyResponse>('/email/connection/verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  verifyEmailSmtpConnection(payload: EmailConnectionVerifySmtpInput) {
+    return apiRequest<EmailConnectionVerifyResponse['smtp']>('/email/connection/verify/smtp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  verifyEmailImapConnection(payload: EmailConnectionVerifyImapInput) {
+    return apiRequest<EmailConnectionVerifyResponse['imap']>('/email/connection/verify/imap', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

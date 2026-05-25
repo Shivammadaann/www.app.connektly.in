@@ -901,6 +901,26 @@ export interface EmailConnectionUpsertInput {
   imapSecure: boolean;
 }
 
+export interface EmailConnectionVerifySmtpInput {
+  displayName: string;
+  emailAddress: string;
+  authUser: string;
+  password: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+}
+
+export interface EmailConnectionVerifyImapInput {
+  displayName: string;
+  emailAddress: string;
+  authUser: string;
+  password: string;
+  imapHost: string;
+  imapPort: number;
+  imapSecure: boolean;
+}
+
 export interface EmailConnectionCheckResult {
   ok: boolean;
   message: string;
