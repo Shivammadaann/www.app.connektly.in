@@ -303,6 +303,8 @@ const walletPricingOverviewUrl = process.env.WALLET_PRICING_OVERVIEW_URL || 'htt
 const APP_PROFILE_PICTURE_BUCKET = 'app-profile-pictures';
 const MAX_APP_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MESSENGER_PROFILE_ENRICHMENT_RETRY_COOLDOWN_MS = 60 * 60 * 1000;
+const META_USER_PROFILE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const META_USER_PROFILE_ERROR_TTL_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_MESSENGER_WEBHOOK_FIELDS = [
   'messages',
   'messaging_postbacks',
@@ -8871,6 +8873,65 @@ async function fetchInstagramLoginProfile(accessToken: string) {
   });
 }
 
+type MetaUserProfileCacheEntry<T> =
+  | {
+      ok: true;
+      value: T;
+      expiresAt: number;
+    }
+  | {
+      ok: false;
+      errorMessage: string;
+      expiresAt: number;
+    };
+
+const messengerUserProfileCache = new Map<string, MetaUserProfileCacheEntry<MessengerUserProfile>>();
+const instagramMessagingUserProfileCache = new Map<
+  string,
+  MetaUserProfileCacheEntry<InstagramMessagingUserProfile | null>
+>();
+
+function getMetaAccessTokenCacheKey(accessToken: string) {
+  return crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 16);
+}
+
+function getCachedMetaUserProfile<T>(cache: Map<string, MetaUserProfileCacheEntry<T>>, key: string) {
+  const entry = cache.get(key);
+
+  if (!entry) {
+    return null;
+  }
+
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+
+  return entry;
+}
+
+function setCachedMetaUserProfile<T>(cache: Map<string, MetaUserProfileCacheEntry<T>>, key: string, value: T) {
+  cache.set(key, {
+    ok: true,
+    value,
+    expiresAt: Date.now() + META_USER_PROFILE_CACHE_TTL_MS,
+  });
+}
+
+function setCachedMetaUserProfileError<T>(cache: Map<string, MetaUserProfileCacheEntry<T>>, key: string, error: unknown) {
+  cache.set(key, {
+    ok: false,
+    errorMessage: mapDbError(error),
+    expiresAt: Date.now() + META_USER_PROFILE_ERROR_TTL_MS,
+  });
+}
+
+type MessengerUserProfile = {
+  id: string;
+  name: string | null;
+  profilePictureUrl: string | null;
+};
+
 async function fetchMessengerUserProfile(accessToken: string, senderId: string) {
   type MessengerUserProfileResponse = {
     id?: string;
@@ -8881,37 +8942,56 @@ async function fetchMessengerUserProfile(accessToken: string, senderId: string) 
     profile_picture_url?: string;
   };
 
+  const cacheKey = `messenger:${senderId}:${getMetaAccessTokenCacheKey(accessToken)}`;
+  const cached = getCachedMetaUserProfile(messengerUserProfileCache, cacheKey);
+
+  if (cached) {
+    if (cached.ok === true) {
+      return cached.value;
+    }
+
+    throw new Error(cached.errorMessage);
+  }
+
   let response: MessengerUserProfileResponse;
 
   try {
-    response = await metaRequestDetailed<MessengerUserProfileResponse>({
-      accessToken,
-      path: senderId,
-      query: {
-        fields: 'id,name,first_name,last_name,profile_pic',
-      },
-    });
-  } catch {
-    response = await metaRequestDetailed<MessengerUserProfileResponse>({
-      accessToken,
-      path: senderId,
-      query: {
-        fields: 'id,first_name,last_name,profile_pic',
-      },
-    });
+    try {
+      response = await metaRequestDetailed<MessengerUserProfileResponse>({
+        accessToken,
+        path: senderId,
+        query: {
+          fields: 'id,name,first_name,last_name,profile_pic',
+        },
+      });
+    } catch {
+      response = await metaRequestDetailed<MessengerUserProfileResponse>({
+        accessToken,
+        path: senderId,
+        query: {
+          fields: 'id,first_name,last_name,profile_pic',
+        },
+      });
+    }
+  } catch (error) {
+    setCachedMetaUserProfileError(messengerUserProfileCache, cacheKey, error);
+    throw error;
   }
 
   const firstName = normalizeOptionalString(response.first_name);
   const lastName = normalizeOptionalString(response.last_name);
   const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim();
 
-  return {
+  const profile = {
     id: normalizeOptionalIdentifier(response.id) || senderId,
     name: normalizeOptionalString(response.name) || combinedName || null,
     profilePictureUrl:
       normalizeOptionalString(response.profile_pic) ||
       normalizeOptionalString(response.profile_picture_url),
   };
+
+  setCachedMetaUserProfile(messengerUserProfileCache, cacheKey, profile);
+  return profile;
 }
 
 type MessengerPageConversationParticipant = {
@@ -9075,6 +9155,20 @@ async function fetchInstagramMessagingUserProfile(args: {
   userAccessToken?: string | null;
   senderId: string;
 }): Promise<InstagramMessagingUserProfile | null> {
+  const tokenCacheKeyParts = [args.pageAccessToken, args.userAccessToken]
+    .map((token) => (token ? getMetaAccessTokenCacheKey(token) : 'none'))
+    .join(':');
+  const cacheKey = `instagram:${args.senderId}:${tokenCacheKeyParts}`;
+  const cached = getCachedMetaUserProfile(instagramMessagingUserProfileCache, cacheKey);
+
+  if (cached) {
+    if (cached.ok === true) {
+      return cached.value;
+    }
+
+    throw new Error(cached.errorMessage);
+  }
+
   const attempts: Array<{
     accessToken: string;
     graphHost: 'graph.facebook.com' | 'graph.instagram.com';
@@ -9133,6 +9227,7 @@ async function fetchInstagramMessagingUserProfile(args: {
       }
 
       if (profile.profilePictureUrl) {
+        setCachedMetaUserProfile(instagramMessagingUserProfileCache, cacheKey, profile);
         return profile;
       }
 
@@ -9143,13 +9238,16 @@ async function fetchInstagramMessagingUserProfile(args: {
   }
 
   if (bestProfile) {
+    setCachedMetaUserProfile(instagramMessagingUserProfileCache, cacheKey, bestProfile);
     return bestProfile;
   }
 
   if (lastError) {
+    setCachedMetaUserProfileError(instagramMessagingUserProfileCache, cacheKey, lastError);
     throw lastError;
   }
 
+  setCachedMetaUserProfile(instagramMessagingUserProfileCache, cacheKey, null);
   return null;
 }
 
@@ -13272,31 +13370,6 @@ async function getBootstrap(user: User): Promise<DashboardBootstrap> {
   const connectedMessengerChannelRow = getConnectedChannelRow(
     (messengerChannelResult.data as Record<string, unknown> | null) || null,
   );
-
-  const messengerProfilesChanged = await enrichMessengerThreadProfiles(
-    user.id,
-    threadRows,
-    connectedMessengerChannelRow,
-  );
-  const instagramProfilesChanged = await enrichInstagramThreadProfiles(
-    user.id,
-    threadRows,
-    connectedInstagramChannelRow,
-  );
-
-  if (messengerProfilesChanged || instagramProfilesChanged) {
-    const refreshedThreadsResult = await adminSupabase
-      .from('conversation_threads')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('last_message_at', { ascending: false, nullsFirst: false });
-
-    if (refreshedThreadsResult.error) {
-      throw refreshedThreadsResult.error;
-    }
-
-    threadRows = (refreshedThreadsResult.data || []) as Record<string, unknown>[];
-  }
 
   return {
     profile: mappedProfile

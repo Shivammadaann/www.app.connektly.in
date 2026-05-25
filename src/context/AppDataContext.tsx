@@ -29,9 +29,9 @@ import type {
   WhatsAppBusinessProfile,
 } from '../lib/types';
 
-const BUSINESS_PROFILE_POLL_INTERVAL_MS = 45_000;
-const TEMPLATE_SYNC_INTERVAL_MS = 30_000;
-const LIVE_DASHBOARD_REFRESH_INTERVAL_MS = 12_000;
+const BUSINESS_PROFILE_POLL_INTERVAL_MS = 5 * 60_000;
+const TEMPLATE_SYNC_INTERVAL_MS = 10 * 60_000;
+const LIVE_DASHBOARD_REFRESH_INTERVAL_MS = 60_000;
 
 function syncBootstrapChannelFromBusinessProfile(
   current: DashboardBootstrap | null,
