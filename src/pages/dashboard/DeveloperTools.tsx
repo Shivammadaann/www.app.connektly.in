@@ -283,7 +283,7 @@ export default function DeveloperTools() {
           </p>
           <Link
             to="/dashboard/connections?section=channels"
-            className="mt-6 inline-flex items-center rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#4c38e0]"
+            className="mt-6 inline-flex items-center rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#4c38e0]"
           >
             Open channel setup
           </Link>
@@ -296,7 +296,7 @@ export default function DeveloperTools() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#d9d4ff] bg-[#f5f3ff] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#5b45ff]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#d9d4ff] bg-[#f5f3ff] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1381FF]">
             <Activity className="h-3.5 w-3.5" />
             {viewConfig.badge}
           </div>
@@ -349,7 +349,7 @@ export default function DeveloperTools() {
                   before: undefined,
                 }))
               }
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <label className="block">
@@ -367,7 +367,7 @@ export default function DeveloperTools() {
                   before: undefined,
                 }))
               }
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <div className="block">
@@ -391,7 +391,7 @@ export default function DeveloperTools() {
                 { value: '100', label: '100' },
               ]}
               ariaLabel="Select records per page"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
         </div>
@@ -411,7 +411,7 @@ export default function DeveloperTools() {
                   onClick={() => toggleActivityType(option.value)}
                   className={`rounded-full px-4 py-2 text-sm transition ${
                     active
-                      ? 'bg-[#5b45ff] text-white shadow-sm'
+                      ? 'bg-[#1381FF] text-white shadow-sm'
                       : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'
                   }`}
                 >
@@ -522,7 +522,7 @@ export default function DeveloperTools() {
 
             <section className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-[#5b45ff]" />
+                <ShieldCheck className="h-5 w-5 text-[#1381FF]" />
                 <h2 className="text-xl font-semibold text-gray-900">Audit trail</h2>
               </div>
               <p className="mt-2 text-sm leading-7 text-gray-500">
@@ -560,7 +560,7 @@ export default function DeveloperTools() {
                         </td>
                         <td className="py-4">
                           <details className="group rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2">
-                            <summary className="cursor-pointer list-none text-sm font-medium text-[#5b45ff]">
+                            <summary className="cursor-pointer list-none text-sm font-medium text-[#1381FF]">
                               View details
                             </summary>
                             <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-gray-600">
@@ -606,7 +606,7 @@ export default function DeveloperTools() {
                     before: undefined,
                   }))
                 }
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4c38e0] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4c38e0] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
                 <ChevronRight className="h-4 w-4" />

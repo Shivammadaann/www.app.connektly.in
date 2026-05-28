@@ -101,12 +101,12 @@ body {
   :where(button, a[href], [role="button"], [role="menuitem"], [role="tab"], [role="option"]).border-gray-200.bg-white:hover,
 .dashboard-shell
   :where(button, a[href], [role="button"], [role="menuitem"], [role="tab"], [role="option"]).border-gray-200.bg-gray-50:hover {
-  border-color: rgba(91, 69, 255, 0.24);
+  border-color: rgba(19, 129, 255, 0.24);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(235, 241, 255, 0.98));
   box-shadow:
     0 16px 30px rgba(15, 23, 42, 0.09),
-    0 0 0 1px rgba(91, 69, 255, 0.06);
+    0 0 0 1px rgba(19, 129, 255, 0.06);
 }
 
 .dashboard-shell .dashboard-main .hover\:bg-gray-50:hover {
@@ -118,7 +118,7 @@ body {
 }
 
 .dashboard-shell .dashboard-main .hover\:border-gray-300:hover {
-  border-color: rgba(91, 69, 255, 0.22);
+  border-color: rgba(19, 129, 255, 0.22);
 }
 
 .dashboard-shell .dashboard-page-stack > * + * {
@@ -156,7 +156,7 @@ body {
   input,
   textarea
 ):focus-visible {
-  outline: 2px solid rgb(91 69 255 / 70%);
+  outline: 2px solid rgb(19 129 255 / 70%);
   outline-offset: 2px;
 }
 

@@ -1189,7 +1189,7 @@ export default function Integrations() {
 
             {isMetaAdsSetupLoading && !metaAdsSetup ? (
               <div className="flex min-h-[220px] items-center justify-center rounded-[28px] border border-gray-200 bg-[#fcfcfd]">
-                <Loader2 className="h-6 w-6 animate-spin text-[#5b45ff]" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#1381FF]" />
               </div>
             ) : (
               <>
@@ -1233,7 +1233,7 @@ export default function Integrations() {
                 <div className="rounded-[28px] border border-gray-200 bg-[#fcfcfd] p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5b45ff]">Connect assets</p>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#1381FF]">Connect assets</p>
                       <h3 className="mt-2 text-2xl font-bold text-gray-900">Select Page and ad account</h3>
                       <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
                         Facebook login opens from Connections. After saving, Meta Ads Manager can use this Page and ad account for campaign setup.
@@ -1243,7 +1243,7 @@ export default function Integrations() {
                       type="button"
                       onClick={() => void handleAdsFacebookConnect()}
                       disabled={isConnectingAds || !hasMetaAdsLoginConfig}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isConnectingAds ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1269,7 +1269,7 @@ export default function Integrations() {
                         ]}
                         placeholder="Select a Page"
                         ariaLabel="Select Facebook Page"
-                        buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                        buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                       />
                     </div>
 
@@ -1287,7 +1287,7 @@ export default function Integrations() {
                         ]}
                         placeholder="Select an ad account"
                         ariaLabel="Select ad account"
-                        buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                        buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                       />
                     </div>
                   </div>
@@ -1316,7 +1316,7 @@ export default function Integrations() {
                         type="button"
                         onClick={() => void handleSaveMetaAdsIntegration()}
                         disabled={isSavingAds || !metaAdsForm.pageId || !metaAdsForm.adAccountId}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isSavingAds ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                         Save integration
@@ -1366,7 +1366,7 @@ export default function Integrations() {
 
             {isWooCommerceSetupLoading ? (
               <div className="flex min-h-52 items-center justify-center rounded-[28px] border border-gray-200 bg-[#fcfcfd]">
-                <Loader2 className="h-6 w-6 animate-spin text-[#5b45ff]" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#1381FF]" />
               </div>
             ) : (
               <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
@@ -1385,7 +1385,7 @@ export default function Integrations() {
                         value={wooCommerceForm.storeUrl}
                         onChange={(event) => setWooCommerceForm((current) => ({ ...current, storeUrl: event.target.value }))}
                         placeholder="https://store.example.com"
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
 
@@ -1397,7 +1397,7 @@ export default function Integrations() {
                           value={wooCommerceForm.consumerKey}
                           onChange={(event) => setWooCommerceForm((current) => ({ ...current, consumerKey: event.target.value }))}
                           placeholder={wooCommerceSetup?.connection?.consumerKeyLast4 ? `Saved key ending ${wooCommerceSetup.connection.consumerKeyLast4}` : 'ck_...'}
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
 
@@ -1408,7 +1408,7 @@ export default function Integrations() {
                           value={wooCommerceForm.consumerSecret}
                           onChange={(event) => setWooCommerceForm((current) => ({ ...current, consumerSecret: event.target.value }))}
                           placeholder={wooCommerceSetup?.connection?.consumerSecretLast4 ? `Saved secret ending ${wooCommerceSetup.connection.consumerSecretLast4}` : 'cs_...'}
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                     </div>
@@ -1428,7 +1428,7 @@ export default function Integrations() {
                       type="button"
                       onClick={() => void handleSaveWooCommerceConnection()}
                       disabled={isSavingWooCommerce || !wooCommerceForm.storeUrl || !wooCommerceForm.consumerKey || !wooCommerceForm.consumerSecret}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isSavingWooCommerce ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                       {wooCommerceSetup?.connection ? 'Update connection' : 'Connect WooCommerce'}
@@ -1543,7 +1543,7 @@ export default function Integrations() {
                         aria-pressed={isEnabled}
                         className={`inline-flex min-w-28 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
                           isEnabled
-                            ? 'bg-[#5b45ff] text-white shadow-lg shadow-[#5b45ff]/20'
+                            ? 'bg-[#1381FF] text-white shadow-lg shadow-[#1381FF]/20'
                             : 'border border-gray-200 bg-gray-50 text-gray-600 hover:bg-white'
                         }`}
                       >
@@ -1579,7 +1579,7 @@ export default function Integrations() {
                           ]}
                           placeholder={approvedTemplateOptions.length > 0 ? 'Choose approved WhatsApp template' : 'No approved templates available'}
                           ariaLabel={`Select template for ${automation.title}`}
-                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15 disabled:opacity-60"
+                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15 disabled:opacity-60"
                         />
                       </div>
 
@@ -1599,7 +1599,7 @@ export default function Integrations() {
                               label: formatWooCommerceDelayOption(minutes),
                             }))}
                             ariaLabel={`Select delay for ${automation.title}`}
-                            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15 disabled:opacity-60"
+                            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15 disabled:opacity-60"
                           />
                         </div>
                       ) : (
@@ -1625,7 +1625,7 @@ export default function Integrations() {
               <button
                 type="button"
                 onClick={handleSaveWooCommerceAutomations}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Save WooCommerce settings
@@ -1663,7 +1663,7 @@ export default function Integrations() {
                     </p>
                   </div>
                 </div>
-                {isMetaSetupLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#5b45ff]" /> : null}
+                {isMetaSetupLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#1381FF]" /> : null}
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -1697,7 +1697,7 @@ export default function Integrations() {
                   type="button"
                   onClick={handleFacebookConnect}
                   disabled={isConnectingFacebook || !hasMetaLeadCaptureLoginConfig}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isConnectingFacebook ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

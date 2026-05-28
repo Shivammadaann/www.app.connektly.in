@@ -164,7 +164,7 @@ function ToggleSwitch({
       disabled={disabled}
       onClick={onClick}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-60 ${
-        checked ? 'bg-[#5b45ff]' : 'bg-gray-300'
+        checked ? 'bg-[#1381FF]' : 'bg-gray-300'
       }`}
     >
       <span
@@ -442,7 +442,7 @@ export default function MetaAdsManager() {
             type="button"
             onClick={() => void loadCampaigns()}
             disabled={isLoading}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
             Refresh
@@ -462,7 +462,7 @@ export default function MetaAdsManager() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search campaigns or ads"
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
 
@@ -473,7 +473,7 @@ export default function MetaAdsManager() {
               options={PERIOD_OPTIONS}
               icon={<CalendarDays className="h-4 w-4" />}
               ariaLabel="Select campaign period"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 py-3 pl-4 pr-4 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 py-3 pl-4 pr-4 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
 
@@ -484,7 +484,7 @@ export default function MetaAdsManager() {
               options={DELIVERY_OPTIONS}
               icon={<Filter className="h-4 w-4" />}
               ariaLabel="Select campaign delivery filter"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 py-3 pl-4 pr-4 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 py-3 pl-4 pr-4 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
 
@@ -501,7 +501,7 @@ export default function MetaAdsManager() {
                 type="date"
                 value={since}
                 onChange={(event) => setSince(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
               />
             </label>
             <label className="block">
@@ -510,7 +510,7 @@ export default function MetaAdsManager() {
                 type="date"
                 value={until}
                 onChange={(event) => setUntil(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
               />
             </label>
           </div>
@@ -520,7 +520,7 @@ export default function MetaAdsManager() {
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         {isLoading ? (
           <div className="flex min-h-[320px] items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#5b45ff]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#1381FF]" />
           </div>
         ) : filteredCampaigns.length ? (
           <div className="overflow-x-auto">

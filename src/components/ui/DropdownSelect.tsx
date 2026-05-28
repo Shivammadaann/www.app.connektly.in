@@ -185,7 +185,7 @@ export function DropdownSelect({
           openMenu();
         }}
         onKeyDown={handleKeyDown}
-        className={`flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-left text-sm text-gray-900 shadow-[0_8px_24px_rgba(15,23,42,0.04)] outline-none transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-gray-300 hover:bg-gray-50 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)] focus:border-[#5b45ff] focus:ring-2 focus:ring-[#5b45ff]/15 active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 disabled:shadow-none disabled:hover:translate-y-0 ${buttonClassName}`}
+        className={`flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-left text-sm text-gray-900 shadow-[0_8px_24px_rgba(15,23,42,0.04)] outline-none transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-gray-300 hover:bg-gray-50 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)] focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15 active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 disabled:shadow-none disabled:hover:translate-y-0 ${buttonClassName}`}
       >
         {icon ? <span className="shrink-0 text-gray-400">{icon}</span> : null}
         <span className={`min-w-0 flex-1 truncate ${selectedOption ? '' : 'text-gray-400'}`}>

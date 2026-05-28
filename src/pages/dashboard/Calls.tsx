@@ -614,7 +614,7 @@ export default function Calls() {
           </p>
           <Link
             to="/onboarding/channel-connection"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/30 transition hover:bg-[#4a35e8]"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/30 transition hover:bg-[#4a35e8]"
           >
             Open channel setup
           </Link>
@@ -693,7 +693,7 @@ export default function Calls() {
           <button
             type="button"
             onClick={openNewCallModal}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/30 transition hover:bg-[#4a35e8]"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/30 transition hover:bg-[#4a35e8]"
           >
             <Plus className="h-4 w-4" /> New WhatsApp Call
           </button>
@@ -877,7 +877,7 @@ export default function Calls() {
                       ]}
                       placeholder="Select a contact"
                       ariaLabel="Select call contact"
-                      buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                      buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                     />
                   </div>
                 ) : (
@@ -888,7 +888,7 @@ export default function Calls() {
                       value={manualNumber}
                       onChange={(event) => setManualNumber(event.target.value)}
                       placeholder="919999999999"
-                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                     />
                   </div>
                 )}
@@ -916,7 +916,7 @@ export default function Calls() {
                   type="button"
                   onClick={() => void handleStartCall()}
                   disabled={isCheckingPermission || isCallActionPending}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/30 transition hover:bg-[#4a35e8] disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/30 transition hover:bg-[#4a35e8] disabled:opacity-60"
                 >
                   {isCheckingPermission || isCallActionPending ? (
                     <>
@@ -956,7 +956,7 @@ export default function Calls() {
                     WhatsApp Calls
                   </p>
                   <h2 className="mt-2 flex items-center gap-2 text-2xl font-bold text-gray-900">
-                    <Settings className="h-5 w-5 text-[#5b45ff]" />
+                    <Settings className="h-5 w-5 text-[#1381FF]" />
                     Call Settings
                   </h2>
                 </div>
@@ -999,7 +999,7 @@ export default function Calls() {
                       </span>
                       <span
                         className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${
-                          callSettingsDraft.status === 'enabled' ? 'bg-[#5b45ff]' : 'bg-gray-200'
+                          callSettingsDraft.status === 'enabled' ? 'bg-[#1381FF]' : 'bg-gray-200'
                         }`}
                       >
                         <span
@@ -1027,7 +1027,7 @@ export default function Calls() {
                       </span>
                       <span
                         className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${
-                          callSettingsDraft.callIconVisibility === 'visible' ? 'bg-[#5b45ff]' : 'bg-gray-200'
+                          callSettingsDraft.callIconVisibility === 'visible' ? 'bg-[#1381FF]' : 'bg-gray-200'
                         }`}
                       >
                         <span
@@ -1055,7 +1055,7 @@ export default function Calls() {
                       </span>
                       <span
                         className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${
-                          callSettingsDraft.callbackPermissionStatus === 'enabled' ? 'bg-[#5b45ff]' : 'bg-gray-200'
+                          callSettingsDraft.callbackPermissionStatus === 'enabled' ? 'bg-[#1381FF]' : 'bg-gray-200'
                         }`}
                       >
                         <span
@@ -1092,7 +1092,7 @@ export default function Calls() {
                         }
                         className={`inline-flex items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition ${
                           callSettingsDraft.callHours.status === 'enabled'
-                            ? 'bg-[#5b45ff] text-white'
+                            ? 'bg-[#1381FF] text-white'
                             : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                         }`}
                       >
@@ -1116,7 +1116,7 @@ export default function Calls() {
                                 },
                               }))
                             }
-                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </div>
 
@@ -1136,7 +1136,7 @@ export default function Calls() {
                                     onChange={(event) =>
                                       setWeeklyDayEnabled(dayOfWeek, event.target.checked)
                                     }
-                                    className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                                    className="h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                                   />
                                   {dayOfWeek.slice(0, 3)}
                                 </label>
@@ -1147,7 +1147,7 @@ export default function Calls() {
                                   onChange={(event) =>
                                     updateWeeklyHour(dayOfWeek, 'openTime', event.target.value)
                                   }
-                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff] disabled:bg-gray-50 disabled:text-gray-400"
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF] disabled:bg-gray-50 disabled:text-gray-400"
                                 />
                                 <input
                                   type="time"
@@ -1156,7 +1156,7 @@ export default function Calls() {
                                   onChange={(event) =>
                                     updateWeeklyHour(dayOfWeek, 'closeTime', event.target.value)
                                   }
-                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff] disabled:bg-gray-50 disabled:text-gray-400"
+                                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF] disabled:bg-gray-50 disabled:text-gray-400"
                                 />
                               </div>
                             );
@@ -1197,7 +1197,7 @@ export default function Calls() {
                               onChange={(event) =>
                                 updateHolidaySchedule(index, 'date', event.target.value)
                               }
-                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                             <input
                               type="time"
@@ -1205,7 +1205,7 @@ export default function Calls() {
                               onChange={(event) =>
                                 updateHolidaySchedule(index, 'startTime', event.target.value)
                               }
-                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                             <input
                               type="time"
@@ -1213,7 +1213,7 @@ export default function Calls() {
                               onChange={(event) =>
                                 updateHolidaySchedule(index, 'endTime', event.target.value)
                               }
-                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                             <button
                               type="button"
@@ -1244,7 +1244,7 @@ export default function Calls() {
                       type="button"
                       onClick={() => void saveCallSettings()}
                       disabled={isSavingCallSettings}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/30 transition hover:bg-[#4a35e8] disabled:opacity-60"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/30 transition hover:bg-[#4a35e8] disabled:opacity-60"
                     >
                       {isSavingCallSettings ? (
                         <>

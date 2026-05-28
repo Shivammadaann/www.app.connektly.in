@@ -1001,7 +1001,7 @@ export default function Broadcasts() {
                       value={composer.campaignName}
                       onChange={(event) => updateComposer('campaignName', event.target.value)}
                       placeholder="Festival Promo - April"
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                     />
                   </div>
                   <div>
@@ -1018,7 +1018,7 @@ export default function Broadcasts() {
                       ]}
                       placeholder="Choose an approved marketing template"
                       ariaLabel="Select marketing template"
-                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                     />
                   </div>
                 </div>
@@ -1046,7 +1046,7 @@ export default function Broadcasts() {
                     onClick={() => updateComposer('audienceSource', 'contacts')}
                     className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                       composer.audienceSource === 'contacts'
-                        ? 'bg-[#5b45ff] text-white'
+                        ? 'bg-[#1381FF] text-white'
                         : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                   >
@@ -1060,7 +1060,7 @@ export default function Broadcasts() {
                     }}
                     className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                       composer.audienceSource === 'csv'
-                        ? 'bg-[#5b45ff] text-white'
+                        ? 'bg-[#1381FF] text-white'
                         : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                   >
@@ -1077,7 +1077,7 @@ export default function Broadcasts() {
                         value={audienceSearchQuery}
                         onChange={(event) => setAudienceSearchQuery(event.target.value)}
                         placeholder="Search contacts by name, phone, or label"
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </div>
 
@@ -1094,7 +1094,7 @@ export default function Broadcasts() {
                           checked={areAllFilteredContactsSelected}
                           disabled={selectableFilteredContactIds.length === 0}
                           onChange={handleToggleSelectAllFilteredContacts}
-                          className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF] disabled:cursor-not-allowed disabled:opacity-50"
                         />
                         Select all shown contacts
                       </label>
@@ -1105,7 +1105,7 @@ export default function Broadcasts() {
                         <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-200">
                           {filteredAudienceContacts.length} shown
                         </span>
-                        <span className="rounded-full bg-[#f5f3ff] px-3 py-1 text-[#5b45ff] ring-1 ring-[#ddd6fe]">
+                        <span className="rounded-full bg-[#f5f3ff] px-3 py-1 text-[#1381FF] ring-1 ring-[#ddd6fe]">
                           {selectedAudienceContactCount} selected
                         </span>
                       </div>
@@ -1134,7 +1134,7 @@ export default function Broadcasts() {
                                 checked={isSelected}
                                 disabled={isMarketingOptedOut}
                                 onChange={() => handleToggleContactSelection(contact.id)}
-                                className="mt-1 h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                                className="mt-1 h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                               />
                               <div className="min-w-0">
                                 <p className="font-medium text-gray-900">
@@ -1207,7 +1207,7 @@ export default function Broadcasts() {
                       onClick={() => updateComposer('timing', 'now')}
                       className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                         composer.timing === 'now'
-                          ? 'bg-[#5b45ff] text-white'
+                          ? 'bg-[#1381FF] text-white'
                           : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                     >
@@ -1219,7 +1219,7 @@ export default function Broadcasts() {
                       onClick={() => updateComposer('timing', 'later')}
                       className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                         composer.timing === 'later'
-                          ? 'bg-[#5b45ff] text-white'
+                          ? 'bg-[#1381FF] text-white'
                           : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                     >
@@ -1237,7 +1237,7 @@ export default function Broadcasts() {
                             type="date"
                             value={composer.scheduledDate}
                             onChange={(event) => updateComposer('scheduledDate', event.target.value)}
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </div>
                         <div>
@@ -1246,7 +1246,7 @@ export default function Broadcasts() {
                             type="time"
                             value={composer.scheduledTime}
                             onChange={(event) => updateComposer('scheduledTime', event.target.value)}
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </div>
                       </div>
@@ -1281,7 +1281,7 @@ export default function Broadcasts() {
               <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#5b45ff]">Live Preview</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Live Preview</p>
                     <h3 className="mt-2 text-lg font-bold text-gray-900">
                       {selectedTemplate?.name || 'Template preview'}
                     </h3>
@@ -1290,7 +1290,7 @@ export default function Broadcasts() {
                     </p>
                   </div>
                   <div className="rounded-2xl bg-[#f5f3ff] px-3 py-2 text-right">
-                    <p className="text-xs font-medium uppercase tracking-wide text-[#5b45ff]">Audience</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-[#1381FF]">Audience</p>
                     <p className="mt-1 text-lg font-bold text-[#2b1f77]">{audienceCount}</p>
                   </div>
                 </div>

@@ -1438,10 +1438,10 @@ function ContextualReplyBubble({
       className={`rounded-2xl border-l-4 px-3 py-2 ${
         isOutbound
           ? 'border-white/65 bg-white/14 text-white'
-          : 'border-[#5b45ff] bg-[#f4f1ff] text-slate-700'
+          : 'border-[#1381FF] bg-[#f4f1ff] text-slate-700'
       }`}
     >
-      <p className={`text-[11px] font-semibold ${isOutbound ? 'text-white/85' : 'text-[#5b45ff]'}`}>
+      <p className={`text-[11px] font-semibold ${isOutbound ? 'text-white/85' : 'text-[#1381FF]'}`}>
         {senderLabel}
       </p>
       <p className={`mt-1 text-xs leading-5 break-words ${isOutbound ? 'text-white/78' : 'text-slate-600'}`}>
@@ -3791,7 +3791,7 @@ export default function Inbox() {
     return (
       <div className="mb-3 flex items-start justify-between gap-3 rounded-2xl border border-[#d6dce7] bg-white px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#5b45ff]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1381FF]">
             Replying to {getContextualReplySenderLabel(replyTargetMessage, activeContactName)}
           </p>
           <p className="mt-1 text-sm text-slate-600 break-words">
@@ -3904,7 +3904,7 @@ export default function Inbox() {
               placeholder="Choose a template..."
               icon={<MessageSquareText className="h-5 w-5" />}
               ariaLabel="Select approved template to send"
-              buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
 
             <div className="mt-5">
@@ -3940,7 +3940,7 @@ export default function Inbox() {
               type="button"
               onClick={() => void handleSendTemplateInConversation()}
               disabled={!selectedComposerTemplate || isBusy === 'template'}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/30 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/30 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isBusy === 'template' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               <span>{isBusy === 'template' ? 'Sending...' : 'Send Template'}</span>
@@ -3988,13 +3988,13 @@ export default function Inbox() {
           options={templateOptions}
           placeholder="Choose a template"
           className="mt-3"
-          buttonClassName="border-[#d8d2ff] px-3 focus:border-[#5b45ff]"
+          buttonClassName="border-[#d8d2ff] px-3 focus:border-[#1381FF]"
         />
         <button
           type="button"
           onClick={() => void handleSendTemplateInConversation()}
           disabled={!hasSelectedTemplate || isBusy === 'template'}
-          className="mt-3 w-full rounded-xl bg-[#5b45ff] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#4a35e8] disabled:opacity-60"
+          className="mt-3 w-full rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#4a35e8] disabled:opacity-60"
         >
           {isBusy === 'template' ? 'Sending...' : 'Send template'}
         </button>
@@ -4030,7 +4030,7 @@ export default function Inbox() {
               <button
                 onClick={() => setIsNewChatModalOpen(true)}
                 disabled={!canUseWhatsAppActions}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/30 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4a35e8] active:translate-y-0 active:scale-[0.98] sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/30 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4a35e8] active:translate-y-0 active:scale-[0.98] sm:w-auto"
               >
                 <Plus className="w-4 h-4" /> New chat
               </button>
@@ -4053,7 +4053,7 @@ export default function Inbox() {
               placeholder="Search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full rounded-xl border border-transparent bg-gray-50 py-2.5 pl-9 pr-4 text-sm transition-[border-color,box-shadow,background-color] duration-200 ease-out focus:border-[#5b45ff] focus:bg-white focus:outline-none focus:shadow-[0_0_0_4px_rgba(91,69,255,0.08)]"
+              className="w-full rounded-xl border border-transparent bg-gray-50 py-2.5 pl-9 pr-4 text-sm transition-[border-color,box-shadow,background-color] duration-200 ease-out focus:border-[#1381FF] focus:bg-white focus:outline-none focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]"
             />
           </div>
 
@@ -4081,7 +4081,7 @@ export default function Inbox() {
                 onClick={() => setChannelFilter(option.id)}
                 className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ease-out hover:scale-105 active:scale-[0.96] ${
                   channelFilter === option.id
-                    ? 'bg-[#5b45ff] text-white'
+                    ? 'bg-[#1381FF] text-white'
                     : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
                 }`}
                 aria-label={`Show ${option.label}`}
@@ -4155,7 +4155,7 @@ export default function Inbox() {
                       <motion.span
                         animate={shouldReduceMotion ? undefined : { scale: [1, 1.08, 1] }}
                         transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2, ease: MOTION_EASE }}
-                        className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#5b45ff] px-1.5 text-[10px] font-semibold text-white"
+                        className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#1381FF] px-1.5 text-[10px] font-semibold text-white"
                       >
                         {thread.unreadCount}
                       </motion.span>
@@ -4471,7 +4471,7 @@ export default function Inbox() {
                         type="button"
                         onClick={openTemplateSendModal}
                         disabled={sendableTemplates.length === 0 || isBusy === 'template'}
-                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-3.5 py-2 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-3.5 py-2 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <FileText className="h-3.5 w-3.5" />
                         Select Template to Send
@@ -4566,7 +4566,7 @@ export default function Inbox() {
                   </div>
                 ) : null}
 
-                <div className="flex min-h-9 items-center gap-2 rounded-xl border border-[#d6dce7] bg-[#f6f8fb] px-2 py-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 ease-out focus-within:border-[#5b45ff]/60 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(91,69,255,0.08)]">
+                <div className="flex min-h-9 items-center gap-2 rounded-xl border border-[#d6dce7] bg-[#f6f8fb] px-2 py-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 ease-out focus-within:border-[#1381FF]/60 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]">
                   <button
                     onClick={toggleComposerActions}
                     disabled={!activeThread}
@@ -4737,7 +4737,7 @@ export default function Inbox() {
                         placeholder="e.g. VIP, Follow-up, Hot lead"
                         autoFocus
                         maxLength={40}
-                        className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </div>
                     {labelModalError ? (
@@ -4775,7 +4775,7 @@ export default function Inbox() {
                   <button
                     type="submit"
                     disabled={isBusy === 'contact-update'}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isBusy === 'contact-update' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     <span>{isBusy === 'contact-update' ? 'Saving...' : 'Add label'}</span>
@@ -4913,7 +4913,7 @@ export default function Inbox() {
                         placeholder="Choose a contact..."
                         icon={<User className="h-5 w-5" />}
                         ariaLabel="Select contact"
-                        buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                        buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                       />
                     </div>
                   ) : (
@@ -4927,7 +4927,7 @@ export default function Inbox() {
                             placeholder="e.g. John Doe"
                             value={manualName}
                             onChange={(event) => setManualName(event.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#5b45ff] focus:border-[#5b45ff] outline-none text-sm"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#1381FF] focus:border-[#1381FF] outline-none text-sm"
                           />
                         </div>
                       </div>
@@ -4940,7 +4940,7 @@ export default function Inbox() {
                             placeholder="e.g. +1 234 567 8900"
                             value={manualNumber}
                             onChange={(event) => setManualNumber(event.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#5b45ff] focus:border-[#5b45ff] outline-none text-sm"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#1381FF] focus:border-[#1381FF] outline-none text-sm"
                           />
                         </div>
                       </div>
@@ -4989,7 +4989,7 @@ export default function Inbox() {
                       !sendableTemplates.some((template) => template.id === selectedTemplateId) ||
                       (newChatOption === 'existing' ? !selectedContact : !manualNumber.trim())
                     }
-                    className="flex-1 py-2.5 bg-[#5b45ff] hover:bg-[#4a35e8] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#5b45ff]/30 disabled:opacity-60"
+                    className="flex-1 py-2.5 bg-[#1381FF] hover:bg-[#4a35e8] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#1381FF]/30 disabled:opacity-60"
                   >
                     {isBusy === 'start' ? 'Starting...' : 'Start Chat'}
                   </button>

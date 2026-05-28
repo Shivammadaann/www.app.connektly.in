@@ -126,7 +126,7 @@ export default function WalletBilling() {
           transaction_id: response.transactionId,
         },
         theme: {
-          color: '#5b45ff',
+          color: '#1381FF',
         },
         modal: {
           confirm_close: true,
@@ -161,7 +161,7 @@ export default function WalletBilling() {
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top_right,_rgba(91,69,255,0.22),_transparent_42%),linear-gradient(135deg,#0f172a,_#1e293b)] p-6 text-white shadow-[0_28px_80px_rgba(15,23,42,0.22)]"
+          className="overflow-hidden rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top_right,_rgba(19,129,255,0.22),_transparent_42%),linear-gradient(135deg,#0f172a,_#1e293b)] p-6 text-white shadow-[0_28px_80px_rgba(15,23,42,0.22)]"
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -207,7 +207,7 @@ export default function WalletBilling() {
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#5b45ff]">Top up</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Top up</p>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Buy credits</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 Razorpay funds your Connektly platform wallet. Estimated WhatsApp messaging spend stays informational unless billing is enabled for your account.
@@ -234,7 +234,7 @@ export default function WalletBilling() {
                   }}
                   className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
                     amount === String(presetAmount)
-                      ? 'bg-[#5b45ff] text-white'
+                      ? 'bg-[#1381FF] text-white'
                       : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
@@ -278,7 +278,7 @@ export default function WalletBilling() {
                 disabled={!wallet.rechargeEnabled || isCheckingOut || isFinalizing}
                 className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition ${
                   wallet.rechargeEnabled && !isCheckingOut && !isFinalizing
-                    ? 'bg-[#5b45ff] text-white hover:bg-[#4a35e8]'
+                    ? 'bg-[#1381FF] text-white hover:bg-[#4a35e8]'
                     : 'cursor-not-allowed bg-slate-200 text-slate-500'
                 }`}
               >

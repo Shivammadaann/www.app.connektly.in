@@ -812,7 +812,7 @@ export default function DashboardLayout() {
                     onClick={() => setActiveCollapsedDropdown(null)}
                     className={`flex items-center px-3 py-3 rounded-xl transition-colors group relative ${
                       isActive 
-                        ? 'bg-[#5b45ff] text-white' 
+                        ? 'bg-[#1381FF] text-white' 
                         : 'hover:bg-gray-800 hover:text-white'
                     } ${
                       isDesktopSidebarCollapsed ? 'justify-center' : ''
@@ -918,7 +918,7 @@ export default function DashboardLayout() {
                                     to={child.path}
                                     className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
                                       isActive
-                                        ? 'bg-[#5b45ff] text-white font-medium'
+                                        ? 'bg-[#1381FF] text-white font-medium'
                                         : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                                     }`}
                                   >
@@ -969,7 +969,7 @@ export default function DashboardLayout() {
                                     onClick={() => setActiveCollapsedDropdown(null)}
                                     className={`flex items-center px-3 py-2.5 rounded-xl transition-colors text-sm ${
                                       isActive
-                                        ? 'bg-[#5b45ff] text-white font-medium'
+                                        ? 'bg-[#1381FF] text-white font-medium'
                                         : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                                     }`}
                                   >
@@ -1121,7 +1121,7 @@ export default function DashboardLayout() {
               >
                 <Bell className="h-5 w-5" />
                 {unreadNotificationCount > 0 ? (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 bg-[#5b45ff] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-[#111827]">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 bg-[#1381FF] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-[#111827]">
                     {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
                   </span>
                 ) : null}
@@ -1159,7 +1159,7 @@ export default function DashboardLayout() {
                               setIsNotificationsOpen(false);
                               navigate('/dashboard/notifications');
                             }}
-                            className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#5b45ff] transition hover:bg-violet-50"
+                            className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#1381FF] transition hover:bg-violet-50"
                           >
                             View all
                           </button>
@@ -1386,7 +1386,7 @@ export default function DashboardLayout() {
                           onClick={() => setIsMobileMenuOpen(false)}
                           className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition ${
                             isActive
-                              ? 'bg-[#5b45ff] text-white'
+                              ? 'bg-[#1381FF] text-white'
                               : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                           }`}
                         >
@@ -1448,7 +1448,7 @@ export default function DashboardLayout() {
                                           onClick={() => setIsMobileMenuOpen(false)}
                                           className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition ${
                                             isActive
-                                              ? 'bg-[#5b45ff] text-white'
+                                              ? 'bg-[#1381FF] text-white'
                                               : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                                           }`}
                                         >

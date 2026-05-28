@@ -2721,7 +2721,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                         }}
                         className={`rounded-2xl border px-4 py-3 text-left transition ${
                           isActiveStep
-                            ? 'border-[#5b45ff] bg-[#f5f3ff] text-[#3d2be0]'
+                            ? 'border-[#1381FF] bg-[#f5f3ff] text-[#3d2be0]'
                             : isCompleteStep
                               ? 'border-green-200 bg-green-50 text-green-800'
                               : 'border-gray-200 bg-gray-50 text-gray-500'
@@ -2744,7 +2744,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                           value={emailConnectionForm.displayName}
                           onChange={(event) => setEmailConnectionForm((current) => ({ ...current, displayName: event.target.value }))}
                           placeholder="John Doe"
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                       <label className="block">
@@ -2757,7 +2757,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                             setEmailConnectionForm((current) => ({ ...current, authUser, emailAddress: authUser }));
                           }}
                           placeholder="you@example.com"
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                         <p className="mt-2 text-xs text-gray-500">This is also the email address used for the mailbox.</p>
                       </label>
@@ -2768,7 +2768,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                           value={emailConnectionForm.password}
                           onChange={(event) => setEmailConnectionForm((current) => ({ ...current, password: event.target.value }))}
                           placeholder="App password or mailbox password"
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                     </div>
@@ -2787,7 +2787,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                             value={emailConnectionForm.smtpHost}
                             onChange={(event) => setEmailConnectionForm((current) => ({ ...current, smtpHost: event.target.value }))}
                             placeholder="smtp.example.com"
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </label>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -2804,7 +2804,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                                   smtpSecure: getDefaultEmailSecureForPort(smtpPort, 'smtp'),
                                 }));
                               }}
-                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                           </label>
                           <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700">
@@ -2812,7 +2812,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                               type="checkbox"
                               checked={emailConnectionForm.smtpSecure}
                               onChange={(event) => setEmailConnectionForm((current) => ({ ...current, smtpSecure: event.target.checked }))}
-                              className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                              className="h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                             />
                             Secure
                           </label>
@@ -2844,7 +2844,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                             value={emailConnectionForm.imapHost}
                             onChange={(event) => setEmailConnectionForm((current) => ({ ...current, imapHost: event.target.value }))}
                             placeholder="imap.example.com"
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </label>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -2861,7 +2861,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                                   imapSecure: getDefaultEmailSecureForPort(imapPort, 'imap'),
                                 }));
                               }}
-                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                           </label>
                           <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700">
@@ -2869,7 +2869,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                               type="checkbox"
                               checked={emailConnectionForm.imapSecure}
                               onChange={(event) => setEmailConnectionForm((current) => ({ ...current, imapSecure: event.target.checked }))}
-                              className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                              className="h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                             />
                             Secure
                           </label>
@@ -2921,7 +2921,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                       type="button"
                       onClick={() => setEmailSetupStep('imap')}
                       disabled={!emailCredentialsStepIsComplete}
-                      className="inline-flex items-center justify-center rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-xl bg-[#1381FF] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Next
                     </button>
@@ -2931,7 +2931,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                       type="button"
                       onClick={() => setEmailSetupStep('smtp')}
                       disabled={!isImapVerified || isEmailVerifying}
-                      className="inline-flex items-center justify-center rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-xl bg-[#1381FF] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Next
                     </button>
@@ -2941,7 +2941,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
                       type="button"
                       onClick={() => void handleSaveEmailConnection()}
                       disabled={!isSmtpVerified || !isImapVerified || isEmailSaving || isEmailVerifying}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isEmailSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
                       Finish

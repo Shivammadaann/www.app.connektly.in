@@ -312,7 +312,7 @@ function TextPromptDialog({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
-            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
 
@@ -329,7 +329,7 @@ function TextPromptDialog({
             type="button"
             onClick={onSubmit}
             disabled={isSubmitting || !value.trim()}
-            className="inline-flex items-center justify-center rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Insert link
           </button>
@@ -932,7 +932,7 @@ export default function Emails() {
             <button
               type="button"
               onClick={openCampaignComposer}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8]"
             >
               <PlusCircle className="h-4 w-4" />
               New Email Campaign
@@ -950,14 +950,14 @@ export default function Emails() {
 
       {isLoadingConnection ? (
         <div className="flex min-h-[280px] items-center justify-center rounded-3xl border border-gray-200 bg-white shadow-sm">
-          <Loader2 className="h-6 w-6 animate-spin text-[#5b45ff]" />
+          <Loader2 className="h-6 w-6 animate-spin text-[#1381FF]" />
         </div>
       ) : !connection ? (
         <div className="flex min-h-[340px] items-center justify-center rounded-3xl border border-gray-200 bg-white shadow-sm">
           <button
             type="button"
             onClick={openSetupModal}
-            className="inline-flex items-center gap-3 rounded-2xl bg-[#5b45ff] px-6 py-4 text-base font-semibold text-white transition hover:bg-[#4a35e8]"
+            className="inline-flex items-center gap-3 rounded-2xl bg-[#1381FF] px-6 py-4 text-base font-semibold text-white transition hover:bg-[#4a35e8]"
           >
             <Mail className="h-5 w-5" />
             Connect your Email to get started
@@ -1020,7 +1020,7 @@ export default function Emails() {
 
             {isLoadingWorkspace ? (
               <div className="flex min-h-[420px] items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#5b45ff]" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#1381FF]" />
               </div>
             ) : (
               <div className="grid min-h-[520px] gap-0 lg:grid-cols-[340px_minmax(0,1fr)]">
@@ -1033,7 +1033,7 @@ export default function Emails() {
                         value={inboxSearch}
                         onChange={(event) => setInboxSearch(event.target.value)}
                         placeholder="Search emails"
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </div>
                   </div>
@@ -1067,7 +1067,7 @@ export default function Emails() {
                               </p>
                             </div>
                             {message.isUnread ? (
-                              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[#5b45ff]" />
+                              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[#1381FF]" />
                             ) : null}
                           </div>
                           <p className="mt-2 line-clamp-2 text-xs leading-5 text-gray-500">{message.previewText}</p>
@@ -1278,7 +1278,7 @@ export default function Emails() {
                         type="text"
                         value={connectionForm.displayName}
                         onChange={(event) => setConnectionForm((current) => ({ ...current, displayName: event.target.value }))}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
                     <label className="block">
@@ -1287,7 +1287,7 @@ export default function Emails() {
                         type="email"
                         value={connectionForm.emailAddress}
                         onChange={(event) => setConnectionForm((current) => ({ ...current, emailAddress: event.target.value }))}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
                     <label className="block">
@@ -1296,7 +1296,7 @@ export default function Emails() {
                         type="text"
                         value={connectionForm.authUser}
                         onChange={(event) => setConnectionForm((current) => ({ ...current, authUser: event.target.value }))}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
                     <label className="block">
@@ -1305,7 +1305,7 @@ export default function Emails() {
                         type="password"
                         value={connectionForm.password}
                         onChange={(event) => setConnectionForm((current) => ({ ...current, password: event.target.value }))}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
                   </div>
@@ -1325,7 +1325,7 @@ export default function Emails() {
                           value={connectionForm.smtpHost}
                           onChange={(event) => setConnectionForm((current) => ({ ...current, smtpHost: event.target.value }))}
                           placeholder="smtp.example.com"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                       <div className="grid gap-4 sm:grid-cols-2">
@@ -1335,7 +1335,7 @@ export default function Emails() {
                             type="number"
                             value={connectionForm.smtpPort}
                             onChange={(event) => setConnectionForm((current) => ({ ...current, smtpPort: event.target.value }))}
-                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </label>
                         <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">
@@ -1343,7 +1343,7 @@ export default function Emails() {
                             type="checkbox"
                             checked={connectionForm.smtpSecure}
                             onChange={(event) => setConnectionForm((current) => ({ ...current, smtpSecure: event.target.checked }))}
-                            className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                            className="h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                           />
                           Secure connection
                         </label>
@@ -1364,7 +1364,7 @@ export default function Emails() {
                           value={connectionForm.imapHost}
                           onChange={(event) => setConnectionForm((current) => ({ ...current, imapHost: event.target.value }))}
                           placeholder="imap.example.com"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                       <div className="grid gap-4 sm:grid-cols-2">
@@ -1374,7 +1374,7 @@ export default function Emails() {
                             type="number"
                             value={connectionForm.imapPort}
                             onChange={(event) => setConnectionForm((current) => ({ ...current, imapPort: event.target.value }))}
-                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </label>
                         <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">
@@ -1382,7 +1382,7 @@ export default function Emails() {
                             type="checkbox"
                             checked={connectionForm.imapSecure}
                             onChange={(event) => setConnectionForm((current) => ({ ...current, imapSecure: event.target.checked }))}
-                            className="h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                            className="h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                           />
                           Secure connection
                         </label>
@@ -1402,7 +1402,7 @@ export default function Emails() {
                     type="button"
                     onClick={() => void handleSaveConnection()}
                     disabled={!verification?.canConnect || isSavingConnection || isVerifyingConnection}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSavingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
                     Connect Email Account
@@ -1469,7 +1469,7 @@ export default function Emails() {
                       value={campaignName}
                       onChange={(event) => setCampaignName(event.target.value)}
                       placeholder="April Product Update"
-                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                     />
                   </label>
                   <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
@@ -1503,7 +1503,7 @@ export default function Emails() {
                           onClick={() => handleSelectTemplate(template)}
                           className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
                             selectedTemplateId === template.id
-                              ? 'border-[#5b45ff] bg-[#f5f3ff]'
+                              ? 'border-[#1381FF] bg-[#f5f3ff]'
                               : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
                           }`}
                         >
@@ -1535,7 +1535,7 @@ export default function Emails() {
                           onClick={() => updateTemplateDraft('editorMode', 'rich')}
                           className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
                             templateDraft.editorMode === 'rich'
-                              ? 'bg-[#5b45ff] text-white'
+                              ? 'bg-[#1381FF] text-white'
                               : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                           }`}
                         >
@@ -1546,7 +1546,7 @@ export default function Emails() {
                           onClick={() => updateTemplateDraft('editorMode', 'html')}
                           className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
                             templateDraft.editorMode === 'html'
-                              ? 'bg-[#5b45ff] text-white'
+                              ? 'bg-[#1381FF] text-white'
                               : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                           }`}
                         >
@@ -1563,7 +1563,7 @@ export default function Emails() {
                           value={templateDraft.name}
                           onChange={(event) => updateTemplateDraft('name', event.target.value)}
                           placeholder="Monthly Newsletter"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                       <label className="block">
@@ -1573,7 +1573,7 @@ export default function Emails() {
                           value={templateDraft.subject}
                           onChange={(event) => updateTemplateDraft('subject', event.target.value)}
                           placeholder="Your April update is here"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                     </div>
@@ -1589,7 +1589,7 @@ export default function Emails() {
                           value={templateDraft.htmlContent}
                           onChange={(event) => updateTemplateDraft('htmlContent', event.target.value)}
                           rows={16}
-                          className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-4 font-mono text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-4 font-mono text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       )}
                     </div>
@@ -1626,7 +1626,7 @@ export default function Emails() {
                         onClick={() => setAudienceSource('contacts')}
                         className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                           audienceSource === 'contacts'
-                            ? 'bg-[#5b45ff] text-white'
+                            ? 'bg-[#1381FF] text-white'
                             : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                         }`}
                       >
@@ -1638,7 +1638,7 @@ export default function Emails() {
                         onClick={() => setAudienceSource('custom')}
                         className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                           audienceSource === 'custom'
-                            ? 'bg-[#5b45ff] text-white'
+                            ? 'bg-[#1381FF] text-white'
                             : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                         }`}
                       >
@@ -1656,7 +1656,7 @@ export default function Emails() {
                             value={campaignContactSearch}
                             onChange={(event) => setCampaignContactSearch(event.target.value)}
                             placeholder="Search contacts with email addresses"
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </div>
 
@@ -1682,7 +1682,7 @@ export default function Emails() {
                                           : [...current, entry.email],
                                       )
                                     }
-                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                                   />
                                   <div className="min-w-0">
                                     <p className="font-medium text-gray-900">{entry.name}</p>
@@ -1706,7 +1706,7 @@ export default function Emails() {
                           onChange={(event) => setCustomRecipientList(event.target.value)}
                           rows={8}
                           placeholder={'one@example.com\nAlex Doe,alex@example.com\nTaylor <taylor@example.com>'}
-                          className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                         <p className="mt-3 text-xs text-gray-500">
                           Add one email per line, use <code className="rounded bg-gray-100 px-1 py-0.5">Name,email@example.com</code>, or <code className="rounded bg-gray-100 px-1 py-0.5">Name &lt;email@example.com&gt;</code>.
@@ -1728,7 +1728,7 @@ export default function Emails() {
                         type="button"
                         onClick={() => void handleSendCampaign()}
                         disabled={isSendingCampaign}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:opacity-60"
                       >
                         {isSendingCampaign ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         Send Email Campaign

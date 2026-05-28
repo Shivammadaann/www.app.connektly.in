@@ -198,7 +198,7 @@ export default function AutomationVisualBuilder() {
             <div className="mt-6">
               <Link
                 to="/dashboard/connections?section=channels"
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
               >
                 Open Channels
               </Link>
@@ -241,7 +241,7 @@ export default function AutomationVisualBuilder() {
         />
         {isFlowsLoading ? (
           <div className="fixed bottom-4 right-4 z-[110] inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-lg">
-            <Loader2 className="h-4 w-4 animate-spin text-[#5b45ff]" />
+            <Loader2 className="h-4 w-4 animate-spin text-[#1381FF]" />
             Loading Flows
           </div>
         ) : null}
@@ -275,7 +275,7 @@ export default function AutomationVisualBuilder() {
             type="button"
             onClick={openBuilderForCreate}
             disabled={isLoading || isSaving}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
             Build Automation

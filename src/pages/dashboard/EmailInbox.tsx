@@ -318,7 +318,7 @@ export default function EmailInbox() {
               <button
                 type="button"
                 onClick={() => navigate('/dashboard/emails/template-builder')}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#5b45ff] text-white shadow-lg shadow-[#5b45ff]/30 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4a35e8] active:translate-y-0 active:scale-[0.98]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#1381FF] text-white shadow-lg shadow-[#1381FF]/30 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4a35e8] active:translate-y-0 active:scale-[0.98]"
                 aria-label="Compose email"
                 title="Compose"
               >
@@ -342,7 +342,7 @@ export default function EmailInbox() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search"
-              className="w-full rounded-xl border border-transparent bg-gray-50 py-2.5 pl-9 pr-4 text-sm transition-[border-color,box-shadow,background-color] duration-200 ease-out focus:border-[#5b45ff] focus:bg-white focus:outline-none focus:shadow-[0_0_0_4px_rgba(91,69,255,0.08)]"
+              className="w-full rounded-xl border border-transparent bg-gray-50 py-2.5 pl-9 pr-4 text-sm transition-[border-color,box-shadow,background-color] duration-200 ease-out focus:border-[#1381FF] focus:bg-white focus:outline-none focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]"
             />
           </div>
 
@@ -359,7 +359,7 @@ export default function EmailInbox() {
                     onClick={() => setActiveFolder(folder.id)}
                     className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ease-out hover:scale-105 active:scale-[0.96] ${
                       isActive
-                        ? 'bg-[#5b45ff] text-white'
+                        ? 'bg-[#1381FF] text-white'
                         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
                     }`}
                     aria-label={`Show ${folder.label}`}
@@ -377,7 +377,7 @@ export default function EmailInbox() {
         <div className="flex-1 overflow-y-auto scrollbar-hide">
             {isLoading ? (
               <div className="flex h-72 items-center justify-center text-sm text-gray-500">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#5b45ff]" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#1381FF]" />
                 Loading mailbox
               </div>
             ) : error ? (
@@ -386,7 +386,7 @@ export default function EmailInbox() {
               </div>
             ) : !hasEmailConnection ? (
               <div className="m-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5">
-                <MailOpen className="h-6 w-6 text-[#5b45ff]" />
+                <MailOpen className="h-6 w-6 text-[#1381FF]" />
                 <h2 className="mt-3 text-base font-semibold text-gray-950">Connect your mailbox</h2>
                 <p className="mt-2 text-sm leading-6 text-gray-500">
                   Once an email provider is connected, incoming messages will appear in this inbox.
@@ -394,7 +394,7 @@ export default function EmailInbox() {
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard/connections?section=channels&channel=email&setup=1')}
-                  className="mt-4 inline-flex h-10 items-center rounded-xl bg-[#5b45ff] px-4 text-sm font-semibold text-white transition duration-200 hover:bg-[#4f3df1] active:scale-95"
+                  className="mt-4 inline-flex h-10 items-center rounded-xl bg-[#1381FF] px-4 text-sm font-semibold text-white transition duration-200 hover:bg-[#4f3df1] active:scale-95"
                 >
                   Connect email
                 </button>
@@ -436,7 +436,7 @@ export default function EmailInbox() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             {message.isUnread ? (
-                              <span className="h-2 w-2 shrink-0 rounded-full bg-[#5b45ff]" />
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-[#1381FF]" />
                             ) : null}
                             <p
                               className={`truncate text-sm ${
@@ -530,7 +530,7 @@ export default function EmailInbox() {
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-start gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#5b45ff]/10 text-base font-semibold text-[#5b45ff]">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1381FF]/10 text-base font-semibold text-[#1381FF]">
                         {getSenderInitial(selectedMessage)}
                       </div>
                       <div className="min-w-0">

@@ -68,7 +68,7 @@ function Sparkline({ values }: { values: number[] }) {
       {values.map((value, index) => (
         <span
           key={`${value}-${index}`}
-          className="w-1.5 rounded-full bg-[#5b45ff]/25"
+          className="w-1.5 rounded-full bg-[#1381FF]/25"
           style={{ height: `${Math.max(20, (value / maxValue) * 100)}%` }}
         />
       ))}
@@ -256,7 +256,7 @@ export default function Home() {
       ? {
           icon: TrendingUp,
           text: `You have ${repliesPending} pending ${repliesPending === 1 ? 'reply' : 'replies'} across ${unreadLeadCount} lead${unreadLeadCount === 1 ? '' : 's'}.`,
-          tone: 'text-[#5b45ff] bg-[#f3f0ff]',
+          tone: 'text-[#1381FF] bg-[#f3f0ff]',
         }
       : {
           icon: CheckCircle2,
@@ -297,7 +297,7 @@ export default function Home() {
         </div>
         <Link
           to="/dashboard/inbox"
-          className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+          className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
         >
           <MessageSquarePlus className="h-4 w-4" />
           New Chat
@@ -354,7 +354,7 @@ export default function Home() {
             <Link
               key={action.label}
               to={action.path}
-              className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-[#d8d2ff] hover:bg-[#f6f4ff] hover:text-[#5b45ff]"
+              className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-[#d8d2ff] hover:bg-[#f6f4ff] hover:text-[#1381FF]"
             >
               <action.icon className="h-4 w-4" />
               {action.label}
@@ -422,7 +422,7 @@ export default function Home() {
                 {integration.connected ? (
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
                 ) : (
-                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[#5b45ff] ring-1 ring-gray-200">
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[#1381FF] ring-1 ring-gray-200">
                     Connect
                   </span>
                 )}
@@ -449,7 +449,7 @@ export default function Home() {
                 {lastTriggeredAutomation?.name || 'No automation triggered yet'}
               </p>
             </div>
-            <Link to="/dashboard/automations" className="inline-flex items-center gap-1 text-sm font-medium text-[#5b45ff]">
+            <Link to="/dashboard/automations" className="inline-flex items-center gap-1 text-sm font-medium text-[#1381FF]">
               View all <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
@@ -472,7 +472,7 @@ export default function Home() {
           </div>
           <Link
             to="/dashboard/calls"
-            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
           >
             <Phone className="h-4 w-4" />
             Start Call

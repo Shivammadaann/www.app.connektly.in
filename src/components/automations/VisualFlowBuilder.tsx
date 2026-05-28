@@ -328,7 +328,7 @@ function NodeCard({
         transform: `translate(${node.x}px, ${node.y}px)`,
       }}
       className={`absolute left-0 top-0 rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-        isSelected ? 'border-[#5b45ff] ring-4 ring-[#5b45ff]/10' : 'border-gray-200'
+        isSelected ? 'border-[#1381FF] ring-4 ring-[#1381FF]/10' : 'border-gray-200'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -397,7 +397,7 @@ function NodePalette({
   return (
     <div className="absolute left-4 top-4 z-20 w-[min(260px,calc(100%-2rem))] rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur">
       <div className="flex items-center gap-2 px-1 pb-2">
-        <MousePointer2 className="h-4 w-4 text-[#5b45ff]" />
+        <MousePointer2 className="h-4 w-4 text-[#1381FF]" />
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Nodes</p>
       </div>
       <div className="grid gap-2">
@@ -449,7 +449,7 @@ function TestPanel({
         value={payload}
         onChange={(event) => onPayloadChange(event.target.value)}
         rows={9}
-        className="mt-3 w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-3 font-mono text-xs leading-5 text-gray-800 outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+        className="mt-3 w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-3 font-mono text-xs leading-5 text-gray-800 outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
       />
       <button
         type="button"
@@ -502,7 +502,7 @@ function NodeConfigPanel({
   if (!selectedNode) {
     return (
       <aside className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#5b45ff]/10 text-[#5b45ff]">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1381FF]/10 text-[#1381FF]">
           <Workflow className="h-6 w-6" />
         </div>
         <h2 className="mt-4 text-lg font-semibold text-gray-900">Select a node</h2>
@@ -519,7 +519,7 @@ function NodeConfigPanel({
   return (
     <aside className="min-h-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-100 px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5b45ff]">{selectedNode.kind}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#1381FF]">{selectedNode.kind}</p>
         <h2 className="mt-1 text-lg font-semibold text-gray-900">{sectionTitle}</h2>
       </div>
       <div className="max-h-[calc(100dvh-260px)] space-y-5 overflow-y-auto px-5 py-5 lg:max-h-[calc(100dvh-230px)]">
@@ -572,7 +572,7 @@ function TriggerConfig({
             label: item.isLiveSupported ? item.label : `${item.label} (UI only)`,
           }))}
           ariaLabel="Select trigger type"
-          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
         />
       </div>
       {option ? (
@@ -607,7 +607,7 @@ function ConditionConfig({
             label: item.isLiveSupported ? item.label : `${item.label} (UI only)`,
           }))}
           ariaLabel="Select condition type"
-          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
         />
       </div>
 
@@ -619,7 +619,7 @@ function ConditionConfig({
               value={config.keyword}
               onChange={(event) => onChange({ ...config, keyword: event.target.value })}
               placeholder="pricing, help, order"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <div>
@@ -629,7 +629,7 @@ function ConditionConfig({
               onChange={(matchMethod) => onChange({ ...config, matchMethod: matchMethod as VisualConditionConfig['matchMethod'] })}
               options={KEYWORD_MATCH_OPTIONS}
               ariaLabel="Select keyword match method"
-              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
         </>
@@ -643,7 +643,7 @@ function ConditionConfig({
               value={config.attributeName}
               onChange={(event) => onChange({ ...config, attributeName: event.target.value })}
               placeholder="source, city, labels"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <div>
@@ -655,7 +655,7 @@ function ConditionConfig({
               }
               options={ATTRIBUTE_OPERATOR_OPTIONS}
               ariaLabel="Select attribute operator"
-              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
           <label className="block">
@@ -664,7 +664,7 @@ function ConditionConfig({
               value={config.attributeValue}
               onChange={(event) => onChange({ ...config, attributeValue: event.target.value })}
               placeholder="vip"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
         </>
@@ -677,7 +677,7 @@ function ConditionConfig({
             value={config.leadStatus}
             onChange={(event) => onChange({ ...config, leadStatus: event.target.value })}
             placeholder="Qualified"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
       ) : null}
@@ -694,7 +694,7 @@ function ConditionConfig({
               { value: 'button_reply', label: 'Button Reply' },
             ]}
             ariaLabel="Select message type"
-            buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+            buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
           />
         </div>
       ) : null}
@@ -707,7 +707,7 @@ function ConditionConfig({
               type="time"
               value={config.startTime}
               onChange={(event) => onChange({ ...config, startTime: event.target.value })}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <label className="block">
@@ -716,7 +716,7 @@ function ConditionConfig({
               type="time"
               value={config.endTime}
               onChange={(event) => onChange({ ...config, endTime: event.target.value })}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
         </div>
@@ -767,7 +767,7 @@ function ActionConfig({
             label: item.isLiveSupported ? item.label : `${item.label} (UI only)`,
           }))}
           ariaLabel="Select action type"
-          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
         />
       </div>
 
@@ -778,7 +778,7 @@ function ActionConfig({
             value={config.messageBody}
             onChange={(event) => onChange({ ...config, messageBody: event.target.value })}
             rows={5}
-            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
       ) : null}
@@ -805,7 +805,7 @@ function ActionConfig({
             ]}
             placeholder="Select template"
             ariaLabel="Select action template"
-            buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+            buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
           />
           {!templates.length ? <p className="mt-2 text-xs text-gray-500">No approved templates are available.</p> : null}
         </div>
@@ -827,7 +827,7 @@ function ActionConfig({
               ]}
               placeholder="Select Flow"
               ariaLabel="Select WhatsApp Flow action"
-              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
           <label className="block">
@@ -836,7 +836,7 @@ function ActionConfig({
               value={config.flowCta}
               maxLength={30}
               onChange={(event) => onChange({ ...config, flowCta: event.target.value })}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <label className="block">
@@ -845,7 +845,7 @@ function ActionConfig({
               value={config.flowBody}
               rows={4}
               onChange={(event) => onChange({ ...config, flowBody: event.target.value })}
-              className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
         </>
@@ -858,7 +858,7 @@ function ActionConfig({
             <input
               value={config.attributeName}
               onChange={(event) => onChange({ ...config, attributeName: event.target.value })}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <label className="block">
@@ -866,7 +866,7 @@ function ActionConfig({
             <input
               value={config.attributeValue}
               onChange={(event) => onChange({ ...config, attributeValue: event.target.value })}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
         </div>
@@ -878,7 +878,7 @@ function ActionConfig({
           <input
             value={config.leadStatus}
             onChange={(event) => onChange({ ...config, leadStatus: event.target.value })}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
       ) : null}
@@ -889,7 +889,7 @@ function ActionConfig({
           <input
             value={config.tag}
             onChange={(event) => onChange({ ...config, tag: event.target.value })}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
       ) : null}
@@ -901,7 +901,7 @@ function ActionConfig({
             value={config.webhookUrl}
             onChange={(event) => onChange({ ...config, webhookUrl: event.target.value })}
             placeholder="https://example.com/webhook"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
       ) : null}
@@ -913,7 +913,7 @@ function ActionConfig({
             value={config.teamMember}
             onChange={(event) => onChange({ ...config, teamMember: event.target.value })}
             placeholder="agent@company.com"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
       ) : null}
@@ -1090,7 +1090,7 @@ export default function VisualFlowBuilder({
                 value={draft.name}
                 onChange={(event) => onDraftChange({ ...draft, name: event.target.value })}
                 placeholder="Untitled automation"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
               />
             </div>
             <button
@@ -1129,7 +1129,7 @@ export default function VisualFlowBuilder({
               type="button"
               onClick={onSave}
               disabled={isSaving}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save Changes
@@ -1207,7 +1207,7 @@ export default function VisualFlowBuilder({
                       key={`${node.id}-${nextNode.id}`}
                       d={getConnectionPath(node, nextNode)}
                       fill="none"
-                      stroke="rgba(91, 69, 255, 0.48)"
+                      stroke="rgba(19, 129, 255, 0.48)"
                       strokeWidth="3"
                       strokeLinecap="round"
                     />

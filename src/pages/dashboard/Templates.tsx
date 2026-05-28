@@ -226,7 +226,7 @@ function HeaderMediaPreview({
   if (headerType === 'DOCUMENT') {
     return (
       <div className="mb-4 flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#5b45ff] shadow-sm">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#1381FF] shadow-sm">
           <FileText className="h-5 w-5" />
         </div>
         <div className="min-w-0">
@@ -902,14 +902,14 @@ export default function Templates() {
             placeholder="Search templates by name, category, or language"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#5b45ff] focus:border-[#5b45ff] outline-none text-sm shadow-sm"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#1381FF] focus:border-[#1381FF] outline-none text-sm shadow-sm"
           />
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={openCreateModal}
-            className="px-4 py-2.5 bg-[#5b45ff] hover:bg-[#4a35e8] text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-[#5b45ff]/30 flex items-center justify-center gap-2"
+            className="px-4 py-2.5 bg-[#1381FF] hover:bg-[#4a35e8] text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-[#1381FF]/30 flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" /> Create Template
           </button>
@@ -964,7 +964,7 @@ export default function Templates() {
                             void handleDuplicate(template.id);
                           }}
                           disabled={Boolean(isBusy)}
-                          className="p-2 text-gray-400 hover:text-[#5b45ff] hover:bg-[#5b45ff]/10 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-[#1381FF] hover:bg-[#1381FF]/10 rounded-lg transition-colors"
                           title="Duplicate Template"
                         >
                           {isBusy === `duplicate:${template.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
@@ -1029,7 +1029,7 @@ export default function Templates() {
                 >
               <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#5b45ff]">Template Preview</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Template Preview</p>
                   <h2 className="mt-2 text-2xl font-bold text-gray-900">{previewTemplate.name}</h2>
                   <p className="mt-1 text-sm text-gray-500">Preview the exact rich content structure that will appear in WhatsApp.</p>
                 </div>
@@ -1135,7 +1135,7 @@ export default function Templates() {
                             onChange={(event) =>
                               setCreateForm((current) => ({ ...current, name: normalizeTemplateNameInput(event.target.value) }))
                             }
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             placeholder="order_update_template"
                             required
                           />
@@ -1153,7 +1153,7 @@ export default function Templates() {
                             { value: 'AUTHENTICATION', label: 'Authentication' },
                           ]}
                           ariaLabel="Select template category"
-                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                         />
                       </div>
                       <div className="md:col-span-3">
@@ -1167,7 +1167,7 @@ export default function Templates() {
                           }))}
                           icon={<Globe className="h-4 w-4" />}
                           ariaLabel="Select template language"
-                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                         />
                       </div>
                     </div>
@@ -1189,7 +1189,7 @@ export default function Templates() {
                             { value: 'DOCUMENT', label: 'Document' },
                           ]}
                           ariaLabel="Select template header type"
-                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                         />
                       </div>
 
@@ -1200,7 +1200,7 @@ export default function Templates() {
                             type="text"
                             value={createForm.headerText}
                             onChange={(event) => setCreateForm((current) => ({ ...current, headerText: event.target.value }))}
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             placeholder="Live Template Preview"
                           />
                         </div>
@@ -1300,7 +1300,7 @@ export default function Templates() {
                         <textarea
                           value={createForm.body}
                           onChange={(event) => setCreateForm((current) => ({ ...current, body: event.target.value }))}
-                          className="min-h-[180px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="min-h-[180px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           placeholder="Add Body to your Template Message."
                           required
                         />
@@ -1312,7 +1312,7 @@ export default function Templates() {
                           type="text"
                           value={createForm.footer}
                           onChange={(event) => setCreateForm((current) => ({ ...current, footer: event.target.value }))}
-                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           placeholder="Footer"
                         />
                       </div>
@@ -1389,7 +1389,7 @@ export default function Templates() {
                                   ),
                                 }))
                               }
-                              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                               placeholder={button.type === 'URL' ? 'Visit Website' : button.type === 'FLOW' ? 'Sign up' : 'Quick Reply'}
                             />
                             {button.type === 'URL' ? (
@@ -1404,7 +1404,7 @@ export default function Templates() {
                                     ),
                                   }))
                                 }
-                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                                 placeholder="https://connektly.in"
                               />
                             ) : null}
@@ -1437,7 +1437,7 @@ export default function Templates() {
                                   ]}
                                   placeholder={isFlowsLoading ? 'Loading Flows...' : 'Select Flow'}
                                   ariaLabel="Select template Flow"
-                                  buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15 disabled:opacity-60"
+                                  buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15 disabled:opacity-60"
                                 />
                                 <DropdownSelect
                                   value={button.flowAction}
@@ -1459,7 +1459,7 @@ export default function Templates() {
                                     { value: 'data_exchange', label: 'Data exchange' },
                                   ]}
                                   ariaLabel="Select Flow button action"
-                                  buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                                  buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                                 />
                                 {button.flowAction === 'navigate' ? (
                                   <input
@@ -1475,7 +1475,7 @@ export default function Templates() {
                                         ),
                                       }))
                                     }
-                                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                                     placeholder="FIRST_ENTRY_SCREEN"
                                   />
                                 ) : null}
@@ -1499,7 +1499,7 @@ export default function Templates() {
                     <button
                       type="submit"
                       disabled={isBusy === 'create' || isBusy === 'header-media-upload' || !hasConnectedChannel}
-                      className="rounded-xl bg-[#5b45ff] px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/30 disabled:opacity-60"
+                      className="rounded-xl bg-[#1381FF] px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/30 disabled:opacity-60"
                     >
                       {isBusy === 'create' ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : null}
                       Create template

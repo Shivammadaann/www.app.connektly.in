@@ -2377,7 +2377,7 @@ async function sendTemplateApprovedNotificationEmail(args: {
             : ''
         }
         <p style="margin: 0;">
-          <a href="${escapeHtml(targetUrl)}" style="color: #5b45ff;">Open templates in Connektly</a>
+          <a href="${escapeHtml(targetUrl)}" style="color: #1381FF;">Open templates in Connektly</a>
         </p>
       </div>
     `;

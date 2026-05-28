@@ -124,7 +124,7 @@ function ToggleRow({
         onClick={onToggle}
         disabled={disabled}
         className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition ${
-          checked ? 'bg-[#5b45ff]' : 'bg-gray-300'
+          checked ? 'bg-[#1381FF]' : 'bg-gray-300'
         } disabled:cursor-not-allowed disabled:opacity-60`}
         aria-pressed={checked}
       >
@@ -595,7 +595,7 @@ export default function Catalog() {
         <button
           type="button"
           onClick={() => setIsCreateCatalogOpen(true)}
-          className="inline-flex w-fit items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+          className="inline-flex w-fit items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
         >
           <PlusCircle className="h-4 w-4" />
           Create Catalog
@@ -694,7 +694,7 @@ export default function Catalog() {
               placeholder={isCatalogsLoading ? 'Loading Meta catalogs...' : 'Select a catalog'}
               disabled={isSavingCatalog || isCatalogsLoading || catalogs.length === 0}
               ariaLabel="Choose active Meta catalog"
-              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
 
@@ -912,7 +912,7 @@ export default function Catalog() {
                 value={createForm.name}
                 onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
                 placeholder="Summer Collection 2026"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
               />
             </div>
 
@@ -935,7 +935,7 @@ export default function Catalog() {
               <button
                 type="submit"
                 disabled={isSavingCatalog}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSavingCatalog ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
                 Create Catalog
@@ -977,7 +977,7 @@ export default function Catalog() {
                     value={productForm.retailerId}
                     onChange={(event) => setProductForm((current) => ({ ...current, retailerId: event.target.value }))}
                     placeholder="sku-1001"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </div>
                 <div>
@@ -987,7 +987,7 @@ export default function Catalog() {
                     value={productForm.title}
                     onChange={(event) => setProductForm((current) => ({ ...current, title: event.target.value }))}
                     placeholder="Product title"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </div>
               </div>
@@ -998,7 +998,7 @@ export default function Catalog() {
                   value={productForm.description}
                   onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))}
                   rows={4}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                 />
               </div>
 
@@ -1010,7 +1010,7 @@ export default function Catalog() {
                     value={productForm.brand}
                     onChange={(event) => setProductForm((current) => ({ ...current, brand: event.target.value }))}
                     placeholder="Brand"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </div>
                 <div>
@@ -1020,7 +1020,7 @@ export default function Catalog() {
                     value={productForm.availability}
                     onChange={(event) => setProductForm((current) => ({ ...current, availability: event.target.value }))}
                     placeholder="in stock"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </div>
               </div>
@@ -1033,7 +1033,7 @@ export default function Catalog() {
                     value={productForm.priceAmount}
                     onChange={(event) => setProductForm((current) => ({ ...current, priceAmount: event.target.value }))}
                     placeholder="20.00"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </div>
                 <div>
@@ -1043,7 +1043,7 @@ export default function Catalog() {
                     onChange={(nextCurrency) => setProductForm((current) => ({ ...current, currency: nextCurrency }))}
                     options={CURRENCY_OPTIONS.map((currency) => ({ value: currency, label: currency }))}
                     ariaLabel="Select product currency"
-                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                   />
                 </div>
               </div>
@@ -1056,7 +1056,7 @@ export default function Catalog() {
                     value={productForm.imageLink}
                     onChange={(event) => setProductForm((current) => ({ ...current, imageLink: event.target.value }))}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </div>
                 <div>
@@ -1066,7 +1066,7 @@ export default function Catalog() {
                     value={productForm.productLink}
                     onChange={(event) => setProductForm((current) => ({ ...current, productLink: event.target.value }))}
                     placeholder="https://example.com/product"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </div>
               </div>
@@ -1103,7 +1103,7 @@ export default function Catalog() {
                     resetProductForm();
                     setProductModalMode('form');
                   }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#4a35e8]"
                 >
                   <PlusCircle className="h-4 w-4" />
                   Add New Product

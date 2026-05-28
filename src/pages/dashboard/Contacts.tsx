@@ -392,7 +392,7 @@ function ContactFormFields({
           type="text"
           value={form.contactName}
           onChange={(event) => onChange('contactName', event.target.value)}
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
         />
       </div>
       <div>
@@ -403,14 +403,14 @@ function ContactFormFields({
             onChange={(nextOptionId) => onChange('countryOptionId', nextOptionId)}
             options={COUNTRY_DIAL_CODE_SELECT_OPTIONS}
             ariaLabel="Select contact country code"
-            buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+            buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
           />
           <input
             type="tel"
             value={form.contactNumber}
             onChange={(event) => onChange('contactNumber', event.target.value)}
             placeholder="9876543210"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </div>
       </div>
@@ -422,7 +422,7 @@ function ContactFormFields({
           options={ownerOptions}
           placeholder="Select an owner"
           ariaLabel="Select contact owner"
-          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
         />
       </div>
       <div>
@@ -431,7 +431,7 @@ function ContactFormFields({
           type="email"
           value={form.email}
           onChange={(event) => onChange('email', event.target.value)}
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
         />
       </div>
       <div>
@@ -444,7 +444,7 @@ function ContactFormFields({
             label: status,
           }))}
           ariaLabel="Select contact status"
-          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
         />
       </div>
       <div>
@@ -457,7 +457,7 @@ function ContactFormFields({
             label: priority,
           }))}
           ariaLabel="Select contact priority"
-          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
         />
       </div>
       <div>
@@ -468,7 +468,7 @@ function ContactFormFields({
           options={sourceOptions}
           placeholder="Select a source"
           ariaLabel="Select contact source"
-          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
         />
       </div>
       <div>
@@ -478,7 +478,7 @@ function ContactFormFields({
           value={form.labels}
           onChange={(event) => onChange('labels', event.target.value)}
           placeholder="vip, support, urgent"
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
         />
       </div>
       <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 md:col-span-2">
@@ -512,7 +512,7 @@ function ContactFormFields({
           value={form.remark}
           onChange={(event) => onChange('remark', event.target.value)}
           rows={4}
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
         />
       </div>
     </div>
@@ -833,7 +833,7 @@ export default function Contacts() {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search by name, phone, owner, label, source, or remark"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </div>
 
@@ -858,7 +858,7 @@ export default function Contacts() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8]"
           >
             <CirclePlus className="h-4 w-4" />
             Add New Contact
@@ -1047,7 +1047,7 @@ export default function Contacts() {
                   type="submit"
                   form="create-contact-form"
                   disabled={isSaving || !createPhoneValue.trim()}
-                  className="flex-1 rounded-xl bg-[#5b45ff] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:opacity-60"
+                  className="flex-1 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : 'Save Contact'}
                 </button>
@@ -1147,7 +1147,7 @@ export default function Contacts() {
                   type="submit"
                   form="edit-contact-form"
                   disabled={isSaving || !editPhoneValue.trim()}
-                  className="flex-1 rounded-xl bg-[#5b45ff] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:opacity-60"
+                  className="flex-1 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#4a35e8] disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : 'Update Contact'}
                 </button>

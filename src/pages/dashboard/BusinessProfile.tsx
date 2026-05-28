@@ -114,9 +114,9 @@ const slideUp = {
   },
 };
 const fieldInputClassName =
-  'min-h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#5b45ff]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(91,69,255,0.08)]';
+  'min-h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#1381FF]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]';
 const fieldTextareaClassName =
-  'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#5b45ff]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(91,69,255,0.08)]';
+  'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#1381FF]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]';
 
 function mapForm(profile: WhatsAppBusinessProfile | null): BusinessProfileFormState {
   return {
@@ -308,7 +308,7 @@ function ActionButton({
 }) {
   const variantClassName =
     variant === 'primary'
-      ? 'bg-[#5b45ff] text-white shadow-[0_10px_24px_rgba(91,69,255,0.22)] hover:bg-[#4a35e8]'
+      ? 'bg-[#1381FF] text-white shadow-[0_10px_24px_rgba(19,129,255,0.22)] hover:bg-[#4a35e8]'
       : variant === 'ghost'
         ? 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
         : 'border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50';
@@ -560,7 +560,7 @@ export default function BusinessProfile() {
           </p>
           <Link
             to="/onboarding/channel-connection"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/30 transition hover:bg-[#4a35e8]"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/30 transition hover:bg-[#4a35e8]"
           >
             Open channel setup
           </Link>

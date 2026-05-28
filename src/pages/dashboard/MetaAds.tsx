@@ -593,7 +593,7 @@ function SectionShell({
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5b45ff]/10 text-sm font-bold text-[#5b45ff]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1381FF]/10 text-sm font-bold text-[#1381FF]">
           {number}
         </span>
         <h2 className="text-base font-bold text-gray-900">{title}</h2>
@@ -636,7 +636,7 @@ function AssetStatusCard({
     ) : tone === 'warning' ? (
       <AlertTriangle className="h-4 w-4 text-amber-600" />
     ) : (
-      <Sparkles className="h-4 w-4 text-[#5b45ff]" />
+      <Sparkles className="h-4 w-4 text-[#1381FF]" />
     );
 
   return (
@@ -654,7 +654,7 @@ function AssetStatusCard({
 }
 
 function textInputClass() {
-  return 'w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]';
+  return 'w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]';
 }
 
 function MediaPreview({ draft, className = '' }: { draft: AdDraft; className?: string }) {
@@ -813,7 +813,7 @@ function AdPreview({
               <p className="text-sm font-semibold text-gray-900">Meta readiness</p>
               <p className="text-xs text-gray-500">Required assets for the selected ad path.</p>
             </div>
-            <span className="rounded-full bg-[#5b45ff]/10 px-3 py-1 text-xs font-semibold text-[#5b45ff]">
+            <span className="rounded-full bg-[#1381FF]/10 px-3 py-1 text-xs font-semibold text-[#1381FF]">
               {readinessChecks.filter((item) => item.ready).length}/{readinessChecks.length}
             </span>
           </div>
@@ -886,7 +886,7 @@ function MediaGalleryModal({
         <div className="max-h-[calc(90vh-104px)] overflow-y-auto px-6 py-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-3">
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]">
                 <Plus className="h-4 w-4" />
                 Upload Media
                 <input
@@ -923,7 +923,7 @@ function MediaGalleryModal({
 
           {isLoading && !assets.length ? (
             <div className="mt-6 flex min-h-[280px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
-              <Loader2 className="h-7 w-7 animate-spin text-[#5b45ff]" />
+              <Loader2 className="h-7 w-7 animate-spin text-[#1381FF]" />
             </div>
           ) : assets.length ? (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -932,7 +932,7 @@ function MediaGalleryModal({
                   key={asset.id}
                   type="button"
                   onClick={() => onSelect(asset)}
-                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#5b45ff] hover:shadow-md"
+                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#1381FF] hover:shadow-md"
                 >
                   <div className="aspect-square bg-gray-100">
                     {asset.type === 'image' ? (
@@ -1375,7 +1375,7 @@ export default function MetaAds() {
                     type="button"
                     onClick={() => handleAdTypeChange(option.value)}
                     className={`rounded-2xl border p-4 text-left transition ${
-                      isSelected ? 'border-[#5b45ff] bg-[#5b45ff]/5' : 'border-gray-200 bg-gray-50 hover:bg-white'
+                      isSelected ? 'border-[#1381FF] bg-[#1381FF]/5' : 'border-gray-200 bg-gray-50 hover:bg-white'
                     }`}
                   >
                     <p className="text-sm font-bold text-gray-900">{option.label}</p>
@@ -1392,7 +1392,7 @@ export default function MetaAds() {
                   onChange={(value) => handleObjectiveChange(value as Objective)}
                   options={objectiveOptions}
                   ariaLabel="Select Meta ad objective"
-                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </FieldLabel>
               <FieldLabel label="Performance Goal">
@@ -1401,13 +1401,13 @@ export default function MetaAds() {
                   onChange={(nextGoal) => updateDraft({ performanceGoal: nextGoal })}
                   options={performanceGoalOptions}
                   ariaLabel="Select Meta ad performance goal"
-                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </FieldLabel>
             </div>
 
             <div className="mt-4 rounded-2xl border border-[#dcd6ff] bg-[#f7f5ff] px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5b45ff]">Conversion location</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#1381FF]">Conversion location</p>
               <p className="mt-2 text-sm font-semibold text-gray-900">{getConversionLocationLabel(draft.adType)}</p>
               <p className="mt-1 text-sm leading-6 text-gray-600">
                 {draft.adType === 'ctwa'
@@ -1459,7 +1459,7 @@ export default function MetaAds() {
                         updateDraft({ destinations: handleDestinationToggle(draft.destinations, option.value) })
                       }
                       className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                        isSelected ? 'border-[#5b45ff] bg-[#5b45ff]/5' : 'border-gray-200 bg-gray-50 hover:bg-white'
+                        isSelected ? 'border-[#1381FF] bg-[#1381FF]/5' : 'border-gray-200 bg-gray-50 hover:bg-white'
                       }`}
                     >
                       {option.value === 'instagram' ? (
@@ -1487,7 +1487,7 @@ export default function MetaAds() {
                     placeholder="Select a connected WhatsApp account"
                     disabled={!setup?.whatsAppAccounts.length}
                     ariaLabel="Select connected WhatsApp destination"
-                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                   />
                 </FieldLabel>
 
@@ -1502,7 +1502,7 @@ export default function MetaAds() {
                   {!setup?.whatsAppAccounts.length ? (
                     <Link
                       to="/dashboard/connections?section=channels"
-                      className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-[#5b45ff]"
+                      className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-[#1381FF]"
                     >
                       Open Channels <Link2 className="h-3.5 w-3.5" />
                     </Link>
@@ -1525,7 +1525,7 @@ export default function MetaAds() {
                       placeholder="Select a lead form from the Page"
                       disabled={!setup?.leadForms.length}
                       ariaLabel="Select lead form"
-                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                     />
                   </FieldLabel>
 
@@ -1542,7 +1542,7 @@ export default function MetaAds() {
                       href={META_LEAD_FORM_LIBRARY_URL}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
                     >
                       Create Form in Meta <ExternalLink className="h-4 w-4" />
                     </a>
@@ -1557,7 +1557,7 @@ export default function MetaAds() {
                       selectedLeadForm.questions.map((question) => (
                         <span
                           key={question}
-                          className="rounded-full border border-[#d7d2ff] bg-white px-3 py-1 text-xs font-medium text-[#5b45ff]"
+                          className="rounded-full border border-[#d7d2ff] bg-white px-3 py-1 text-xs font-medium text-[#1381FF]"
                         >
                           {question}
                         </span>
@@ -1600,7 +1600,7 @@ export default function MetaAds() {
                       placeholder="Select Pixel"
                       disabled={!setup?.pixels.length}
                       ariaLabel="Select Meta Pixel"
-                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                     />
                   </FieldLabel>
                   <FieldLabel label="Website conversion event">
@@ -1614,7 +1614,7 @@ export default function MetaAds() {
                       placeholder="Select conversion event"
                       disabled={!isWebsitePixelRequired(draft)}
                       ariaLabel="Select conversion event"
-                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                     />
                   </FieldLabel>
                 </div>
@@ -1651,7 +1651,7 @@ export default function MetaAds() {
                     { value: 'video', label: 'Video' },
                   ]}
                   ariaLabel="Select creative type"
-                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </FieldLabel>
               <div>
@@ -1659,7 +1659,7 @@ export default function MetaAds() {
                 <button
                   type="button"
                   onClick={openMediaGallery}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-[#5b45ff] hover:bg-white"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-[#1381FF] hover:bg-white"
                 >
                   <Image className="h-4 w-4" />
                   Open Media Gallery
@@ -1724,7 +1724,7 @@ export default function MetaAds() {
                   onChange={(value) => updateDraft({ callToAction: value })}
                   options={callToActionOptions}
                   ariaLabel="Select call to action"
-                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </FieldLabel>
             </div>
@@ -1749,7 +1749,7 @@ export default function MetaAds() {
                   onChange={(nextAudience) => updateDraft({ savedAudience: nextAudience })}
                   options={SAVED_AUDIENCES.map((audienceName) => ({ value: audienceName, label: audienceName }))}
                   ariaLabel="Select saved audience"
-                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </FieldLabel>
               <FieldLabel label="Gender">
@@ -1762,7 +1762,7 @@ export default function MetaAds() {
                     { value: 'women', label: 'Women' },
                   ]}
                   ariaLabel="Select audience gender"
-                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </FieldLabel>
               <FieldLabel label="Include Custom or Lookalike Audiences">
@@ -1855,7 +1855,7 @@ export default function MetaAds() {
                       onClick={() => updateDraft({ platforms: handleToggle(draft.platforms, platform) })}
                       className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                         draft.platforms.includes(platform)
-                          ? 'border-[#5b45ff] bg-[#5b45ff]/10 text-[#5b45ff]'
+                          ? 'border-[#1381FF] bg-[#1381FF]/10 text-[#1381FF]'
                           : 'border-gray-200 bg-white text-gray-600'
                       }`}
                     >
@@ -1874,7 +1874,7 @@ export default function MetaAds() {
                       onClick={() => updateDraft({ placements: handleToggle(draft.placements, placement) })}
                       className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                         draft.placements.includes(placement)
-                          ? 'border-[#5b45ff] bg-[#5b45ff]/10 text-[#5b45ff]'
+                          ? 'border-[#1381FF] bg-[#1381FF]/10 text-[#1381FF]'
                           : 'border-gray-200 bg-white text-gray-600'
                       }`}
                     >
@@ -1925,7 +1925,7 @@ export default function MetaAds() {
                     { value: 'lifetime', label: 'Lifetime Budget' },
                   ]}
                   ariaLabel="Select budget type"
-                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </FieldLabel>
               <FieldLabel label={`Budget (${budgetCurrency})`}>
@@ -1973,7 +1973,7 @@ export default function MetaAds() {
               type="button"
               onClick={() => handleSave(true)}
               disabled={validationMessages.length > 0}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send className="h-4 w-4" />
               Publish

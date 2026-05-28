@@ -439,7 +439,7 @@ const INITIAL_WORKSPACE_OPTION_FORM: WorkspaceOptionInput = {
   name: '',
   valueType: 'text',
   options: [],
-  color: '#5b45ff',
+  color: '#1381FF',
   description: '',
 };
 
@@ -474,7 +474,7 @@ function NotificationSettingSwitch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-60 ${
-        checked ? 'bg-[#5b45ff]' : 'bg-gray-300'
+        checked ? 'bg-[#1381FF]' : 'bg-gray-300'
       }`}
     >
       <span
@@ -668,7 +668,7 @@ function TeamInviteModal({
       <div className="w-full max-w-xl rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#5b45ff]">User Management</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#1381FF]">User Management</p>
             <h2 className="mt-2 text-2xl font-bold text-gray-900">Add User</h2>
             <p className="mt-2 text-sm leading-6 text-gray-500">
               Invite a teammate with their name, email address, and assigned role.
@@ -691,7 +691,7 @@ function TeamInviteModal({
               value={form.fullName}
               onChange={(event) => onChange('fullName', event.target.value)}
               placeholder="Enter full name"
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <label className="block">
@@ -701,7 +701,7 @@ function TeamInviteModal({
               value={form.email}
               onChange={(event) => onChange('email', event.target.value)}
               placeholder="name@company.com"
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </label>
           <div className="block">
@@ -714,7 +714,7 @@ function TeamInviteModal({
                 label: role.label,
               }))}
               ariaLabel="Select assigned role"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
         </div>
@@ -735,7 +735,7 @@ function TeamInviteModal({
             type="button"
             disabled={isSubmitting}
             onClick={onSubmit}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
             Invite
@@ -2317,7 +2317,7 @@ export default function Settings() {
                               onClick={() => setActiveTab(item.id)}
                               className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition-all whitespace-nowrap ${
                                 activeTab === item.id
-                                  ? 'bg-[#5b45ff] text-white shadow-md shadow-[#5b45ff]/20'
+                                  ? 'bg-[#1381FF] text-white shadow-md shadow-[#1381FF]/20'
                                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                               }`}
                             >
@@ -2413,7 +2413,7 @@ export default function Settings() {
                         type="button"
                         onClick={() => void handleSaveProfileDetails()}
                         disabled={isSaving}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
                       >
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                         Save
@@ -2434,7 +2434,7 @@ export default function Settings() {
                                 void handleSaveProfileDetails();
                               }
                             }}
-                            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </div>
                       </label>
@@ -2455,7 +2455,7 @@ export default function Settings() {
                           }))}
                           ariaLabel="Select default billing currency"
                           icon={<WalletCards className="h-4 w-4" />}
-                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-3 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                          buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-3 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                         />
                         <p className="mt-2 text-xs leading-5 text-gray-500">
                           This updates the default currency used for wallet balance display and credit top-up defaults. Existing balance is not converted automatically.
@@ -2579,10 +2579,10 @@ export default function Settings() {
                         onClick={action.onClick}
                         className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm"
                       >
-                        <action.icon className="h-5 w-5 text-[#5b45ff]" />
+                        <action.icon className="h-5 w-5 text-[#1381FF]" />
                         <p className="mt-3 text-sm font-semibold text-gray-900">{action.title}</p>
                         <p className="mt-1 min-h-10 text-xs leading-5 text-gray-500">{action.description}</p>
-                        <span className="mt-3 inline-flex text-xs font-semibold text-[#5b45ff]">{action.actionLabel}</span>
+                        <span className="mt-3 inline-flex text-xs font-semibold text-[#1381FF]">{action.actionLabel}</span>
                       </button>
                     ))}
                   </div>
@@ -2647,7 +2647,7 @@ export default function Settings() {
                           type="text"
                           value={form.companyName}
                           onChange={(event) => setForm((current) => ({ ...current, companyName: event.target.value }))}
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           placeholder="Enter company name"
                         />
                       </label>
@@ -2660,7 +2660,7 @@ export default function Settings() {
                             type="url"
                             value={form.companyWebsite}
                             onChange={(event) => setForm((current) => ({ ...current, companyWebsite: event.target.value }))}
-                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             placeholder="https://example.com"
                           />
                         </div>
@@ -2680,7 +2680,7 @@ export default function Settings() {
                           ]}
                           placeholder="Select an industry"
                           ariaLabel="Select organization industry"
-                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                         />
                       </div>
                     </div>
@@ -2690,7 +2690,7 @@ export default function Settings() {
                         type="button"
                         onClick={() => void handleSaveOrganizationDetails()}
                         disabled={isSaving}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
                       >
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
                         Save Organization Details
@@ -2747,7 +2747,7 @@ export default function Settings() {
                           type="text"
                           value={workspaceOptionForm.name}
                           onChange={(event) => handleWorkspaceOptionFormChange('name', event.target.value)}
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           placeholder={workspaceOptionForm.type === 'label' ? 'e.g. VIP' : 'e.g. City'}
                         />
                       </label>
@@ -2757,7 +2757,7 @@ export default function Settings() {
                           <span className="mb-2 block text-sm font-medium text-gray-700">Color</span>
                           <input
                             type="color"
-                            value={workspaceOptionForm.color || '#5b45ff'}
+                            value={workspaceOptionForm.color || '#1381FF'}
                             onChange={(event) => handleWorkspaceOptionFormChange('color', event.target.value)}
                             className="h-11 w-full rounded-2xl border border-gray-200 bg-gray-50 px-2 py-1"
                           />
@@ -2777,7 +2777,7 @@ export default function Settings() {
                                 { value: 'select', label: 'Dropdown' },
                               ]}
                               ariaLabel="Select attribute value type"
-                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                             />
                           </div>
                           {workspaceOptionForm.valueType === 'select' ? (
@@ -2787,7 +2787,7 @@ export default function Settings() {
                                 type="text"
                                 value={workspaceOptionChoicesDraft}
                                 onChange={(event) => setWorkspaceOptionChoicesDraft(event.target.value)}
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                                 placeholder="Hot, Warm, Cold"
                               />
                             </label>
@@ -2801,7 +2801,7 @@ export default function Settings() {
                           value={workspaceOptionForm.description || ''}
                           onChange={(event) => handleWorkspaceOptionFormChange('description', event.target.value)}
                           rows={3}
-                          className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           placeholder="Optional note for your team"
                         />
                       </label>
@@ -2810,7 +2810,7 @@ export default function Settings() {
                         type="button"
                         onClick={() => void handleCreateWorkspaceOption()}
                         disabled={isCreatingWorkspaceOption}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
                       >
                         {isCreatingWorkspaceOption ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                         Create {workspaceOptionForm.type}
@@ -2843,7 +2843,7 @@ export default function Settings() {
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                       {option.type === 'label' ? (
-                                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: option.color || '#5b45ff' }} />
+                                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: option.color || '#1381FF' }} />
                                       ) : null}
                                       <p className="truncate text-sm font-semibold text-gray-900">{option.name}</p>
                                     </div>
@@ -3036,7 +3036,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={handleOpenInviteModal}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
                   >
                     <Plus className="h-4 w-4" />
                     Add User
@@ -3214,7 +3214,7 @@ export default function Settings() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#5b45ff]/10 text-[#5b45ff]">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1381FF]/10 text-[#1381FF]">
                         <Users className="h-7 w-7" />
                       </div>
                       <h3 className="mt-5 text-lg font-bold text-gray-900">No invited users yet</h3>
@@ -3224,7 +3224,7 @@ export default function Settings() {
                       <button
                         type="button"
                         onClick={handleOpenInviteModal}
-                        className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8]"
+                        className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8]"
                       >
                         <UserPlus className="h-4 w-4" />
                         Add User
@@ -3256,7 +3256,7 @@ export default function Settings() {
                     type="button"
                     onClick={() => void handleSaveNotificationSettings()}
                     disabled={isSavingNotificationSettings}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSavingNotificationSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                     Save Settings
@@ -3316,7 +3316,7 @@ export default function Settings() {
                           label: option.label,
                         }))}
                         ariaLabel="Select notification sound preset"
-                        buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15 disabled:opacity-60"
+                        buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15 disabled:opacity-60"
                       />
                     </div>
                     <label className="block">
@@ -3332,7 +3332,7 @@ export default function Settings() {
                         disabled={!notificationSoundInteractive}
                         value={notificationSettingsForm.volume}
                         onChange={(event) => updateNotificationSetting('volume', Number(event.target.value))}
-                        className="mt-3 w-full accent-[#5b45ff] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="mt-3 w-full accent-[#1381FF] disabled:cursor-not-allowed disabled:opacity-60"
                       />
                     </label>
                   </div>
@@ -3446,7 +3446,7 @@ export default function Settings() {
             {['subscription', 'payment-methods', 'invoices'].includes(activeTab) ? (
               <motion.div key="subscription" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="bg-gradient-to-br from-[#111827] to-[#1f2937] rounded-2xl p-8 text-white relative overflow-hidden shadow-lg">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#5b45ff] rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#1381FF] rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3 pointer-events-none" />
                   <div className="relative z-10">
                     <p className="text-[#25D366] font-semibold tracking-wider uppercase text-sm mb-2">Current Plan</p>
                     <h2 className="text-3xl font-bold mb-2">{bootstrap?.profile?.selectedPlan || 'No active subscription'}</h2>
@@ -3652,7 +3652,7 @@ export default function Settings() {
                         </p>
                       </div>
                     </div>
-                    <span className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20">
+                    <span className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20">
                       Open Connections <ExternalLink className="h-4 w-4" />
                     </span>
                   </div>
@@ -3687,7 +3687,7 @@ export default function Settings() {
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">{item.label}</p>
                           <p className="mt-2 break-all text-sm font-semibold text-gray-900">{item.value}</p>
                         </div>
-                        <item.icon className="h-5 w-5 shrink-0 text-[#5b45ff]" />
+                        <item.icon className="h-5 w-5 shrink-0 text-[#1381FF]" />
                       </div>
                     </div>
                   ))}
@@ -3758,7 +3758,7 @@ export default function Settings() {
                         type="text"
                         value={apiCredentialName}
                         onChange={(event) => setApiCredentialName(event.target.value)}
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         placeholder="Production REST API key"
                       />
                     </label>
@@ -3774,7 +3774,7 @@ export default function Settings() {
                               key={scope.value}
                               className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
                                 isSelected
-                                  ? 'border-[#5b45ff]/30 bg-[#f4f2ff]'
+                                  ? 'border-[#1381FF]/30 bg-[#f4f2ff]'
                                   : 'border-gray-200 bg-gray-50 hover:bg-white'
                               }`}
                             >
@@ -3782,7 +3782,7 @@ export default function Settings() {
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => toggleApiCredentialScope(scope.value)}
-                                className="mt-1 h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                                className="mt-1 h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                               />
                               <span>
                                 <span className="block text-sm font-semibold text-gray-900">{scope.label}</span>
@@ -3798,7 +3798,7 @@ export default function Settings() {
                       type="button"
                       disabled={isCreatingApiCredential}
                       onClick={() => void handleCreateApiCredential()}
-                      className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                      className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
                     >
                       {isCreatingApiCredential ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                       Generate API key
@@ -3985,7 +3985,7 @@ export default function Settings() {
                         type="text"
                         value={webhookForm.name || ''}
                         onChange={(event) => setWebhookForm((current) => ({ ...current, name: event.target.value }))}
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         placeholder="Production message webhook"
                       />
                     </label>
@@ -3995,7 +3995,7 @@ export default function Settings() {
                         type="url"
                         value={webhookForm.url}
                         onChange={(event) => setWebhookForm((current) => ({ ...current, url: event.target.value }))}
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         placeholder="https://example.com/connektly/webhook"
                       />
                     </label>
@@ -4012,7 +4012,7 @@ export default function Settings() {
                             key={eventOption.value}
                             className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
                               isSelected
-                                ? 'border-[#5b45ff]/30 bg-[#f4f2ff]'
+                                ? 'border-[#1381FF]/30 bg-[#f4f2ff]'
                                 : 'border-gray-200 bg-gray-50 hover:bg-white'
                             }`}
                           >
@@ -4020,7 +4020,7 @@ export default function Settings() {
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleWebhookFormEvent(eventOption.value)}
-                              className="mt-1 h-4 w-4 rounded border-gray-300 text-[#5b45ff] focus:ring-[#5b45ff]"
+                              className="mt-1 h-4 w-4 rounded border-gray-300 text-[#1381FF] focus:ring-[#1381FF]"
                             />
                             <span>
                               <span className="block text-sm font-semibold text-gray-900">{eventOption.label}</span>
@@ -4036,7 +4036,7 @@ export default function Settings() {
                     type="button"
                     disabled={isCreatingWebhook}
                     onClick={() => void handleCreateWebhook()}
-                    className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                    className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
                   >
                     {isCreatingWebhook ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                     Add webhook
@@ -4164,7 +4164,7 @@ export default function Settings() {
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
                   <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <Download className="h-6 w-6 text-[#5b45ff]" />
+                    <Download className="h-6 w-6 text-[#1381FF]" />
                     <h3 className="mt-4 text-base font-bold text-gray-900">Data Export</h3>
                     <p className="mt-2 text-sm leading-6 text-gray-500">
                       Downloadable exports can include profile, workspace, channel, CRM, and message metadata when wired to the export service.
@@ -4217,7 +4217,7 @@ export default function Settings() {
                 type="tel"
                 value={phoneDraft}
                 onChange={(event) => setPhoneDraft(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                 placeholder="Enter contact number"
               />
             </label>
@@ -4233,7 +4233,7 @@ export default function Settings() {
                 type="button"
                 disabled={isUpdatingPhone}
                 onClick={() => void handleUpdatePhone()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
               >
                 {isUpdatingPhone ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
                 Save contact number
@@ -4262,7 +4262,7 @@ export default function Settings() {
                 type="email"
                 value={emailDraft}
                 onChange={(event) => setEmailDraft(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                 placeholder="name@company.com"
               />
             </label>
@@ -4278,7 +4278,7 @@ export default function Settings() {
                 type="button"
                 disabled={isUpdatingEmail}
                 onClick={() => void handleRequestEmailChange()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
               >
                 {isUpdatingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                 Send confirmation email
@@ -4319,7 +4319,7 @@ export default function Settings() {
                 type="text"
                 value={passwordNonce}
                 onChange={(event) => setPasswordNonce(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                 placeholder="Enter the code from your email"
               />
             </label>
@@ -4329,7 +4329,7 @@ export default function Settings() {
                 type="password"
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                 placeholder="Minimum 8 characters"
               />
             </label>
@@ -4339,7 +4339,7 @@ export default function Settings() {
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                 placeholder="Re-enter the new password"
               />
             </label>
@@ -4355,7 +4355,7 @@ export default function Settings() {
                 type="button"
                 disabled={isUpdatingPassword}
                 onClick={() => void handleChangePassword()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
               >
                 {isUpdatingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                 Update password
@@ -4414,7 +4414,7 @@ export default function Settings() {
                         setIsMfaOtpConfirmed(false);
                       }
                     }}
-                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                     placeholder="8-digit OTP"
                   />
                   <p className="mt-2 text-xs text-gray-500">Only numeric 8-digit codes are accepted.</p>
@@ -4435,7 +4435,7 @@ export default function Settings() {
                 type="text"
                 value={mfaFriendlyName}
                 onChange={(event) => setMfaFriendlyName(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                 placeholder="Connektly Authenticator"
               />
             </label>
@@ -4443,7 +4443,7 @@ export default function Settings() {
               type="button"
               disabled={isSettingUpMfa}
               onClick={() => void handleGenerateTotp()}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
             >
               {isSettingUpMfa && !pendingTotpEnrollment ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               Continue to authenticator setup
@@ -4483,7 +4483,7 @@ export default function Settings() {
                         type="text"
                         value={mfaVerificationCode}
                         onChange={(event) => setMfaVerificationCode(event.target.value)}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         placeholder="Enter the 6-digit code"
                       />
                     </label>
@@ -4502,7 +4502,7 @@ export default function Settings() {
                         type="button"
                         disabled={isSettingUpMfa}
                         onClick={() => void handleVerifyTotp()}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:opacity-70"
                       >
                         {isSettingUpMfa ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
                         Verify and enable MFA
@@ -4554,7 +4554,7 @@ export default function Settings() {
                   type="text"
                   value={teamEditForm.fullName}
                   onChange={(event) => handleTeamEditFormChange('fullName', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   placeholder="Enter full name"
                 />
               </label>
@@ -4568,7 +4568,7 @@ export default function Settings() {
                     label: role.label,
                   }))}
                   ariaLabel="Select team member role"
-                  buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                  buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
               </div>
             </div>
@@ -4589,7 +4589,7 @@ export default function Settings() {
                 type="button"
                 disabled={isUpdatingTeamMember}
                 onClick={() => void handleUpdateTeamMember()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5b45ff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isUpdatingTeamMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
                 Save changes

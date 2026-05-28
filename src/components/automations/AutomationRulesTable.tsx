@@ -44,7 +44,7 @@ function StatCard({
           <p className="truncate text-xs font-medium text-gray-500">{title}</p>
           <p className="mt-1 truncate text-xl font-bold text-gray-900">{value}</p>
         </div>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5b45ff]/10 text-[#5b45ff]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1381FF]/10 text-[#1381FF]">
           {icon}
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function AutomationRulesTable({
                   <tr key={rule.id} className="align-middle transition-colors hover:bg-gray-50">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#5b45ff]/10 text-[#5b45ff]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1381FF]/10 text-[#1381FF]">
                           <Workflow className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
@@ -173,7 +173,7 @@ export default function AutomationRulesTable({
                         aria-label={`${rule.isEnabled ? 'Disable' : 'Enable'} ${getAutomationRuleTitle(rule, index)}`}
                         onClick={() => onToggleStatus(rule)}
                         disabled={isSaving}
-                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5b45ff]/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1381FF]/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
                           rule.isEnabled ? 'border-emerald-400 bg-emerald-500' : 'border-gray-300 bg-gray-200'
                         }`}
                       >
@@ -231,7 +231,7 @@ export default function AutomationRulesTable({
           </div>
         ) : (
           <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#5b45ff]/10 text-[#5b45ff]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1381FF]/10 text-[#1381FF]">
               <Workflow className="h-6 w-6" />
             </div>
             <h2 className="mt-4 text-lg font-semibold text-gray-900">No automations yet</h2>
@@ -250,7 +250,7 @@ export default function AutomationRulesTable({
               <button
                 type="button"
                 onClick={onBuild}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
               >
                 <Plus className="h-4 w-4" />
                 Build Automation

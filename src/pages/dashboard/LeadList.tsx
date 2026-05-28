@@ -229,7 +229,7 @@ function LeadEditor({
             type="text"
             value={form.contactName}
             onChange={(event) => setForm((current) => ({ ...current, contactName: event.target.value }))}
-            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
         <div className="block">
@@ -240,13 +240,13 @@ function LeadEditor({
               onChange={(nextOptionId) => setForm((current) => ({ ...current, countryOptionId: nextOptionId }))}
               options={COUNTRY_DIAL_CODE_SELECT_OPTIONS}
               ariaLabel="Select lead country code"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
             <input
               type="tel"
               value={form.contactNumber}
               onChange={(event) => setForm((current) => ({ ...current, contactNumber: event.target.value }))}
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
             />
           </div>
         </div>
@@ -256,7 +256,7 @@ function LeadEditor({
             type="email"
             value={form.email}
             onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
         <div className="block">
@@ -267,7 +267,7 @@ function LeadEditor({
             options={ownerOptions}
             placeholder="Select an owner"
             ariaLabel="Select lead owner"
-            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
           />
         </div>
         <div className="block">
@@ -278,7 +278,7 @@ function LeadEditor({
             options={sourceOptions}
             placeholder="Select a source"
             ariaLabel="Select lead source"
-            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
           />
         </div>
         <div className="block">
@@ -291,7 +291,7 @@ function LeadEditor({
               label: stage,
             }))}
             ariaLabel="Select lead status"
-            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
           />
         </div>
         <label className="block md:col-span-2">
@@ -300,13 +300,13 @@ function LeadEditor({
             value={form.remark}
             onChange={(event) => setForm((current) => ({ ...current, remark: event.target.value }))}
             rows={4}
-            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
           />
         </label>
       </div>
       <div className="mt-6 flex justify-end gap-3">
         <button type="button" onClick={onClose} className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50">Cancel</button>
-        <button type="button" onClick={onSubmit} disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:opacity-60">
+        <button type="button" onClick={onSubmit} disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:opacity-60">
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           {submitLabel}
         </button>
@@ -606,7 +606,7 @@ export default function LeadList() {
           <p className="mt-1 max-w-2xl text-sm text-gray-500">Track leads, owners, status movement, and follow-up notes without opening the full inbox.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={() => setIsCreateModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"><Plus className="h-4 w-4" /> Create Lead</button>
+          <button type="button" onClick={() => setIsCreateModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"><Plus className="h-4 w-4" /> Create Lead</button>
           <button type="button" onClick={() => setIsCsvImportOpen(true)} disabled={isImporting} className="inline-flex items-center gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition hover:bg-gray-50 disabled:opacity-60">{isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />} Import via CSV</button>
           <button type="button" onClick={handleExport} className="inline-flex items-center gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition hover:bg-gray-50"><Download className="h-4 w-4" /> Export</button>
         </div>
@@ -653,7 +653,7 @@ export default function LeadList() {
             <span className="mb-2 block text-sm font-medium text-gray-700">Search leads</span>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by name, phone, email, owner, source, status, or remark" className="w-full rounded-2xl border border-transparent bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]" />
+              <input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by name, phone, email, owner, source, status, or remark" className="w-full rounded-2xl border border-transparent bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]" />
             </div>
           </label>
           <div className="block">
@@ -666,7 +666,7 @@ export default function LeadList() {
                 label: stage === 'all' ? 'All statuses' : stage,
               }))}
               ariaLabel="Filter leads by status"
-              buttonClassName="rounded-2xl border-transparent bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-transparent bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
         </div>
@@ -718,7 +718,7 @@ export default function LeadList() {
               options={leadOwnerOptions}
               placeholder="Select an owner"
               ariaLabel="Select lead update owner"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
           <div className="block">
@@ -729,7 +729,7 @@ export default function LeadList() {
               options={leadSourceOptions}
               placeholder="Select a source"
               ariaLabel="Select lead update source"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
           <div className="block">
@@ -747,12 +747,12 @@ export default function LeadList() {
                 label: stage,
               }))}
               ariaLabel="Select lead update status"
-              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
             />
           </div>
-          <label className="block md:col-span-2"><span className="mb-2 block text-sm font-medium text-gray-700">Remark</span><textarea value={updateForm.remark} onChange={(event) => setUpdateForm((current) => ({ ...current, remark: event.target.value }))} rows={4} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]" /></label>
+          <label className="block md:col-span-2"><span className="mb-2 block text-sm font-medium text-gray-700">Remark</span><textarea value={updateForm.remark} onChange={(event) => setUpdateForm((current) => ({ ...current, remark: event.target.value }))} rows={4} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]" /></label>
         </div>
-        <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setUpdateLeadId(null)} className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50">Cancel</button><button type="button" onClick={() => void handleQuickUpdate()} disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:opacity-60">{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Update Lead</button></div>
+        <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setUpdateLeadId(null)} className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50">Cancel</button><button type="button" onClick={() => void handleQuickUpdate()} disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:opacity-60">{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Update Lead</button></div>
       </ModalShell> : null}
       {timelineLead ? <ModalShell title="Lead Timeline" subtitle={`Full activity timeline for ${getLeadName(timelineLead)}.`} onClose={() => setTimelineLeadId(null)}>
         <div className="grid gap-4 md:grid-cols-3">
@@ -760,7 +760,7 @@ export default function LeadList() {
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Date Created</p><p className="mt-2 text-sm font-medium text-gray-900">{formatDateTime(timelineLead.createdAt)}</p></div>
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Lead Status</p><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStageClassName(timelineLead.status)}`}>{timelineLead.status}</span></div>
         </div>
-        {isTimelineLoading ? <div className="flex min-h-[220px] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#5b45ff]" /></div> : timelineError ? <div className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{timelineError}</div> : <div className="mt-6 space-y-4">{timelineMessages.length ? timelineMessages.map((message) => <div key={message.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${message.direction === 'inbound' ? 'border border-emerald-100 bg-emerald-50 text-emerald-700' : 'border border-blue-100 bg-blue-50 text-blue-700'}`}>{message.direction === 'inbound' ? 'Inbound' : 'Outbound'}</span><span className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">{message.messageType}</span></div><span className="text-xs text-gray-500">{formatDateTime(message.createdAt)}</span></div><p className="mt-3 whitespace-pre-wrap break-words text-sm text-gray-700">{message.body || 'No message body recorded for this event.'}</p>{message.status ? <p className="mt-2 text-xs text-gray-500">Status: {message.status}</p> : null}</div>) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-sm text-gray-500">No timeline events are available for this lead yet.</div>}</div>}
+        {isTimelineLoading ? <div className="flex min-h-[220px] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#1381FF]" /></div> : timelineError ? <div className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{timelineError}</div> : <div className="mt-6 space-y-4">{timelineMessages.length ? timelineMessages.map((message) => <div key={message.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${message.direction === 'inbound' ? 'border border-emerald-100 bg-emerald-50 text-emerald-700' : 'border border-blue-100 bg-blue-50 text-blue-700'}`}>{message.direction === 'inbound' ? 'Inbound' : 'Outbound'}</span><span className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">{message.messageType}</span></div><span className="text-xs text-gray-500">{formatDateTime(message.createdAt)}</span></div><p className="mt-3 whitespace-pre-wrap break-words text-sm text-gray-700">{message.body || 'No message body recorded for this event.'}</p>{message.status ? <p className="mt-2 text-xs text-gray-500">Status: {message.status}</p> : null}</div>) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-sm text-gray-500">No timeline events are available for this lead yet.</div>}</div>}
       </ModalShell> : null}
     </div>
   );

@@ -76,7 +76,7 @@ export default function CsvImportModal({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={isImporting}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
             Upload CSV

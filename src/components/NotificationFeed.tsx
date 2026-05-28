@@ -142,7 +142,7 @@ function getNotificationTone(type: UserNotification['type']): NotificationTone {
     default:
       return {
         icon: Bell,
-        iconClassName: 'text-[#5b45ff]',
+        iconClassName: 'text-[#1381FF]',
         iconBackgroundClassName: 'bg-violet-50',
         status: 'Lead',
       };
@@ -234,7 +234,7 @@ function NotificationItem({
       }}
       role={canSelect ? 'button' : undefined}
       tabIndex={canSelect ? 0 : undefined}
-      className={`group relative flex w-full items-start gap-3 px-4 text-left outline-none transition-colors duration-200 focus-visible:bg-gray-50 focus-visible:ring-2 focus-visible:ring-[#5b45ff]/20 ${
+      className={`group relative flex w-full items-start gap-3 px-4 text-left outline-none transition-colors duration-200 focus-visible:bg-gray-50 focus-visible:ring-2 focus-visible:ring-[#1381FF]/20 ${
         compact ? 'py-3' : 'py-3.5'
       } ${canSelect ? 'cursor-pointer' : 'cursor-default'} ${normalized.isRead ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/45 hover:bg-blue-50/70'}`}
     >

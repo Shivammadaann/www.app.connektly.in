@@ -646,7 +646,7 @@ function TriggerEditorModal({
                     value={draft.name}
                     onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
                     placeholder="Pricing reply"
-                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                   />
                 </label>
                 <div className="block">
@@ -661,7 +661,7 @@ function TriggerEditorModal({
                     }
                     options={TRIGGER_OPTIONS}
                     ariaLabel="Select automation trigger type"
-                    buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                    buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                   />
                 </div>
               </div>
@@ -692,7 +692,7 @@ function TriggerEditorModal({
                         { value: 'OR', label: 'Any filter matches' },
                       ]}
                       ariaLabel="Select filter logic"
-                      buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                      buttonClassName="rounded-2xl border-gray-200 bg-white px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                     />
                   </div>
                   <button
@@ -719,7 +719,7 @@ function TriggerEditorModal({
                             }}
                             options={FILTER_TYPE_OPTIONS}
                             ariaLabel="Select automation filter type"
-                            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                           />
                         </div>
                         <div className="block">
@@ -738,7 +738,7 @@ function TriggerEditorModal({
                                 { value: 'outside', label: 'Outside' },
                               ]}
                               ariaLabel="Select timestamp filter operator"
-                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                             />
                           ) : condition.type === 'contact_attribute' ? (
                             <DropdownSelect
@@ -755,7 +755,7 @@ function TriggerEditorModal({
                                 { value: 'does_not_equal', label: 'Does not equal' },
                               ]}
                               ariaLabel="Select contact attribute filter operator"
-                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                             />
                           ) : condition.type === 'contact_exists' ? (
                             <DropdownSelect
@@ -771,7 +771,7 @@ function TriggerEditorModal({
                                 { value: 'is_false', label: 'Does not exist' },
                               ]}
                               ariaLabel="Select contact existence filter operator"
-                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                             />
                           ) : condition.type === 'message_contains_keywords' ? (
                             <DropdownSelect
@@ -790,7 +790,7 @@ function TriggerEditorModal({
                                 { value: 'fuzzy', label: 'Fuzzy match' },
                               ]}
                               ariaLabel="Select keyword filter operator"
-                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                              buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                             />
                           ) : (
                             <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">Boolean</div>
@@ -811,7 +811,7 @@ function TriggerEditorModal({
                               }))
                             }
                             placeholder="pricing, help, order"
-                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                           />
                         </label>
                       ) : null}
@@ -829,7 +829,7 @@ function TriggerEditorModal({
                                   startTime: event.target.value,
                                 }))
                               }
-                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                           </label>
                           <label className="block">
@@ -843,7 +843,7 @@ function TriggerEditorModal({
                                   endTime: event.target.value,
                                 }))
                               }
-                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                           </label>
                         </div>
@@ -863,7 +863,7 @@ function TriggerEditorModal({
                                 }))
                               }
                               placeholder="source, status, tags"
-                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                           </label>
                           <label className="block">
@@ -878,7 +878,7 @@ function TriggerEditorModal({
                                 }))
                               }
                               placeholder="vip"
-                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                             />
                           </label>
                         </div>
@@ -924,7 +924,7 @@ function TriggerEditorModal({
                       { value: 'opt_out_marketing', label: 'Opt out of marketing' },
                     ]}
                     ariaLabel="Select automation action"
-                    buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                    buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                   />
                 </div>
 
@@ -936,7 +936,7 @@ function TriggerEditorModal({
                       value={draft.messageBody}
                       onChange={(event) => setDraft((current) => ({ ...current, messageBody: event.target.value }))}
                       placeholder="Thanks for reaching out. Here are the details..."
-                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                     />
                   </label>
                 ) : draft.actionType === 'opt_out_marketing' ? (
@@ -972,12 +972,12 @@ function TriggerEditorModal({
                           ]}
                           placeholder={isFlowsLoading ? 'Loading Flows...' : 'Select Flow'}
                           ariaLabel="Select automation Flow"
-                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15 disabled:opacity-60"
+                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15 disabled:opacity-60"
                         />
                         {!isFlowsLoading && !flows.length ? (
                           <p className="mt-2 text-sm text-gray-500">
                             No Flows available.{' '}
-                            <Link to="/dashboard/automations/flows" className="font-medium text-[#5b45ff]">
+                            <Link to="/dashboard/automations/flows" className="font-medium text-[#1381FF]">
                               Create Flow
                             </Link>
                           </p>
@@ -998,7 +998,7 @@ function TriggerEditorModal({
                             { value: 'draft', label: 'Draft' },
                           ]}
                           ariaLabel="Select Flow mode"
-                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                         />
                         {selectedFlow?.status === 'DRAFT' ? (
                           <p className="mt-2 text-xs text-amber-600">This Flow is still a draft.</p>
@@ -1014,7 +1014,7 @@ function TriggerEditorModal({
                           onChange={(event) => setDraft((current) => ({ ...current, flowCta: event.target.value }))}
                           maxLength={30}
                           placeholder="Book Now"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                       <label className="block">
@@ -1024,7 +1024,7 @@ function TriggerEditorModal({
                           value={draft.flowScreen}
                           onChange={(event) => setDraft((current) => ({ ...current, flowScreen: event.target.value }))}
                           placeholder="FIRST_ENTRY_SCREEN"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                     </div>
@@ -1035,7 +1035,7 @@ function TriggerEditorModal({
                         value={draft.flowBody}
                         onChange={(event) => setDraft((current) => ({ ...current, flowBody: event.target.value }))}
                         placeholder="Please complete this form."
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
                     <div className="grid gap-5 md:grid-cols-2">
@@ -1046,7 +1046,7 @@ function TriggerEditorModal({
                           value={draft.flowHeader}
                           onChange={(event) => setDraft((current) => ({ ...current, flowHeader: event.target.value }))}
                           placeholder="Quick form"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                       <label className="block">
@@ -1056,7 +1056,7 @@ function TriggerEditorModal({
                           value={draft.flowFooter}
                           onChange={(event) => setDraft((current) => ({ ...current, flowFooter: event.target.value }))}
                           placeholder="Sent via Connektly"
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                         />
                       </label>
                     </div>
@@ -1067,7 +1067,7 @@ function TriggerEditorModal({
                         value={draft.flowToken}
                         onChange={(event) => setDraft((current) => ({ ...current, flowToken: event.target.value }))}
                         placeholder="Optional identifier"
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
                   </div>
@@ -1094,13 +1094,13 @@ function TriggerEditorModal({
                         ]}
                         placeholder="Select template"
                         ariaLabel="Select automation template"
-                        buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                        buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                       />
                     </div>
                     {!templates.length ? (
                       <p className="mt-2 text-sm text-gray-500">
                         No approved templates available.{' '}
-                        <Link to="/dashboard/templates" className="font-medium text-[#5b45ff]">
+                        <Link to="/dashboard/templates" className="font-medium text-[#1381FF]">
                           Open Templates
                         </Link>
                       </p>
@@ -1123,7 +1123,7 @@ function TriggerEditorModal({
               type="button"
               onClick={onSubmit}
               disabled={isSaving}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {mode === 'create' ? 'Create Trigger' : 'Save Trigger'}
@@ -1310,7 +1310,7 @@ export default function Automations() {
             <div className="mt-6">
               <Link
                 to="/dashboard/connections?section=channels"
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
               >
                 Open Channels
               </Link>
@@ -1347,7 +1347,7 @@ export default function Automations() {
             type="button"
             onClick={openCreateEditor}
             disabled={isLoading || isSaving}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
             Create Trigger
@@ -1418,7 +1418,7 @@ export default function Automations() {
                       <tr key={rule.clientId} className="align-middle transition-colors hover:bg-gray-50">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5b45ff]/10 text-[#5b45ff]">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1381FF]/10 text-[#1381FF]">
                               <Zap className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
@@ -1446,7 +1446,7 @@ export default function Automations() {
                             title={rule.isEnabled ? 'On' : 'Off'}
                             onClick={() => void handleToggleStatus(rule)}
                             disabled={isSaving}
-                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5b45ff]/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1381FF]/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
                               rule.isEnabled
                                 ? 'border-emerald-400 bg-emerald-500'
                                 : 'border-gray-300 bg-gray-200'
@@ -1512,7 +1512,7 @@ export default function Automations() {
                 <button
                   type="button"
                   onClick={openCreateEditor}
-                  className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                  className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
                 >
                   <Plus className="h-4 w-4" />
                   Create Trigger

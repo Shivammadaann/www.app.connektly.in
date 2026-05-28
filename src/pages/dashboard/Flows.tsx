@@ -309,7 +309,7 @@ function ModalShell({ title, subtitle, onClose, children }: { title: string; sub
 function StatCard({ title, value, icon }: { title: string; value: string; icon: ReactNode }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#5b45ff]/10 text-[#5b45ff]">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1381FF]/10 text-[#1381FF]">
         {icon}
       </div>
       <div className="min-w-0">
@@ -371,7 +371,7 @@ function FlowEditor({
               <input
                 value={draft.name}
                 onChange={(event) => onDraftChange({ ...draft, name: event.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
               />
             </label>
             <div className="block">
@@ -384,7 +384,7 @@ function FlowEditor({
                   label: template.label,
                 }))}
                 ariaLabel="Select flow use case"
-                buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
               />
             </div>
             <div className="block">
@@ -394,7 +394,7 @@ function FlowEditor({
                 onChange={(nextCategory) => onDraftChange({ ...draft, category: nextCategory as WhatsAppFlowCategory })}
                 options={FLOW_CATEGORY_OPTIONS}
                 ariaLabel="Select flow category"
-                buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
               />
             </div>
             {mode === 'create' ? (
@@ -452,7 +452,7 @@ function FlowEditor({
                       onChange={(event) =>
                         updateField(field.clientId, (current) => ({ ...current, label: event.target.value }))
                       }
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                     />
                   </label>
                   <label className="block">
@@ -462,7 +462,7 @@ function FlowEditor({
                       onChange={(event) =>
                         updateField(field.clientId, (current) => ({ ...current, id: event.target.value }))
                       }
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                     />
                   </label>
                   <div className="block">
@@ -477,7 +477,7 @@ function FlowEditor({
                       }
                       options={FIELD_TYPE_OPTIONS}
                       ariaLabel="Select flow field type"
-                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-3 py-2.5 focus:border-[#5b45ff] focus:ring-[#5b45ff]/15"
+                      buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-3 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                     />
                   </div>
                   <div className="flex items-end">
@@ -516,7 +516,7 @@ function FlowEditor({
                         }
                         rows={3}
                         placeholder="One option per line"
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#5b45ff] focus:ring-1 focus:ring-[#5b45ff]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
                       />
                     </label>
                   ) : null}
@@ -587,7 +587,7 @@ function FlowEditor({
               type="button"
               onClick={onSubmit}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {mode === 'create' ? 'Create Flow' : 'Save Changes'}
@@ -779,7 +779,7 @@ export default function Flows() {
             <div className="mt-6">
               <Link
                 to="/dashboard/connections?section=channels"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
               >
                 Open Channels
               </Link>
@@ -813,7 +813,7 @@ export default function Flows() {
             type="button"
             onClick={openCreateEditor}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
             Create Flow
@@ -848,7 +848,7 @@ export default function Flows() {
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         {isLoading ? (
           <div className="flex min-h-56 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-[#5b45ff]" />
+            <Loader2 className="h-6 w-6 animate-spin text-[#1381FF]" />
           </div>
         ) : flows.length ? (
           <div className="overflow-x-auto">
@@ -884,7 +884,7 @@ export default function Flows() {
                     <tr key={flow.id} className="align-middle transition-colors hover:bg-gray-50">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5b45ff]/10 text-[#5b45ff]">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1381FF]/10 text-[#1381FF]">
                             <ListChecks className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
@@ -979,7 +979,7 @@ export default function Flows() {
           </div>
         ) : (
           <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#5b45ff]/10 text-[#5b45ff]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1381FF]/10 text-[#1381FF]">
               <ListChecks className="h-6 w-6" />
             </div>
             <h2 className="mt-4 text-lg font-semibold text-gray-900">No Flows yet</h2>
@@ -989,7 +989,7 @@ export default function Flows() {
             <button
               type="button"
               onClick={openCreateEditor}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#5b45ff] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#5b45ff]/25 transition hover:bg-[#4a35e8]"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
             >
               <Plus className="h-4 w-4" />
               Create Flow
