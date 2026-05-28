@@ -640,8 +640,8 @@ export default function Login() {
       mode="login"
       heroTitle={
         <>
-          Do more with <span className="text-[#4F46E5]">Ads</span> and{' '}
-          <span className="text-[#4F46E5]">Conversations</span>
+          Do more with <span className="text-[#1381FF]">Ads</span> and{' '}
+          <span className="text-[#1381FF]">Conversations</span>
         </>
       }
       heroDescription="Connektly keeps messages, campaigns, calls, leads, and notifications organized for fast-moving teams."
@@ -701,7 +701,7 @@ export default function Login() {
           <button
             type="button"
             onClick={openForgotPasswordModal}
-            className="w-full text-center text-sm font-medium text-[#4F46E5] transition hover:text-[#4338CA]"
+            className="w-full text-center text-sm font-medium text-[#1381FF] transition hover:text-[#0F6FEA]"
           >
             Forgot password?
           </button>
@@ -766,7 +766,7 @@ export default function Login() {
                     onPaste={(event) => handleMfaPaste(index, event)}
                     disabled={isVerifyingMfa}
                     aria-label={`Authenticator digit ${index + 1}`}
-                    className="h-12 rounded-lg border border-[#E2E8F0] bg-white text-center text-lg font-semibold text-[#0F172A] outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 disabled:cursor-not-allowed disabled:bg-[#F8FAFC]"
+                    className="h-12 rounded-lg border border-[#E2E8F0] bg-white text-center text-lg font-semibold text-[#0F172A] outline-none transition focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/20 disabled:cursor-not-allowed disabled:bg-[#F8FAFC]"
                   />
                 ))}
               </div>

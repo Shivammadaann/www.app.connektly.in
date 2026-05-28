@@ -126,7 +126,7 @@ export default function OnboardingCompany() {
             <motion.div
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-              className="h-full rounded-full bg-[#4F46E5]"
+              className="h-full rounded-full bg-[#1381FF]"
             />
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function OnboardingCompany() {
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2, delay: 0.06 }}
-            className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-[#4F46E5]"
+            className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-[#1381FF]"
           >
             <Building2 className="h-7 w-7" />
           </motion.div>
@@ -159,7 +159,7 @@ export default function OnboardingCompany() {
             helper={
               hasCompanyName ? (
                 <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-[#4F46E5]" />
+                  <Sparkles className="h-3.5 w-3.5 text-[#1381FF]" />
                   Your workspace will be called <span className="font-medium text-gray-800">"{previewCompanyName}"</span>.
                 </motion.span>
               ) : (
@@ -168,7 +168,7 @@ export default function OnboardingCompany() {
             }
           >
             <div className="group relative">
-              <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#4F46E5]" />
+              <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#1381FF]" />
               <input
                 ref={companyNameInputRef}
                 type="text"
@@ -176,7 +176,7 @@ export default function OnboardingCompany() {
                 onChange={(event) => setCompanyName(event.target.value)}
                 placeholder="Connektly Solutions"
                 autoFocus
-                className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15"
               />
             </div>
           </FieldShell>
@@ -195,7 +195,7 @@ export default function OnboardingCompany() {
             }
           >
             <div className="group relative">
-              <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#4F46E5]" />
+              <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#1381FF]" />
               <input
                 type="text"
                 inputMode="url"
@@ -207,7 +207,7 @@ export default function OnboardingCompany() {
                 className={`h-11 w-full rounded-lg border bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 ${
                   showCompanyWebsiteError
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/15'
-                    : 'border-gray-200 focus:border-[#4F46E5] focus:ring-[#4F46E5]/15'
+                    : 'border-gray-200 focus:border-[#1381FF] focus:ring-[#1381FF]/15'
                 }`}
               />
             </div>
@@ -221,7 +221,7 @@ export default function OnboardingCompany() {
               disabled={!isFormValid || isSaving}
               className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition ${
                 isFormValid && !isSaving
-                  ? 'bg-[#4F46E5] text-white shadow-lg shadow-indigo-500/20 hover:bg-[#4338CA]'
+                  ? 'bg-[#1381FF] text-white shadow-lg shadow-sky-500/20 hover:bg-[#0F6FEA]'
                   : 'cursor-not-allowed bg-gray-200 text-gray-500'
               }`}
             >

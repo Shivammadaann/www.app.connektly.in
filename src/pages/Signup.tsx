@@ -184,8 +184,8 @@ export default function Signup() {
       mode="signup"
       heroTitle={
         <>
-          Do more with <span className="text-[#4F46E5]">Ads</span> and{' '}
-          <span className="text-[#4F46E5]">Conversations</span>
+          Do more with <span className="text-[#1381FF]">Ads</span> and{' '}
+          <span className="text-[#1381FF]">Conversations</span>
         </>
       }
       heroDescription="Connektly keeps messages, campaigns, calls, leads, and notifications organized for fast-moving teams."

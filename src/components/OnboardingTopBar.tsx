@@ -84,9 +84,9 @@ export default function OnboardingTopBar() {
                     disabled={!isAccessible}
                     className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                       isActive
-                        ? 'bg-[#5b45ff] text-white shadow-sm'
+                        ? 'bg-[#1381FF] text-white shadow-sm'
                         : isComplete
-                          ? 'text-[#5b45ff] hover:bg-[#f3f0ff]'
+                          ? 'text-[#1381FF] hover:bg-[#EEF7FF]'
                           : 'text-gray-400'
                     } ${isAccessible ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                   >
@@ -95,7 +95,7 @@ export default function OnboardingTopBar() {
                         isActive
                           ? 'bg-white/20'
                           : isComplete
-                            ? 'bg-[#5b45ff] text-white'
+                            ? 'bg-[#1381FF] text-white'
                             : 'bg-gray-100 text-gray-400'
                       }`}
                     >
@@ -109,7 +109,7 @@ export default function OnboardingTopBar() {
                         initial={false}
                         animate={{ width: index < currentStepIndex ? '100%' : '0%' }}
                         transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                        className="absolute inset-y-0 left-0 bg-[#5b45ff]/50"
+                        className="absolute inset-y-0 left-0 bg-[#1381FF]/50"
                       />
                     </span>
                   ) : null}

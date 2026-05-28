@@ -117,7 +117,7 @@ function SetupStepRow({
       {...onboardingMotion.slideUp}
       className={`flex items-start gap-3 rounded-2xl border px-4 py-3 transition ${
         isActive
-          ? 'border-indigo-100 bg-indigo-50/70'
+          ? 'border-sky-100 bg-sky-50/70'
           : isComplete
             ? 'border-emerald-100 bg-emerald-50/60'
             : 'border-gray-200 bg-white'
@@ -128,7 +128,7 @@ function SetupStepRow({
           isComplete
             ? 'bg-emerald-500 text-white'
             : isActive
-              ? 'bg-[#4F46E5] text-white'
+              ? 'bg-[#1381FF] text-white'
               : 'bg-gray-100 text-gray-500'
         }`}
       >
@@ -158,7 +158,7 @@ function RequirementChoice({
       ? 'border-red-500 bg-red-500 text-white'
       : tone === 'neutral'
         ? 'border-gray-800 bg-gray-800 text-white'
-        : 'border-[#4F46E5] bg-[#4F46E5] text-white';
+        : 'border-[#1381FF] bg-[#1381FF] text-white';
 
   return (
     <motion.button
@@ -642,12 +642,12 @@ export default function ChannelConnection() {
                       <div key={title} className="min-w-0">
                         <div
                           className={`h-1 rounded-full transition ${
-                            isComplete || isActive ? 'bg-[#4F46E5]' : 'bg-gray-200'
+                            isComplete || isActive ? 'bg-[#1381FF]' : 'bg-gray-200'
                           }`}
                         />
                         <p
                           className={`mt-2 truncate text-xs font-semibold ${
-                            isActive ? 'text-gray-950' : isComplete ? 'text-[#4F46E5]' : 'text-gray-400'
+                            isActive ? 'text-gray-950' : isComplete ? 'text-[#1381FF]' : 'text-gray-400'
                           }`}
                         >
                           {title}
@@ -671,7 +671,7 @@ export default function ChannelConnection() {
                       className="mx-auto max-w-xl space-y-5"
                     >
                       <div className="text-center">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-[#4F46E5]">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-[#1381FF]">
                           <ShieldCheck className="h-6 w-6" />
                         </div>
                         <h3 className="mt-4 text-2xl font-semibold tracking-tight text-gray-950">Quick readiness check</h3>
@@ -857,7 +857,7 @@ export default function ChannelConnection() {
                                   onChange={(event) =>
                                     setManualData((current) => ({ ...current, token: event.target.value }))
                                   }
-                                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15"
                                 />
                               </FormField>
 
@@ -870,7 +870,7 @@ export default function ChannelConnection() {
                                     onChange={(event) =>
                                       setManualData((current) => ({ ...current, wabaId: event.target.value }))
                                     }
-                                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15"
                                   />
                                 </FormField>
 
@@ -882,7 +882,7 @@ export default function ChannelConnection() {
                                     onChange={(event) =>
                                       setManualData((current) => ({ ...current, phoneId: event.target.value }))
                                     }
-                                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15"
                                   />
                                 </FormField>
                               </div>

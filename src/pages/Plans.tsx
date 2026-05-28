@@ -31,11 +31,13 @@ import {
   getBillingPlanByName,
   hasUsedFreeTrial,
   isFreeTrialExpired,
+  isFreeTrialPlan,
   type BillingCycle,
   type BillingPlanDefinition,
   type BillingPlanCode,
   type BillingSummary,
 } from '../lib/billing';
+import type { AppProfile } from '../lib/types';
 const dateFormatter = new Intl.DateTimeFormat('en-IN', {
   day: 'numeric',
   month: 'short',
@@ -72,14 +74,30 @@ function isPaidSelection(selection: PlanSelection): selection is BillingPlanCode
 
 function getSelectionFromProfile(
   selectedPlan: string | null | undefined,
-  canStartFreeTrial: boolean,
+  canSelectTrial: boolean,
   plans: BillingPlanDefinition[],
 ): PlanSelection {
   if (selectedPlan?.trim().toLowerCase() === 'trial') {
-    return canStartFreeTrial ? 'trial' : plans[0]?.code || 'starter';
+    return canSelectTrial ? 'trial' : plans[0]?.code || 'starter';
   }
 
-  return getBillingPlanByName(selectedPlan, plans)?.code ?? (canStartFreeTrial ? 'trial' : plans[0]?.code || 'starter');
+  return getBillingPlanByName(selectedPlan, plans)?.code ?? (canSelectTrial ? 'trial' : plans[0]?.code || 'starter');
+}
+
+function getOnboardingResumePath(profile: AppProfile | null | undefined) {
+  if (!profile?.companyName) {
+    return '/onboarding';
+  }
+
+  if (!profile.industry) {
+    return '/onboarding/industry';
+  }
+
+  if (!profile.fullName || !profile.phone || !profile.countryCode) {
+    return '/onboarding/profile';
+  }
+
+  return '/onboarding/channel-connection';
 }
 
 function BillingCycleToggle({
@@ -153,14 +171,14 @@ function PlanOptionCard({
       onClick={onClick}
       className={`group flex h-full flex-col rounded-3xl border text-left transition ${compact ? 'p-4' : 'p-6'} ${
         selected
-          ? 'border-[#4F46E5] bg-indigo-50/40 shadow-[0_20px_48px_rgba(79,70,229,0.12)]'
+          ? 'border-[#1381FF] bg-sky-50/40 shadow-[0_20px_48px_rgba(19,129,255,0.12)]'
           : 'border-gray-200 bg-white shadow-sm hover:border-gray-300 hover:shadow-md'
       }`}
     >
       <div className={`${compact ? 'mb-4' : 'mb-6'} flex items-start justify-between gap-4`}>
         <div className="min-w-0">
           {badge ? (
-            <span className={`mb-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${selected ? 'bg-[#4F46E5] text-white' : 'bg-gray-100 text-gray-600'}`}>
+            <span className={`mb-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${selected ? 'bg-[#1381FF] text-white' : 'bg-gray-100 text-gray-600'}`}>
               {badge}
             </span>
           ) : null}
@@ -168,7 +186,7 @@ function PlanOptionCard({
           <p className={`${compact ? 'mt-1 line-clamp-2' : 'mt-2'} text-sm leading-5 text-gray-500`}>{description}</p>
         </div>
         <span className={`mt-1 h-5 w-5 shrink-0 rounded-full border transition ${
-          selected ? 'border-[#4F46E5] bg-[#4F46E5] shadow-[inset_0_0_0_4px_white]' : 'border-gray-300 bg-white group-hover:border-gray-400'
+          selected ? 'border-[#1381FF] bg-[#1381FF] shadow-[inset_0_0_0_4px_white]' : 'border-gray-300 bg-white group-hover:border-gray-400'
         }`} />
       </div>
 
@@ -196,6 +214,8 @@ export default function Plans() {
   const { bootstrap, refresh } = useAppData();
   const canStartFreeTrial = !hasUsedFreeTrial(bootstrap?.profile);
   const hasExpiredFreeTrial = isFreeTrialExpired(bootstrap?.profile);
+  const hasActiveFreeTrial = isFreeTrialPlan(bootstrap?.profile?.selectedPlan) && !hasExpiredFreeTrial;
+  const shouldShowTrialOption = canStartFreeTrial || hasActiveFreeTrial;
   const [billingPlans, setBillingPlans] = useState<BillingPlanDefinition[]>(BILLING_PLANS);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [planCatalogError, setPlanCatalogError] = useState<string | null>(null);
@@ -248,7 +268,7 @@ export default function Plans() {
   }, []);
 
   useEffect(() => {
-    setSelectedPlan(getSelectionFromProfile(bootstrap?.profile?.selectedPlan, canStartFreeTrial, billingPlans));
+    setSelectedPlan(getSelectionFromProfile(bootstrap?.profile?.selectedPlan, shouldShowTrialOption, billingPlans));
 
     if (bootstrap?.profile?.billingCycle) {
       setBillingCycle(bootstrap.profile.billingCycle);
@@ -265,6 +285,7 @@ export default function Plans() {
     bootstrap?.profile?.selectedPlan,
     billingPlans,
     canStartFreeTrial,
+    shouldShowTrialOption,
   ]);
 
   useEffect(() => {
@@ -343,7 +364,7 @@ export default function Plans() {
     [],
   );
   const activeTrialEndsAt =
-    bootstrap?.profile?.selectedPlan === 'Trial' && bootstrap?.profile?.trialEndsAt
+    isFreeTrialPlan(bootstrap?.profile?.selectedPlan) && bootstrap?.profile?.trialEndsAt
       ? bootstrap.profile.trialEndsAt
       : trialEndsAtPreview;
 
@@ -402,6 +423,11 @@ export default function Plans() {
   };
 
   const handleStartTrial = async () => {
+    if (hasActiveFreeTrial && !canStartFreeTrial) {
+      navigate(getOnboardingResumePath(bootstrap?.profile));
+      return;
+    }
+
     if (!canStartFreeTrial) {
       setError('Your 7-day free trial has already been used. Choose a paid plan to continue.');
       return;
@@ -483,7 +509,7 @@ export default function Plans() {
           trial_ends_at: response.quote.trialEndsAt,
         },
         theme: {
-          color: '#5b45ff',
+          color: '#1381FF',
         },
         modal: {
           confirm_close: true,
@@ -514,12 +540,14 @@ export default function Plans() {
 
   const summaryButtonDisabled =
     selectedPlan === 'trial'
-      ? isStartingTrial || !canStartFreeTrial
+      ? isStartingTrial || (!canStartFreeTrial && !hasActiveFreeTrial)
       : !paidPlan || isApplyingCoupon || isCheckingOut || isFinalizingPayment;
   const selectedPlanName = selectedPlan === 'trial' ? 'Trial' : paidPlan?.name || 'Paid plan';
   const selectedPlanDescription =
     selectedPlan === 'trial'
-      ? 'Start onboarding now and choose billing later.'
+      ? hasActiveFreeTrial
+        ? 'Continue onboarding with your active workspace trial.'
+        : 'Start onboarding now and choose billing later.'
       : 'Start with trial access, then authorize future recurring billing through Razorpay.';
   const selectedPlanPrice =
     selectedPlan === 'trial'
@@ -540,7 +568,9 @@ export default function Plans() {
   const isActionLoading = isStartingTrial || isCheckingOut || isFinalizingPayment;
   const ctaLabel =
     selectedPlan === 'trial'
-      ? isStartingTrial
+      ? hasActiveFreeTrial && !canStartFreeTrial
+        ? 'Continue Onboarding'
+        : isStartingTrial
         ? 'Starting free trial...'
         : 'Start Free Trial'
       : isFinalizingPayment
@@ -566,12 +596,14 @@ export default function Plans() {
         >
           <div className="max-w-2xl">
             <h1 className="text-[32px] font-semibold leading-10 tracking-tight text-gray-950">
-              {canStartFreeTrial ? 'Start free. Upgrade only when you are ready.' : 'Choose a plan to continue.'}
+              {hasActiveFreeTrial ? 'Continue your free trial setup.' : canStartFreeTrial ? 'Start free. Upgrade only when you are ready.' : 'Choose a plan to continue.'}
             </h1>
             <p className="mt-3 text-sm leading-5 text-gray-500">
               {hasExpiredFreeTrial
                 ? 'Your 7-day trial has ended. Pick a paid plan to keep using Connektly.'
-                : canStartFreeTrial
+                : hasActiveFreeTrial
+                  ? 'Your trial is active. Continue onboarding from where you left off.'
+                  : canStartFreeTrial
                   ? 'The recommended path is to start the free trial, complete onboarding, and evaluate paid plans after setup.'
                   : 'Your free trial has already been used. Choose an active paid plan to continue with the app.'}
             </p>
@@ -596,16 +628,16 @@ export default function Plans() {
           </div>
         ) : null}
 
-        <div className={`grid gap-6 ${canStartFreeTrial ? 'lg:grid-cols-3' : 'md:grid-cols-2'}`}>
-          {canStartFreeTrial ? (
+        <div className={`grid gap-6 ${shouldShowTrialOption ? 'lg:grid-cols-3' : 'md:grid-cols-2'}`}>
+          {shouldShowTrialOption ? (
             <PlanOptionCard
               title="Trial"
-              description="Recommended first step. Use Connektly before choosing billing."
+              description={hasActiveFreeTrial ? 'Your trial is active. Continue onboarding anytime.' : 'Recommended first step. Use Connektly before choosing billing.'}
               price="Free"
-              priceCaption="7 days, no payment"
+              priceCaption={hasActiveFreeTrial ? 'Active trial' : '7 days, no payment'}
               features={TRIAL_FEATURES}
               selected={selectedPlan === 'trial'}
-              badge="Recommended"
+              badge={hasActiveFreeTrial ? 'Active' : 'Recommended'}
               onClick={() => {
                 setSelectedPlan('trial');
                 setError(null);
@@ -635,7 +667,7 @@ export default function Plans() {
                 compact
                 selected={selectedPlan === plan.code}
                 badge={plan.featured ? 'Most chosen' : undefined}
-                delay={(canStartFreeTrial ? index + 1 : index) * 0.04}
+                delay={(shouldShowTrialOption ? index + 1 : index) * 0.04}
                 onClick={() => {
                   setSelectedPlan(plan.code);
                   setError(null);
@@ -663,7 +695,7 @@ export default function Plans() {
             <div>
               <div className="flex flex-col gap-4 border-b border-gray-100 pb-6 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4F46E5]">Selected plan</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Selected plan</p>
                   <h2 className="mt-2 text-2xl font-semibold text-gray-950">{selectedPlanName}</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-5 text-gray-500">{selectedPlanDescription}</p>
                 </div>
@@ -735,10 +767,10 @@ export default function Plans() {
                       className="flex w-full items-center justify-between gap-3 text-left"
                     >
                       <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                        <TicketPercent className="h-4 w-4 text-[#4F46E5]" />
+                        <TicketPercent className="h-4 w-4 text-[#1381FF]" />
                         <span>{appliedCouponCode ? `Coupon: ${appliedCouponCode}` : 'Have a coupon?'}</span>
                       </div>
-                      <span className="text-xs font-semibold text-[#4F46E5]">{isCouponOpen ? 'Hide' : 'Apply'}</span>
+                      <span className="text-xs font-semibold text-[#1381FF]">{isCouponOpen ? 'Hide' : 'Apply'}</span>
                     </button>
 
                     {isCouponOpen ? (
@@ -755,7 +787,7 @@ export default function Plans() {
                             value={couponInput}
                             onChange={(event) => setCouponInput(event.target.value.toUpperCase())}
                             placeholder="Enter coupon code"
-                            className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                            className="h-11 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15"
                           />
                           <button
                             type="button"
@@ -770,7 +802,7 @@ export default function Plans() {
                             <button
                               type="button"
                               onClick={handleRemoveCoupon}
-                              className="h-11 rounded-xl px-2 text-sm font-semibold text-[#4F46E5] transition hover:text-[#4338CA]"
+                              className="h-11 rounded-xl px-2 text-sm font-semibold text-[#1381FF] transition hover:text-[#0F6FEA]"
                             >
                               Remove
                             </button>
@@ -792,7 +824,7 @@ export default function Plans() {
                     </div>
                   ) : null}
 
-                  <div className="mt-6 flex items-start gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                  <div className="mt-6 flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
                       Trial runs until <span className="font-semibold">{formatDate(activeSummary.trialEndsAt)}</span>. Razorpay authorizes the future subscription mandate securely.
@@ -807,7 +839,9 @@ export default function Plans() {
               <h3 className="mt-3 text-xl font-semibold">{selectedPlan === 'trial' ? 'Start now' : 'Secure checkout'}</h3>
               <p className="mt-2 text-sm leading-5 text-white/65">
                 {selectedPlan === 'trial'
-                  ? 'Continue onboarding immediately without entering payment details.'
+                  ? hasActiveFreeTrial
+                    ? 'Resume onboarding immediately with your saved trial.'
+                    : 'Continue onboarding immediately without entering payment details.'
                   : isCheckoutReady
                     ? 'Razorpay checkout is ready.'
                     : 'Razorpay checkout is still loading.'}
@@ -816,7 +850,7 @@ export default function Plans() {
               <button
                 onClick={() => void (selectedPlan === 'trial' ? handleStartTrial() : handleCheckout())}
                 disabled={summaryButtonDisabled}
-                className="mt-6 inline-flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#4F46E5] px-5 text-sm font-semibold text-white transition hover:bg-[#4338CA] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-6 inline-flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#1381FF] px-5 text-sm font-semibold text-white transition hover:bg-[#0F6FEA] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                 {ctaLabel}

@@ -84,7 +84,7 @@ const ProtectedApp = ({ session }: { session: Session | null }) => (
 
 const GuardLoading = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-    <Loader2 className="w-8 h-8 text-[#5b45ff] animate-spin" />
+    <Loader2 className="w-8 h-8 text-[#1381FF] animate-spin" />
   </div>
 );
 
@@ -224,7 +224,7 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#5b45ff] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#1381FF] animate-spin" />
       </div>
     );
   }

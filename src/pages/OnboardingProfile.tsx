@@ -39,6 +39,9 @@ const COUNTRIES: Array<{ code: string; isoCode: CountryCode; label: string; name
   { code: '+33', isoCode: 'FR', label: 'FR +33', name: 'France', placeholder: '612345678' },
 ];
 
+const DEFAULT_COUNTRY_CODE = '+91';
+const DEFAULT_PREFERRED_CURRENCY = 'INR';
+
 const PROFILE_USE_CASES: Array<{ label: string; description: string; icon: LucideIcon }> = [
   {
     label: 'Inbox assignment',
@@ -96,8 +99,8 @@ export default function OnboardingProfile() {
   const profilePictureInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [countryCode, setCountryCode] = useState('+1');
-  const [preferredCurrency, setPreferredCurrency] = useState('USD');
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
+  const [preferredCurrency, setPreferredCurrency] = useState(DEFAULT_PREFERRED_CURRENCY);
   const [hasEditedPreferredCurrency, setHasEditedPreferredCurrency] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
@@ -107,11 +110,11 @@ export default function OnboardingProfile() {
   useEffect(() => {
     setName(bootstrap?.profile?.fullName || '');
     setPhone(bootstrap?.profile?.phone || '');
-    const nextCountryCode = bootstrap?.profile?.countryCode || '+1';
+    const nextCountryCode = bootstrap?.profile?.countryCode || DEFAULT_COUNTRY_CODE;
     const savedCurrency = normalizePreferredCurrency(bootstrap?.profile?.preferredCurrency);
 
     setCountryCode(nextCountryCode);
-    setPreferredCurrency(savedCurrency || getPreferredCurrencyFromCallingCode(nextCountryCode));
+    setPreferredCurrency(savedCurrency || getPreferredCurrencyFromCallingCode(nextCountryCode) || DEFAULT_PREFERRED_CURRENCY);
     setHasEditedPreferredCurrency(false);
   }, [
     bootstrap?.profile?.countryCode,
@@ -140,7 +143,10 @@ export default function OnboardingProfile() {
     setPreferredCurrency(getPreferredCurrencyFromCallingCode(countryCode));
   }, [bootstrap?.profile?.preferredCurrency, countryCode, hasEditedPreferredCurrency]);
 
-  const selectedCountry = COUNTRIES.find((country) => country.code === countryCode) || COUNTRIES[0];
+  const selectedCountry =
+    COUNTRIES.find((country) => country.code === countryCode) ||
+    COUNTRIES.find((country) => country.code === DEFAULT_COUNTRY_CODE) ||
+    COUNTRIES[0];
   const phoneDigits = phone.replace(/\D/g, '');
   const parsedPhoneNumber = phoneDigits
     ? parsePhoneNumberFromString(phoneDigits, selectedCountry.isoCode)
@@ -253,18 +259,18 @@ export default function OnboardingProfile() {
             <motion.div
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-              className="h-full rounded-full bg-[#4F46E5]"
+              className="h-full rounded-full bg-[#1381FF]"
             />
           </div>
         </div>
 
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4F46E5]">Step 4 of 5</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Step 4 of 5</p>
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2, delay: 0.05 }}
-            className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-[#4F46E5]"
+            className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-[#1381FF]"
           >
             <User className="h-7 w-7" />
           </motion.div>
@@ -341,7 +347,7 @@ export default function OnboardingProfile() {
               helper="This is shown in the inbox, activity feed, and workspace user lists."
             >
               <div className="group relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#4F46E5]" />
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#1381FF]" />
                 <input
                   ref={nameInputRef}
                   type="text"
@@ -351,7 +357,7 @@ export default function OnboardingProfile() {
                     setError(null);
                   }}
                   placeholder="John Doe"
-                  className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                  className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15"
                   required
                 />
               </div>
@@ -388,10 +394,10 @@ export default function OnboardingProfile() {
                     label: country.label,
                   }))}
                   ariaLabel="Select country calling code"
-                  buttonClassName="h-11 rounded-lg border-gray-200 px-3 py-0 focus:border-[#4F46E5] focus:ring-[#4F46E5]/15"
+                  buttonClassName="h-11 rounded-lg border-gray-200 px-3 py-0 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
                 />
                 <div className="group relative">
-                  <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#4F46E5]" />
+                  <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition group-focus-within:text-[#1381FF]" />
                   <input
                     type="tel"
                     value={phone}
@@ -406,7 +412,7 @@ export default function OnboardingProfile() {
                     className={`h-11 w-full rounded-lg border bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 ${
                       showPhoneError
                         ? 'border-red-300 focus:border-red-500 focus:ring-red-500/15'
-                        : 'border-gray-200 focus:border-[#4F46E5] focus:ring-[#4F46E5]/15'
+                        : 'border-gray-200 focus:border-[#1381FF] focus:ring-[#1381FF]/15'
                     }`}
                     required
                   />
@@ -437,7 +443,7 @@ export default function OnboardingProfile() {
                 }))}
                 icon={<Wallet className="h-4 w-4" />}
                 ariaLabel="Select preferred billing currency"
-                buttonClassName="h-11 rounded-lg border-gray-200 px-3 py-0 focus:border-[#4F46E5] focus:ring-[#4F46E5]/15"
+                buttonClassName="h-11 rounded-lg border-gray-200 px-3 py-0 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
               />
             </ProfileField>
           </motion.div>
@@ -449,10 +455,10 @@ export default function OnboardingProfile() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-[#4F46E5]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#1381FF]">
                     <ShieldCheck className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -463,7 +469,7 @@ export default function OnboardingProfile() {
 
                         return (
                         <div key={item.label} className="flex items-start gap-3 rounded-xl bg-gray-50 px-3 py-2">
-                          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#4F46E5]" />
+                          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#1381FF]" />
                           <div>
                             <p className="text-xs font-semibold text-gray-800">{item.label}</p>
                             <p className="mt-0.5 text-xs leading-4 text-gray-500">{item.description}</p>
@@ -472,7 +478,7 @@ export default function OnboardingProfile() {
                         );
                       })}
                     </div>
-                    <div className="mt-3 rounded-xl bg-indigo-50 px-3 py-2 text-xs leading-4 text-indigo-700">
+                    <div className="mt-3 rounded-xl bg-sky-50 px-3 py-2 text-xs leading-4 text-sky-700">
                       Platform wallet default: <span className="font-semibold">{previewCurrency}</span>
                     </div>
                   </div>
@@ -488,7 +494,7 @@ export default function OnboardingProfile() {
             disabled={!isFormValid || isSaving || isUploadingProfilePicture}
             className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition ${
               isFormValid && !isSaving && !isUploadingProfilePicture
-                ? 'bg-[#4F46E5] text-white shadow-lg shadow-indigo-500/20 hover:bg-[#4338CA]'
+                ? 'bg-[#1381FF] text-white shadow-lg shadow-sky-500/20 hover:bg-[#0F6FEA]'
                 : 'cursor-not-allowed bg-gray-200 text-gray-500'
             }`}
           >

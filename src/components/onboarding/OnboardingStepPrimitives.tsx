@@ -51,7 +51,7 @@ export function OnboardingStepLayout({
             <motion.div
               animate={{ width: `${progressValue}%` }}
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-              className="h-full rounded-full bg-[#4F46E5]"
+              className="h-full rounded-full bg-[#1381FF]"
             />
           </div>
         </div>
@@ -59,14 +59,14 @@ export function OnboardingStepLayout({
 
       <div className="text-center">
         {eyebrow ? (
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4F46E5]">{eyebrow}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">{eyebrow}</p>
         ) : null}
         {icon ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2, delay: 0.05 }}
-            className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-[#4F46E5]"
+            className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-[#1381FF]"
           >
             {icon}
           </motion.div>
@@ -148,7 +148,7 @@ export function StepCTA({
         ? 'bg-[#25D366] text-white shadow-lg shadow-[#25D366]/20 hover:bg-[#20bd5a]'
         : variant === 'secondary'
           ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-          : 'bg-[#4F46E5] text-white shadow-lg shadow-indigo-500/20 hover:bg-[#4338CA]';
+          : 'bg-[#1381FF] text-white shadow-lg shadow-sky-500/20 hover:bg-[#0F6FEA]';
 
   return (
     <motion.button

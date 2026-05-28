@@ -170,12 +170,12 @@ export default function OnboardingIndustry() {
         className="relative z-10 w-full max-w-[760px]"
       >
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4F46E5]">Step 3 of 5</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Step 3 of 5</p>
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2, delay: 0.05 }}
-            className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-[#4F46E5]"
+            className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-[#1381FF]"
           >
             <Briefcase className="h-7 w-7" />
           </motion.div>
@@ -202,7 +202,7 @@ export default function OnboardingIndustry() {
                 setShowMore(true);
               }}
               placeholder="Search your industry..."
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/15"
             />
           </div>
 
@@ -229,13 +229,13 @@ export default function OnboardingIndustry() {
                     }}
                     className={`relative rounded-2xl border p-4 text-left transition ${
                       isSelected
-                        ? 'border-[#4F46E5] bg-indigo-50 shadow-[0_16px_36px_rgba(79,70,229,0.12)]'
+                        ? 'border-[#1381FF] bg-sky-50 shadow-[0_16px_36px_rgba(19,129,255,0.12)]'
                         : 'border-gray-200 bg-white shadow-sm hover:border-gray-300 hover:bg-white'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                        isSelected ? 'bg-[#4F46E5] text-white' : 'bg-gray-100 text-gray-500'
+                        isSelected ? 'bg-[#1381FF] text-white' : 'bg-gray-100 text-gray-500'
                       }`}>
                         <Icon className="h-5 w-5" />
                       </span>
@@ -247,7 +247,7 @@ export default function OnboardingIndustry() {
                         <motion.span
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4F46E5] text-white"
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1381FF] text-white"
                         >
                           <Check className="h-3.5 w-3.5" strokeWidth={3} />
                         </motion.span>
@@ -264,7 +264,7 @@ export default function OnboardingIndustry() {
               <button
                 type="button"
                 onClick={() => setShowMore((current) => !current)}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-[#4F46E5] transition hover:bg-indigo-50 hover:text-[#4338CA]"
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-[#1381FF] transition hover:bg-sky-50 hover:text-[#0F6FEA]"
               >
                 {showMore ? 'Show fewer' : 'Show more industries'}
               </button>
@@ -279,10 +279,10 @@ export default function OnboardingIndustry() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                className="rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm"
+                className="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm"
               >
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#4F46E5] text-white">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1381FF] text-white">
                     <selectedIndustryDetails.icon className="h-6 w-6" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -314,7 +314,7 @@ export default function OnboardingIndustry() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:-translate-y-0.5 hover:bg-[#4338CA] disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1381FF] text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:-translate-y-0.5 hover:bg-[#0F6FEA] disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   Continue to Profile

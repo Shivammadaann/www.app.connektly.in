@@ -96,7 +96,7 @@ export function AuthLayout({
             </a>
             <div className="ml-auto hidden text-[#64748B] sm:block">
               <span>{switchText}</span>
-              <Link to={switchHref} className="ml-1 font-semibold text-[#4F46E5] transition hover:text-[#4338CA]">
+              <Link to={switchHref} className="ml-1 font-semibold text-[#1381FF] transition hover:text-[#0F6FEA]">
                 {switchLabel}
               </Link>
             </div>
@@ -108,7 +108,7 @@ export function AuthLayout({
 
               <div className="mt-7 text-center text-sm text-[#64748B] sm:hidden">
                 <span>{switchText}</span>
-                <Link to={switchHref} className="ml-1 font-semibold text-[#4F46E5] transition hover:text-[#4338CA]">
+                <Link to={switchHref} className="ml-1 font-semibold text-[#1381FF] transition hover:text-[#0F6FEA]">
                   {switchLabel}
                 </Link>
               </div>
@@ -123,7 +123,7 @@ export function AuthLayout({
                   href={item.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[10px] font-medium text-[#64748B] transition hover:text-[#4F46E5] sm:text-xs"
+                  className="text-[10px] font-medium text-[#64748B] transition hover:text-[#1381FF] sm:text-xs"
                 >
                   {item.label}
                 </a>
@@ -201,7 +201,7 @@ export function InputField({ label, rightElement, className = '', id, ...props }
         <input
           id={inputId}
           {...props}
-          className={`h-9 w-full rounded-2xl border border-[#8B85FF] bg-white px-3 text-sm leading-5 text-[#0F172A] outline-none transition placeholder:text-[#94A3B8] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 sm:h-11 ${rightElement ? 'pr-11' : ''} ${className}`}
+          className={`h-9 w-full rounded-2xl border border-[#8AC2FF] bg-white px-3 text-sm leading-5 text-[#0F172A] outline-none transition placeholder:text-[#94A3B8] focus:border-[#1381FF] focus:ring-2 focus:ring-[#1381FF]/20 sm:h-11 ${rightElement ? 'pr-11' : ''} ${className}`}
         />
         {rightElement}
       </div>
@@ -298,7 +298,7 @@ export function SocialLoginButton({
       {...authMotion.buttonPress}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-9 min-w-0 w-full items-center justify-center gap-2 rounded-full border border-[#8B85FF] bg-white px-3 text-sm font-medium text-[#0F172A] transition hover:border-[#4F46E5] hover:bg-[#F8FAFC] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-4"
+      className="flex h-9 min-w-0 w-full items-center justify-center gap-2 rounded-full border border-[#8AC2FF] bg-white px-3 text-sm font-medium text-[#0F172A] transition hover:border-[#1381FF] hover:bg-[#F8FAFC] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-4"
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : provider === 'google' ? <GoogleIcon /> : <FacebookIcon />}
       <span>{children}</span>
@@ -332,7 +332,7 @@ export function PrimaryAuthButton({
       type="submit"
       {...authMotion.buttonPress}
       disabled={disabled}
-      className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-[#4F46E5] px-4 text-sm font-medium text-white transition hover:bg-[#4338CA] disabled:cursor-not-allowed disabled:bg-[#CBD5E1] sm:h-11"
+      className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-[#1381FF] px-4 text-sm font-medium text-white transition hover:bg-[#0F6FEA] disabled:cursor-not-allowed disabled:bg-[#CBD5E1] sm:h-11"
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
       {loading ? loadingLabel : children}
