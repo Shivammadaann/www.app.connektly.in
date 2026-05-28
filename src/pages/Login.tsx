@@ -17,6 +17,7 @@ import {
   AuthAlert,
   AuthForm,
   AuthLayout,
+  AuthTransitionScreen,
   Divider,
   InputField,
   PasswordField,
@@ -82,6 +83,24 @@ function getPasswordSetupHashType() {
   return type === 'invite' ? 'invite' : null;
 }
 
+function hasOAuthRedirectParams() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const hash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const hashParams = new URLSearchParams(hash);
+  const searchParams = new URLSearchParams(window.location.search);
+
+  return Boolean(
+    searchParams.get('code') ||
+      hashParams.get('access_token') ||
+      hashParams.get('refresh_token'),
+  );
+}
+
 function AuthModal({
   title,
   subtitle,
@@ -133,6 +152,7 @@ export default function Login() {
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoadingProvider, setOauthLoadingProvider] = useState<OAuthProvider | null>(null);
+  const [isResolvingAuthRedirect, setIsResolvingAuthRedirect] = useState(hasOAuthRedirectParams);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [forgotPasswordCaptchaToken, setForgotPasswordCaptchaToken] = useState<string | null>(null);
@@ -316,11 +336,16 @@ export default function Login() {
 
     getCachedSession().then((session) => {
       if (session && !shouldStayOnLogin && !hasPasswordRecoveryIntent()) {
+        setIsResolvingAuthRedirect(true);
         void continueAfterPasswordAccepted(session.user.email).catch(async (error) => {
           await supabase.auth.signOut().catch(() => null);
+          setIsResolvingAuthRedirect(false);
           setError(error instanceof Error ? error.message : 'Failed to verify account security.');
         });
+        return;
       }
+
+      setIsResolvingAuthRedirect(false);
     });
 
     const {
@@ -634,6 +659,15 @@ export default function Login() {
   };
 
   const canSubmitLogin = email.trim().length > 0 && password.length > 0;
+
+  if (isResolvingAuthRedirect) {
+    return (
+      <AuthTransitionScreen
+        title="Logging in"
+        description="Google confirmed your account. Taking you to Connektly now."
+      />
+    );
+  }
 
   return (
     <AuthLayout

@@ -9,6 +9,7 @@ import {
   AuthAlert,
   AuthForm,
   AuthLayout,
+  AuthTransitionScreen,
   Divider,
   InputField,
   PasswordField,
@@ -17,6 +18,24 @@ import {
 } from '../components/auth/AuthComponents';
 
 type OAuthProvider = 'google' | 'facebook';
+
+function hasOAuthRedirectParams() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const hash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const hashParams = new URLSearchParams(hash);
+  const searchParams = new URLSearchParams(window.location.search);
+
+  return Boolean(
+    searchParams.get('code') ||
+      hashParams.get('access_token') ||
+      hashParams.get('refresh_token'),
+  );
+}
 
 function getPasswordStrength(password: string) {
   const checks = [
@@ -55,11 +74,13 @@ export default function Signup() {
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoadingProvider, setOauthLoadingProvider] = useState<OAuthProvider | null>(null);
+  const [isResolvingAuthRedirect, setIsResolvingAuthRedirect] = useState(hasOAuthRedirectParams);
   const navigate = useNavigate();
 
   useEffect(() => {
     getCachedSession().then((session) => {
       if (session) {
+        setIsResolvingAuthRedirect(true);
         appApi
           .getBootstrap()
           .then((bootstrap) => {
@@ -68,7 +89,10 @@ export default function Signup() {
           .catch(() => {
             navigate('/dashboard/home');
           });
+        return;
       }
+
+      setIsResolvingAuthRedirect(false);
     });
   }, [navigate]);
 
@@ -178,6 +202,15 @@ export default function Signup() {
       setCaptchaResetKey((current) => current + 1);
     }
   };
+
+  if (isResolvingAuthRedirect) {
+    return (
+      <AuthTransitionScreen
+        title="Signing up"
+        description="Google confirmed your account. Preparing your Connektly workspace."
+      />
+    );
+  }
 
   return (
     <AuthLayout

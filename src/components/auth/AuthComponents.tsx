@@ -186,6 +186,36 @@ export function AuthAlert({
   );
 }
 
+export function AuthTransitionScreen({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-[#F8FAFC] px-6 text-[#0F172A]">
+      <motion.div
+        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+        className="flex w-full max-w-sm flex-col items-center text-center"
+      >
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-white shadow-lg shadow-sky-500/10 ring-1 ring-[#D8EBFF]">
+          <motion.span
+            animate={{ scale: [1, 1.16, 1], opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 1.35, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute inset-0 rounded-3xl bg-[#1381FF]/10"
+          />
+          <Loader2 className="relative h-8 w-8 animate-spin text-[#1381FF]" />
+        </div>
+        <h1 className="mt-6 text-2xl font-semibold leading-8 tracking-tight">{title}</h1>
+        <p className="mt-2 text-sm leading-5 text-[#64748B]">{description}</p>
+      </motion.div>
+    </div>
+  );
+}
+
 type InputFieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   rightElement?: ReactNode;
