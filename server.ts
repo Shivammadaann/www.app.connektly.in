@@ -4395,18 +4395,30 @@ async function exchangeInstagramLoginCode(
 type WhatsAppPhoneNumberSnapshot = {
   display_phone_number?: string;
   verified_name?: string;
+  new_display_name?: string;
   quality_rating?: string;
   whatsapp_business_manager_messaging_limit?: string;
   messaging_limit_tier?: string;
   name_status?: string;
+  new_name_status?: string;
   code_verification_status?: string;
   is_pin_enabled?: boolean;
 };
 
 const WHATSAPP_PHONE_NUMBER_BASE_FIELDS =
   'display_phone_number,verified_name,quality_rating,whatsapp_business_manager_messaging_limit,name_status';
+const WHATSAPP_PHONE_NUMBER_DISPLAY_NAME_FIELDS =
+  `${WHATSAPP_PHONE_NUMBER_BASE_FIELDS},new_display_name,new_name_status`;
 const WHATSAPP_PHONE_NUMBER_LIVE_STATUS_FIELDS =
+  `${WHATSAPP_PHONE_NUMBER_DISPLAY_NAME_FIELDS},code_verification_status,is_pin_enabled`;
+const WHATSAPP_PHONE_NUMBER_LEGACY_LIVE_STATUS_FIELDS =
   `${WHATSAPP_PHONE_NUMBER_BASE_FIELDS},code_verification_status,is_pin_enabled`;
+
+function isUnsupportedWhatsAppPhoneNumberFieldError(error: unknown, fields: readonly string[]) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error || '').toLowerCase();
+
+  return fields.some((field) => message.includes(field.toLowerCase()));
+}
 
 async function fetchPhoneNumber(accessToken: string, phoneNumberId: string) {
   try {
@@ -4418,19 +4430,55 @@ async function fetchPhoneNumber(accessToken: string, phoneNumberId: string) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message.toLowerCase() : String(error || '').toLowerCase();
+    if (isUnsupportedWhatsAppPhoneNumberFieldError(error, ['code_verification_status', 'is_pin_enabled'])) {
+      try {
+        return await metaRequest<WhatsAppPhoneNumberSnapshot>({
+          accessToken,
+          path: phoneNumberId,
+          query: {
+            fields: WHATSAPP_PHONE_NUMBER_DISPLAY_NAME_FIELDS,
+          },
+        });
+      } catch (displayNameFieldError) {
+        if (!isUnsupportedWhatsAppPhoneNumberFieldError(displayNameFieldError, ['new_display_name', 'new_name_status'])) {
+          throw displayNameFieldError;
+        }
 
-    if (!message.includes('code_verification_status') && !message.includes('is_pin_enabled')) {
-      throw error;
+        return metaRequest<WhatsAppPhoneNumberSnapshot>({
+          accessToken,
+          path: phoneNumberId,
+          query: {
+            fields: WHATSAPP_PHONE_NUMBER_BASE_FIELDS,
+          },
+        });
+      }
     }
 
-    return metaRequest<WhatsAppPhoneNumberSnapshot>({
-      accessToken,
-      path: phoneNumberId,
-      query: {
-        fields: WHATSAPP_PHONE_NUMBER_BASE_FIELDS,
-      },
-    });
+    if (isUnsupportedWhatsAppPhoneNumberFieldError(error, ['new_display_name', 'new_name_status'])) {
+      try {
+        return await metaRequest<WhatsAppPhoneNumberSnapshot>({
+          accessToken,
+          path: phoneNumberId,
+          query: {
+            fields: WHATSAPP_PHONE_NUMBER_LEGACY_LIVE_STATUS_FIELDS,
+          },
+        });
+      } catch (legacyLiveStatusError) {
+        if (!isUnsupportedWhatsAppPhoneNumberFieldError(legacyLiveStatusError, ['code_verification_status', 'is_pin_enabled'])) {
+          throw legacyLiveStatusError;
+        }
+
+        return metaRequest<WhatsAppPhoneNumberSnapshot>({
+          accessToken,
+          path: phoneNumberId,
+          query: {
+            fields: WHATSAPP_PHONE_NUMBER_BASE_FIELDS,
+          },
+        });
+      }
+    }
+
+    throw error;
   }
 }
 
@@ -4758,10 +4806,30 @@ function shouldAutoRegisterApprovedDisplayName(
   const displayNameRequest = isRecord(metadata.displayNameRequest)
     ? (metadata.displayNameRequest as Record<string, unknown>)
     : {};
-  const status =
-    getDisplayNameStatus(phoneSnapshot.name_status) ||
-    getDisplayNameStatus(displayNameApproval.status) ||
-    getDisplayNameStatus(displayNameRequest.status);
+  const requestedName =
+    normalizeOptionalString(displayNameRequest.requestedName) ||
+    normalizeOptionalString(phoneSnapshot.verified_name);
+  const verifiedName = normalizeOptionalString(phoneSnapshot.verified_name);
+  const phoneStatus = getDisplayNameStatus(phoneSnapshot.name_status);
+  const approvalStatus = getDisplayNameStatus(displayNameApproval.status);
+  const requestStatus = getDisplayNameStatus(displayNameRequest.status);
+  const requestMatchesCurrentName = Boolean(
+    requestedName &&
+    verifiedName &&
+    requestedName === verifiedName &&
+    phoneStatus === 'APPROVED',
+  );
+  const status = requestedName
+    ? requestStatus === 'APPROVED' || requestMatchesCurrentName
+      ? 'APPROVED'
+      : requestStatus || phoneStatus || approvalStatus
+    : approvalStatus === 'APPROVED' || phoneStatus === 'APPROVED'
+      ? 'APPROVED'
+      : phoneStatus || approvalStatus || requestStatus;
+
+  if (requestedName && isDisplayNameReviewStatus(requestStatus)) {
+    return false;
+  }
 
   if (status !== 'APPROVED') {
     return false;
@@ -4780,9 +4848,6 @@ function shouldAutoRegisterApprovedDisplayName(
     }
   }
 
-  const requestedName =
-    normalizeOptionalString(displayNameRequest.requestedName) ||
-    normalizeOptionalString(phoneSnapshot.verified_name);
   const registeredName = normalizeOptionalString(displayNameApproval.registeredName);
   const registeredAt = normalizeOptionalString(displayNameApproval.registeredAt);
   const registrationReference =
@@ -6374,7 +6439,7 @@ async function updateWhatsAppDisplayNameForChannel(args: {
         displayNameRequest: {
           requestedName: displayName,
           requestedAt,
-          status: 'SUBMITTED',
+          status: 'PENDING_REVIEW',
           lastError: null,
           registeredAt: null,
           registeredName: null,
@@ -6385,7 +6450,7 @@ async function updateWhatsAppDisplayNameForChannel(args: {
           ...(isRecord(currentMetadata.displayNameApproval)
             ? (currentMetadata.displayNameApproval as Record<string, unknown>)
             : {}),
-          status: 'SUBMITTED',
+          status: 'PENDING_REVIEW',
           lastCheckedAt: requestedAt,
           registeredAt: null,
           registeredName: null,
@@ -12767,7 +12832,7 @@ function mapBusinessProfile(
     about: normalizeOptionalString(raw.about),
     address: normalizeOptionalString(raw.address),
     description: normalizeOptionalString(raw.description),
-    displayNameStatus: normalizeOptionalString(phoneSnapshot?.name_status),
+    displayNameStatus: getBusinessProfileDisplayNameStatus(channelRow.metadata, phoneSnapshot),
     displayNameRequest: getStoredDisplayNameRequest(channelRow.metadata),
     twoStepVerification: mapStoredTwoStepVerificationStatus(channelRow.metadata),
     officialBusinessAccountStatus: officialBusinessAccountStatus || null,
@@ -14410,6 +14475,82 @@ function getStoredDisplayNameRequest(metadata: unknown): WhatsAppDisplayNameRequ
     status: getDisplayNameStatus(request.status),
     lastError: normalizeOptionalString(request.lastError),
   };
+}
+
+function getDisplayNameRequestStatusFromPhoneSnapshot(
+  displayNameRequest: Record<string, unknown> | null,
+  phoneSnapshot?: {
+    verified_name?: string;
+    name_status?: string;
+    new_display_name?: string;
+    new_name_status?: string;
+  } | null,
+) {
+  if (!displayNameRequest || !phoneSnapshot) {
+    return null;
+  }
+
+  const requestedName = normalizeOptionalString(displayNameRequest.requestedName);
+  const newDisplayName = normalizeOptionalString(phoneSnapshot.new_display_name);
+  const newNameStatus = getDisplayNameStatus(phoneSnapshot.new_name_status);
+
+  if (requestedName && newDisplayName && requestedName === newDisplayName && newNameStatus) {
+    return newNameStatus;
+  }
+
+  const verifiedName = normalizeOptionalString(phoneSnapshot.verified_name);
+  const currentNameStatus = getDisplayNameStatus(phoneSnapshot.name_status);
+
+  if (requestedName && verifiedName && requestedName === verifiedName && currentNameStatus === 'APPROVED') {
+    return currentNameStatus;
+  }
+
+  return null;
+}
+
+function isDisplayNameReviewStatus(status: string | null | undefined) {
+  const normalized = (status || '').toUpperCase();
+
+  return (
+    normalized.includes('SUBMITTED') ||
+    normalized.includes('PENDING') ||
+    normalized.includes('REVIEW') ||
+    normalized.includes('DEFERRED')
+  );
+}
+
+function getBusinessProfileDisplayNameStatus(
+  metadata: unknown,
+  phoneSnapshot?: {
+    verified_name?: string;
+    name_status?: string;
+    new_display_name?: string;
+    new_name_status?: string;
+  } | null,
+) {
+  const request = getStoredDisplayNameRequest(metadata);
+  const liveRequestStatus = isRecord(metadata) && isRecord(metadata.displayNameRequest)
+    ? getDisplayNameRequestStatusFromPhoneSnapshot(
+        metadata.displayNameRequest as Record<string, unknown>,
+        phoneSnapshot,
+      )
+    : null;
+  const requestStatus = liveRequestStatus || request?.status || null;
+
+  if (requestStatus === 'APPROVED') {
+    return requestStatus;
+  }
+
+  if (
+    requestStatus &&
+    (isDisplayNameReviewStatus(requestStatus) ||
+      requestStatus.includes('REJECT') ||
+      requestStatus.includes('DECLIN'))
+  ) {
+    return requestStatus;
+  }
+
+  return getDisplayNameStatus(phoneSnapshot?.name_status) || requestStatus;
 }
 
 async function createIncomingMessageNotification(args: {
@@ -20446,6 +20587,200 @@ app.get('/api/meta/webhook', (req, res) => {
   res.status(403).send('Invalid verify token.');
 });
 
+async function findMetaChannelForPhoneNumberNameUpdate(args: {
+  wabaId?: string | null;
+  displayPhoneNumber?: string | null;
+}) {
+  const normalizedDisplayPhoneNumber = normalizePhoneLike(args.displayPhoneNumber);
+  let query = adminSupabase.from('meta_channels').select('*');
+
+  if (args.wabaId) {
+    query = query.eq('waba_id', args.wabaId);
+  } else if (args.displayPhoneNumber) {
+    query = query.eq('display_phone_number', args.displayPhoneNumber);
+  } else {
+    return null;
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = ((data || []) as Record<string, unknown>[]) || [];
+  const matchedRow = normalizedDisplayPhoneNumber
+    ? rows.find((row) => normalizePhoneLike(row.display_phone_number) === normalizedDisplayPhoneNumber)
+    : null;
+
+  return matchedRow || (rows.length === 1 ? rows[0] : null);
+}
+
+async function handlePhoneNumberNameUpdateWebhook(args: {
+  entryId?: string | null;
+  value: Record<string, unknown>;
+}) {
+  const decision = getDisplayNameStatus(args.value.decision);
+
+  if (!decision) {
+    return;
+  }
+
+  const displayPhoneNumber = normalizeOptionalString(args.value.display_phone_number);
+  const requestedVerifiedName = normalizeOptionalString(args.value.requested_verified_name);
+  const rejectionReason = normalizeOptionalString(args.value.rejection_reason);
+  const receivedAt = new Date().toISOString();
+  const channel = await findMetaChannelForPhoneNumberNameUpdate({
+    wabaId: normalizeOptionalIdentifier(args.entryId),
+    displayPhoneNumber,
+  });
+
+  if (!channel) {
+    console.warn('Display name webhook received without a matching WhatsApp channel:', {
+      wabaId: normalizeOptionalIdentifier(args.entryId),
+      displayPhoneNumber,
+      decision,
+      requestedVerifiedName,
+    });
+    return;
+  }
+
+  const userId = String(channel.user_id);
+  const accessToken = decryptAccessToken(String(channel.access_token_ciphertext || ''));
+  let phoneSnapshot: WhatsAppPhoneNumberSnapshot | null = null;
+
+  try {
+    phoneSnapshot = await fetchPhoneNumber(accessToken, String(channel.phone_number_id));
+  } catch (error) {
+    console.error('Failed to refresh phone number after display name webhook:', error);
+  }
+
+  const currentMetadata = getMetaChannelMetadataRecord(channel);
+  const currentDisplayNameApproval = isRecord(currentMetadata.displayNameApproval)
+    ? (currentMetadata.displayNameApproval as Record<string, unknown>)
+    : {};
+  const currentDisplayNameRequest = isRecord(currentMetadata.displayNameRequest)
+    ? (currentMetadata.displayNameRequest as Record<string, unknown>)
+    : {};
+  const requestedName =
+    requestedVerifiedName ||
+    normalizeOptionalString(currentDisplayNameRequest.requestedName) ||
+    normalizeOptionalString(phoneSnapshot?.verified_name);
+  const nextDisplayNameApproval: Record<string, unknown> = {
+    ...currentDisplayNameApproval,
+    status: decision,
+    requestedName: requestedName || normalizeOptionalString(currentDisplayNameApproval.requestedName),
+    rejectionReason: decision.includes('REJECT') || decision.includes('DECLIN') ? rejectionReason : null,
+    lastCheckedAt: receivedAt,
+    webhookReceivedAt: receivedAt,
+  };
+
+  if (decision === 'APPROVED') {
+    nextDisplayNameApproval.approvedAt =
+      normalizeOptionalString(currentDisplayNameApproval.approvedAt) || receivedAt;
+  }
+
+  if (decision.includes('REJECT') || decision.includes('DECLIN')) {
+    nextDisplayNameApproval.rejectedAt = receivedAt;
+  }
+
+  const nextDisplayNameRequest =
+    requestedName || Object.keys(currentDisplayNameRequest).length > 0
+      ? {
+          ...currentDisplayNameRequest,
+          requestedName: requestedName || normalizeOptionalString(currentDisplayNameRequest.requestedName),
+          requestedAt: normalizeOptionalString(currentDisplayNameRequest.requestedAt) || receivedAt,
+          status: decision,
+          approvedAt:
+            decision === 'APPROVED'
+              ? normalizeOptionalString(currentDisplayNameRequest.approvedAt) || receivedAt
+              : normalizeOptionalString(currentDisplayNameRequest.approvedAt),
+          rejectedAt:
+            decision.includes('REJECT') || decision.includes('DECLIN')
+              ? receivedAt
+              : normalizeOptionalString(currentDisplayNameRequest.rejectedAt),
+          rejectionReason: decision.includes('REJECT') || decision.includes('DECLIN') ? rejectionReason : null,
+          lastCheckedAt: receivedAt,
+          lastError: decision.includes('REJECT') || decision.includes('DECLIN') ? rejectionReason : null,
+        }
+      : null;
+
+  const { data: updatedChannel, error } = await adminSupabase
+    .from('meta_channels')
+    .update({
+      display_phone_number:
+        phoneSnapshot?.display_phone_number ||
+        displayPhoneNumber ||
+        normalizeOptionalString(channel.display_phone_number),
+      verified_name:
+        phoneSnapshot?.verified_name ||
+        normalizeOptionalString(channel.verified_name),
+      quality_rating:
+        phoneSnapshot?.quality_rating ||
+        normalizeOptionalString(channel.quality_rating),
+      messaging_limit_tier:
+        getNormalizedMessagingLimitTier(phoneSnapshot || undefined) ||
+        normalizeOptionalString(channel.messaging_limit_tier),
+      metadata: {
+        ...currentMetadata,
+        displayNameApproval: nextDisplayNameApproval,
+        ...(nextDisplayNameRequest ? { displayNameRequest: nextDisplayNameRequest } : {}),
+      },
+      last_synced_at: receivedAt,
+      updated_at: receivedAt,
+    })
+    .eq('user_id', userId)
+    .eq('id', channel.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const nextChannel = updatedChannel as Record<string, unknown>;
+
+  if (decision === 'APPROVED') {
+    const verifiedName =
+      requestedName ||
+      normalizeOptionalString(phoneSnapshot?.verified_name) ||
+      normalizeOptionalString(nextChannel.verified_name) ||
+      'Your WhatsApp display name';
+    const displayPhone =
+      displayPhoneNumber ||
+      normalizeOptionalString(phoneSnapshot?.display_phone_number) ||
+      normalizeOptionalString(nextChannel.display_phone_number) ||
+      'your connected sender';
+
+    await createUserNotification({
+      userId,
+      type: 'display_name_approved',
+      title: 'WhatsApp display name approved',
+      body: `${verifiedName} is now approved for ${displayPhone}.`,
+      targetPath: '/dashboard/profile',
+      metadata: {
+        phoneNumberId: String(nextChannel.phone_number_id),
+        verifiedName,
+        displayPhoneNumber: displayPhone,
+        status: decision,
+      },
+      dedupeKey: `display-name-approved:${String(nextChannel.phone_number_id)}:${verifiedName}`,
+    });
+
+    await maybeAutoRegisterApprovedDisplayName({
+      userId,
+      row: nextChannel,
+      accessToken,
+      phone:
+        phoneSnapshot || {
+          display_phone_number: displayPhone,
+          verified_name: verifiedName,
+          name_status: decision,
+        },
+    });
+  }
+}
+
 app.post('/api/meta/webhook', async (req, res) => {
   try {
     const payload = req.body as {
@@ -20461,6 +20796,14 @@ app.post('/api/meta/webhook', async (req, res) => {
     for (const entry of payload.entry || []) {
       for (const change of entry.changes || []) {
         const value = change.value;
+
+        if (change.field === 'phone_number_name_update' && value && isRecord(value)) {
+          await handlePhoneNumberNameUpdateWebhook({
+            entryId: normalizeOptionalIdentifier(entry.id),
+            value,
+          });
+          continue;
+        }
 
         const metadata = value && isRecord(value.metadata) ? (value.metadata as Record<string, unknown>) : null;
         const phoneNumberId = normalizeOptionalString(metadata?.phone_number_id);
@@ -23894,32 +24237,39 @@ app.get('/api/meta/business-profile', async (req, res) => {
       getDisplayNameStatus(currentDisplayNameApproval.status) ||
       getStoredDisplayNameApprovalStatus(row.metadata);
     const nextDisplayNameStatus = getDisplayNameStatus(snapshot.phone.name_status);
+    const nextDisplayNameRequestStatus = getDisplayNameRequestStatusFromPhoneSnapshot(
+      currentDisplayNameRequest,
+      snapshot.phone,
+    );
 
-    if (nextDisplayNameStatus) {
+    if (nextDisplayNameStatus || nextDisplayNameRequestStatus) {
+      const checkedAt = new Date().toISOString();
       const approvedAt =
         nextDisplayNameStatus === 'APPROVED'
           ? normalizeOptionalString(currentDisplayNameApproval.approvedAt) ||
-            new Date().toISOString()
+            checkedAt
           : null;
       const nextMetadata = {
         ...currentMetadata,
         displayNameApproval: {
           ...currentDisplayNameApproval,
-          status: nextDisplayNameStatus,
+          status: nextDisplayNameStatus || getDisplayNameStatus(currentDisplayNameApproval.status),
           approvedAt,
-          lastCheckedAt: new Date().toISOString(),
+          lastCheckedAt: checkedAt,
         },
         ...(currentDisplayNameRequest
           ? {
               displayNameRequest: {
                 ...currentDisplayNameRequest,
-                status: nextDisplayNameStatus,
+                status:
+                  nextDisplayNameRequestStatus ||
+                  getDisplayNameStatus(currentDisplayNameRequest.status),
                 approvedAt:
-                  nextDisplayNameStatus === 'APPROVED'
+                  nextDisplayNameRequestStatus === 'APPROVED'
                     ? normalizeOptionalString(currentDisplayNameRequest.approvedAt) ||
-                      new Date().toISOString()
+                      checkedAt
                     : normalizeOptionalString(currentDisplayNameRequest.approvedAt),
-                lastCheckedAt: new Date().toISOString(),
+                lastCheckedAt: checkedAt,
               },
             }
           : {}),
