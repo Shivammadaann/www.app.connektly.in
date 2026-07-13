@@ -5,7 +5,9 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type ChangeEvent,
+  type PointerEvent,
   type ReactNode,
+  type WheelEvent,
 } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { LucideIcon } from 'lucide-react';
@@ -13,9 +15,12 @@ import {
   ArrowLeft,
   BadgeCheck,
   Building2,
+  Camera,
+  Check,
   CheckCircle2,
+  Eye,
+  FolderOpen,
   Globe,
-  Image,
   Link as LinkIcon,
   Mail,
   MapPin,
@@ -26,12 +31,17 @@ import {
   Share2,
   ShieldCheck,
   Store,
+  Trash2,
   UserCircle,
+  X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
+import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import defaultProfilePictureUrl from '../../assets/profile.png';
 import type {
   DashboardBootstrap,
@@ -117,6 +127,94 @@ const fieldInputClassName =
   'min-h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#1381FF]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]';
 const fieldTextareaClassName =
   'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#1381FF]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]';
+const MIN_PHOTO_EDITOR_ZOOM = 1;
+const MAX_PHOTO_EDITOR_ZOOM = 3;
+const PROFILE_PHOTO_OUTPUT_SIZE = 640;
+
+interface PhotoEditorDragState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  initialOffset: { x: number; y: number };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getBoundedPhotoOffset(
+  offset: { x: number; y: number },
+  zoom: number,
+  previewSize: number,
+) {
+  const maxOffset = Math.max(0, ((zoom - 1) * previewSize) / 2);
+
+  return {
+    x: clamp(offset.x, -maxOffset, maxOffset),
+    y: clamp(offset.y, -maxOffset, maxOffset),
+  };
+}
+
+function loadEditorImage(sourceUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Unable to load the selected image.'));
+    image.src = sourceUrl;
+  });
+}
+
+async function createAdjustedProfilePhotoFile({
+  sourceUrl,
+  fileName,
+  zoom,
+  offset,
+  previewSize,
+}: {
+  sourceUrl: string;
+  fileName: string;
+  zoom: number;
+  offset: { x: number; y: number };
+  previewSize: number;
+}) {
+  const image = await loadEditorImage(sourceUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = PROFILE_PHOTO_OUTPUT_SIZE;
+  canvas.height = PROFILE_PHOTO_OUTPUT_SIZE;
+
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('Unable to prepare the adjusted profile photo.');
+  }
+
+  const coverScale = Math.max(
+    PROFILE_PHOTO_OUTPUT_SIZE / image.naturalWidth,
+    PROFILE_PHOTO_OUTPUT_SIZE / image.naturalHeight,
+  ) * zoom;
+  const scaledWidth = image.naturalWidth * coverScale;
+  const scaledHeight = image.naturalHeight * coverScale;
+  const outputOffsetScale = previewSize > 0 ? PROFILE_PHOTO_OUTPUT_SIZE / previewSize : 1;
+  const drawX = (PROFILE_PHOTO_OUTPUT_SIZE - scaledWidth) / 2 + offset.x * outputOffsetScale;
+  const drawY = (PROFILE_PHOTO_OUTPUT_SIZE - scaledHeight) / 2 + offset.y * outputOffsetScale;
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, PROFILE_PHOTO_OUTPUT_SIZE, PROFILE_PHOTO_OUTPUT_SIZE);
+  context.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((nextBlob) => {
+      if (nextBlob) {
+        resolve(nextBlob);
+      } else {
+        reject(new Error('Unable to export the adjusted profile photo.'));
+      }
+    }, 'image/jpeg', 0.92);
+  });
+  const normalizedFileName = `${fileName.replace(/\.[^.]+$/, '') || 'profile-photo'}.jpg`;
+
+  return new File([blob], normalizedFileName, { type: 'image/jpeg' });
+}
 
 function mapForm(profile: WhatsAppBusinessProfile | null): BusinessProfileFormState {
   return {
@@ -356,6 +454,7 @@ function ProfileSection({
   action,
   children,
   shouldReduceMotion,
+  className = '',
 }: {
   title: string;
   description?: string;
@@ -363,12 +462,13 @@ function ProfileSection({
   action?: ReactNode;
   children: ReactNode;
   shouldReduceMotion: boolean | null;
+  className?: string;
 }) {
   return (
     <motion.section
       variants={slideUp}
       whileHover={shouldReduceMotion ? undefined : { y: -1 }}
-      className="border-b border-gray-100 py-6 first:pt-0 last:border-b-0 last:pb-0"
+      className={`relative border-b border-gray-100 py-6 first:pt-0 last:border-b-0 last:pb-0 ${className}`}
     >
       <SectionHeader title={title} description={description} icon={icon} action={action} />
       {children}
@@ -435,30 +535,7 @@ function SnapshotRow({
   );
 }
 
-function NoticeBanner({
-  tone,
-  children,
-}: {
-  tone: 'error' | 'success';
-  children: ReactNode;
-}) {
-  const toneClassName =
-    tone === 'error'
-      ? 'border-red-100 bg-red-50 text-red-700'
-      : 'border-emerald-100 bg-emerald-50 text-emerald-700';
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -6 }}
-      transition={{ duration: 0.18, ease: MOTION_EASE }}
-      className={`rounded-2xl border px-4 py-3 text-sm ${toneClassName}`}
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 function LoadingBlock({ className }: { className: string }) {
   return <div className={`animate-pulse rounded-2xl bg-slate-200/80 ${className}`} />;
@@ -507,9 +584,20 @@ export default function BusinessProfile() {
   const [isDisplayNameDirty, setIsDisplayNameDirty] = useState(false);
   const [isSubmittingDisplayName, setIsSubmittingDisplayName] = useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
+  const [photoEditorSourceUrl, setPhotoEditorSourceUrl] = useState<string | null>(null);
+  const [photoEditorFileName, setPhotoEditorFileName] = useState('profile-photo.jpg');
+  const [photoEditorZoom, setPhotoEditorZoom] = useState(MIN_PHOTO_EDITOR_ZOOM);
+  const [photoEditorOffset, setPhotoEditorOffset] = useState({ x: 0, y: 0 });
+  const [photoEditorDragState, setPhotoEditorDragState] = useState<PhotoEditorDragState | null>(null);
+  const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [dismissedBusinessProfileError, setDismissedBusinessProfileError] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const takePhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const photoMenuRef = useRef<HTMLDivElement | null>(null);
+  const photoEditorPreviewRef = useRef<HTMLDivElement | null>(null);
 
   const serverForm = useMemo(() => mapForm(businessProfile), [businessProfile]);
   const currentDisplayName =
@@ -542,6 +630,58 @@ export default function BusinessProfile() {
       URL.revokeObjectURL(avatarPreviewUrl);
     };
   }, [avatarPreviewUrl]);
+
+  useEffect(() => {
+    if (!photoEditorSourceUrl?.startsWith('blob:')) {
+      return;
+    }
+
+    return () => {
+      URL.revokeObjectURL(photoEditorSourceUrl);
+    };
+  }, [photoEditorSourceUrl]);
+
+  useEffect(() => {
+    if (!photoEditorSourceUrl) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || isUploadingPhoto) {
+        return;
+      }
+
+      event.preventDefault();
+      setPhotoEditorDragState(null);
+      setPhotoEditorSourceUrl(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isUploadingPhoto, photoEditorSourceUrl]);
+
+  useEffect(() => {
+    if (!isPhotoMenuOpen) {
+      return;
+    }
+
+    const handleWindowMouseDown = (event: MouseEvent) => {
+      if (photoMenuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsPhotoMenuOpen(false);
+    };
+
+    window.addEventListener('mousedown', handleWindowMouseDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handleWindowMouseDown);
+    };
+  }, [isPhotoMenuOpen]);
 
   useEffect(() => {
     if (!isDisplayNameDirty) {
@@ -590,6 +730,7 @@ export default function BusinessProfile() {
     }
 
     setAvatarPreviewUrl(nextProfile.profilePictureUrl || null);
+    setIsPhotoRemoved(false);
     setSuccess(
       isDirty
         ? 'Latest Meta data synced in the background. Your unsaved edits were preserved.'
@@ -633,7 +774,7 @@ export default function BusinessProfile() {
     }
   };
 
-  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
 
@@ -650,20 +791,127 @@ export default function BusinessProfile() {
 
     setError(null);
     setSuccess(null);
-    setIsUploadingPhoto(true);
-    setAvatarPreviewUrl(URL.createObjectURL(file));
+    setIsPhotoMenuOpen(false);
+    setPhotoEditorSourceUrl(URL.createObjectURL(file));
+    setPhotoEditorFileName(file.name || 'profile-photo.jpg');
+    setPhotoEditorZoom(MIN_PHOTO_EDITOR_ZOOM);
+    setPhotoEditorOffset({ x: 0, y: 0 });
+    setPhotoEditorDragState(null);
+    input.value = '';
+  };
+
+  const handleViewPhoto = () => {
+    const nextPhotoUrl = previewAvatarUrl || defaultProfilePictureUrl;
+
+    setIsPhotoMenuOpen(false);
+    window.open(nextPhotoUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleRemovePhoto = () => {
+    setAvatarPreviewUrl(null);
+    setIsPhotoRemoved(true);
+    setIsPhotoMenuOpen(false);
+    setPhotoEditorSourceUrl(null);
+    setSuccess('Profile photo removed from this preview. Upload a new photo to replace it in Meta.');
+    setError(null);
+  };
+
+  const getPhotoEditorPreviewSize = () => photoEditorPreviewRef.current?.getBoundingClientRect().width || 360;
+
+  const handlePhotoEditorPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (isUploadingPhoto) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setPhotoEditorDragState({
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      initialOffset: photoEditorOffset,
+    });
+  };
+
+  const handlePhotoEditorPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!photoEditorDragState || photoEditorDragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const previewSize = getPhotoEditorPreviewSize();
+    setPhotoEditorOffset(
+      getBoundedPhotoOffset({
+        x: photoEditorDragState.initialOffset.x + event.clientX - photoEditorDragState.startX,
+        y: photoEditorDragState.initialOffset.y + event.clientY - photoEditorDragState.startY,
+      }, photoEditorZoom, previewSize),
+    );
+  };
+
+  const handlePhotoEditorPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (photoEditorDragState?.pointerId === event.pointerId) {
+      setPhotoEditorDragState(null);
+    }
+  };
+
+  const handlePhotoEditorZoomChange = (delta: number) => {
+    const previewSize = getPhotoEditorPreviewSize();
+
+    setPhotoEditorZoom((currentZoom) => {
+      const nextZoom = clamp(currentZoom + delta, MIN_PHOTO_EDITOR_ZOOM, MAX_PHOTO_EDITOR_ZOOM);
+      setPhotoEditorOffset((currentOffset) => getBoundedPhotoOffset(currentOffset, nextZoom, previewSize));
+      return nextZoom;
+    });
+  };
+
+  const handlePhotoEditorWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (isUploadingPhoto) {
+      return;
+    }
+
+    event.preventDefault();
+    handlePhotoEditorZoomChange(event.deltaY > 0 ? -0.1 : 0.1);
+  };
+
+  const handleClosePhotoEditor = () => {
+    if (isUploadingPhoto) {
+      return;
+    }
+
+    setPhotoEditorDragState(null);
+    setPhotoEditorSourceUrl(null);
+  };
+
+  const handlePhotoEditorUpload = async () => {
+    if (!photoEditorSourceUrl) {
+      return;
+    }
 
     try {
-      const response = await appApi.uploadBusinessProfilePhoto(file);
+      setIsUploadingPhoto(true);
+      setError(null);
+      setSuccess(null);
+
+      const adjustedFile = await createAdjustedProfilePhotoFile({
+        sourceUrl: photoEditorSourceUrl,
+        fileName: photoEditorFileName,
+        zoom: photoEditorZoom,
+        offset: photoEditorOffset,
+        previewSize: getPhotoEditorPreviewSize(),
+      });
+      const localPreviewUrl = URL.createObjectURL(adjustedFile);
+
+      setAvatarPreviewUrl(localPreviewUrl);
+      setIsPhotoRemoved(false);
+
+      const response = await appApi.uploadBusinessProfilePhoto(adjustedFile);
       setBusinessProfile(() => response.profile);
-      setAvatarPreviewUrl(response.profile.profilePictureUrl || null);
+      setAvatarPreviewUrl(response.profile.profilePictureUrl || localPreviewUrl);
+      setPhotoEditorSourceUrl(null);
       setSuccess('Profile photo updated in Meta.');
     } catch (uploadError) {
       setAvatarPreviewUrl(null);
       setError(uploadError instanceof Error ? uploadError.message : 'Failed to update profile photo.');
     } finally {
       setIsUploadingPhoto(false);
-      input.value = '';
     }
   };
 
@@ -685,6 +933,7 @@ export default function BusinessProfile() {
       setBusinessProfile(() => response.profile);
       setForm(mapForm(response.profile));
       setAvatarPreviewUrl(response.profile.profilePictureUrl || null);
+      setIsPhotoRemoved(false);
       setIsDirty(false);
       setSuccess('Business profile updated in Meta.');
     } catch (saveError) {
@@ -726,8 +975,10 @@ export default function BusinessProfile() {
   const previewEmail = form.email.trim();
   const previewAddress = form.address.trim();
   const previewWebsites = [form.website1, form.website2].map((value) => value.trim()).filter(Boolean);
-  const previewAvatarUrl = avatarPreviewUrl || businessProfile?.profilePictureUrl;
-  const activeError = error || businessProfileError;
+  const previewAvatarUrl = isPhotoRemoved ? null : avatarPreviewUrl || businessProfile?.profilePictureUrl;
+  const activeBusinessProfileError =
+    businessProfileError && businessProfileError !== dismissedBusinessProfileError ? businessProfileError : null;
+  const activeError = error || activeBusinessProfileError;
   const showSkeleton = isBusinessProfileLoading && !businessProfile;
   const displayNameStatus = getDisplayNameStatusMeta(businessProfile?.displayNameStatus);
   const displayNameRequest = businessProfile?.displayNameRequest || null;
@@ -758,18 +1009,36 @@ export default function BusinessProfile() {
         </ActionButton>
       </motion.div>
 
-      <AnimatePresence initial={false}>
-        {activeError ? (
-          <NoticeBanner tone="error">
-            {activeError}
-          </NoticeBanner>
-        ) : null}
-        {!activeError && success ? (
-          <NoticeBanner tone="success">
-            {success}
-          </NoticeBanner>
-        ) : null}
-      </AnimatePresence>
+      <FeedbackPopupStack
+        items={
+          activeError
+            ? [
+                {
+                  id: `business-profile-error:${activeError}`,
+                  message: activeError,
+                  tone: 'error',
+                  onDismiss: () => {
+                    if (error) {
+                      setError(null);
+                      return;
+                    }
+
+                    setDismissedBusinessProfileError(activeBusinessProfileError);
+                  },
+                },
+              ]
+            : success
+              ? [
+                  {
+                    id: `business-profile-success:${success}`,
+                    message: success,
+                    tone: 'success',
+                    onDismiss: () => setSuccess(null),
+                  },
+                ]
+              : []
+        }
+      />
 
       {showSkeleton ? (
         <BusinessProfileSkeleton />
@@ -782,41 +1051,86 @@ export default function BusinessProfile() {
                   description="Profile image and display name shown on WhatsApp."
                   icon={UserCircle}
                   shouldReduceMotion={shouldReduceMotion}
+                  className={isPhotoMenuOpen ? 'z-50' : 'z-10'}
                   action={<StatusSummary label={displayNameStatus.label} className={displayNameStatus.badgeClassName} />}
                 >
-                  <div className="grid gap-6 lg:grid-cols-[168px_minmax(0,1fr)]">
-                    <div>
-                      <div className="flex items-center gap-4 lg:block">
-                        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-100">
-                          <img
-                            src={previewAvatarUrl || defaultProfilePictureUrl}
-                            alt={previewAvatarUrl ? previewName : `${previewName} default profile`}
-                            className="h-full w-full object-cover"
-                            draggable={false}
-                            onError={(event) => {
-                              event.currentTarget.src = defaultProfilePictureUrl;
-                            }}
-                          />
-                        </div>
-                        <div className="min-w-0 lg:mt-4">
-                          <ActionButton
-                            onClick={() => photoInputRef.current?.click()}
-                            disabled={isUploadingPhoto || isSaving}
-                            className="px-3"
-                          >
-                            <Image className={`h-4 w-4 ${isUploadingPhoto ? 'animate-pulse' : ''}`} />
-                            {isUploadingPhoto ? 'Uploading...' : 'Change photo'}
-                          </ActionButton>
-                          <p className="mt-2 max-w-[14rem] text-xs leading-5 text-gray-500">PNG or JPEG only.</p>
-                        </div>
+                  <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
+                    <div className="flex justify-center lg:justify-start">
+                      <div ref={photoMenuRef} className="relative z-50 flex flex-col items-center">
+                        <button
+                          type="button"
+                          onClick={() => setIsPhotoMenuOpen((current) => !current)}
+                          disabled={isUploadingPhoto || isSaving}
+                          className="group relative h-32 w-32 rounded-full outline-none transition duration-200 hover:scale-[1.02] focus-visible:ring-4 focus-visible:ring-[#1381FF]/20 disabled:cursor-not-allowed disabled:opacity-70"
+                          aria-haspopup="menu"
+                          aria-expanded={isPhotoMenuOpen}
+                        >
+                          <span className="block h-full w-full overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-100">
+                            <img
+                              src={previewAvatarUrl || defaultProfilePictureUrl}
+                              alt={previewAvatarUrl ? previewName : `${previewName} default profile`}
+                              className="h-full w-full object-cover"
+                              draggable={false}
+                              onError={(event) => {
+                                event.currentTarget.src = defaultProfilePictureUrl;
+                              }}
+                            />
+                          </span>
+                          <span className="absolute -bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-[#00A884] shadow-sm transition group-hover:border-[#00A884]/40 group-hover:bg-[#f0fff8]">
+                            <Camera className={`h-4 w-4 ${isUploadingPhoto ? 'animate-pulse' : ''}`} />
+                            {isUploadingPhoto ? 'Uploading' : 'Edit'}
+                          </span>
+                        </button>
+
+                        <p className="mt-7 text-center text-xs leading-5 text-gray-500">PNG or JPEG only.</p>
+
+                        <AnimatePresence>
+                          {isPhotoMenuOpen ? (
+                            <motion.div
+                              initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                              transition={{ duration: 0.16, ease: MOTION_EASE }}
+                              className="absolute left-1/2 top-[calc(100%+0.5rem)] z-[120] w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-black/10 bg-[#202124] py-2 text-sm font-semibold text-gray-300 shadow-2xl lg:left-3/4"
+                              role="menu"
+                            >
+                              <button type="button" onClick={handleViewPhoto} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-white/5 hover:text-white" role="menuitem">
+                                <Eye className="h-5 w-5 text-gray-400" />
+                                View photo
+                              </button>
+                              <button type="button" onClick={() => { setIsPhotoMenuOpen(false); takePhotoInputRef.current?.click(); }} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-white/5 hover:text-white" role="menuitem">
+                                <Camera className="h-5 w-5 text-gray-400" />
+                                Take photo
+                              </button>
+                              <button type="button" onClick={() => { setIsPhotoMenuOpen(false); photoInputRef.current?.click(); }} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-white/5 hover:text-white" role="menuitem">
+                                <FolderOpen className="h-5 w-5 text-gray-400" />
+                                Upload photo
+                              </button>
+                              <div className="my-2 border-t border-white/10" />
+                              <button type="button" onClick={handleRemovePhoto} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-white/5 hover:text-white" role="menuitem">
+                                <Trash2 className="h-5 w-5 text-gray-400" />
+                                Remove photo
+                              </button>
+                            </motion.div>
+                          ) : null}
+                        </AnimatePresence>
+
+                        <input
+                          ref={photoInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                        <input
+                          ref={takePhotoInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          capture="environment"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
                       </div>
-                      <input
-                        ref={photoInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg"
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                      />
                     </div>
 
                     <div className="min-w-0 space-y-4">
@@ -1148,6 +1462,99 @@ export default function BusinessProfile() {
           </motion.aside>
         </motion.div>
       )}
+
+      <AnimatePresence>
+        {photoEditorSourceUrl ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: MOTION_EASE }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4"
+          >
+            <motion.div
+              initial={shouldReduceMotion ? false : { y: 16, scale: 0.98 }}
+              animate={shouldReduceMotion ? undefined : { y: 0, scale: 1 }}
+              exit={shouldReduceMotion ? undefined : { y: 16, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: MOTION_EASE }}
+              className="flex max-h-[82vh] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl bg-[#111312] text-white shadow-2xl"
+            >
+              <div className="flex min-h-12 items-center border-b border-white/10 px-3 sm:px-4">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleClosePhotoEditor}
+                    disabled={isUploadingPhoto}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label="Close photo editor"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <h2 className="truncate text-base font-semibold">Drag the image to adjust</h2>
+                </div>
+              </div>
+
+              <div className="relative flex min-h-0 flex-1 items-center justify-center bg-[#06100d] px-4 py-4">
+                <div
+                  ref={photoEditorPreviewRef}
+                  onPointerDown={handlePhotoEditorPointerDown}
+                  onPointerMove={handlePhotoEditorPointerMove}
+                  onPointerUp={handlePhotoEditorPointerUp}
+                  onPointerCancel={handlePhotoEditorPointerUp}
+                  onWheel={handlePhotoEditorWheel}
+                  className="relative aspect-square w-full max-w-[390px] touch-none cursor-grab overflow-hidden bg-black active:cursor-grabbing"
+                >
+                  <img
+                    src={photoEditorSourceUrl}
+                    alt="Selected profile preview"
+                    className="absolute left-0 top-0 h-full w-full select-none object-cover"
+                    draggable={false}
+                    style={{
+                      transform: `translate(${photoEditorOffset.x}px, ${photoEditorOffset.y}px) scale(${photoEditorZoom})`,
+                      transformOrigin: 'center',
+                    }}
+                  />
+                  <div className="pointer-events-none absolute left-1/2 top-1/2 h-[82%] w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-full shadow-[0_0_0_9999px_rgba(0,0,0,0.48)] ring-1 ring-white/10" />
+                </div>
+
+                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-black/40 text-white shadow-lg backdrop-blur">
+                  <button
+                    type="button"
+                    onClick={() => handlePhotoEditorZoomChange(0.1)}
+                    disabled={isUploadingPhoto || photoEditorZoom >= MAX_PHOTO_EDITOR_ZOOM}
+                    className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Zoom in"
+                  >
+                    <ZoomIn className="h-5 w-5" />
+                  </button>
+                  <div className="mx-3 border-t border-white/15" />
+                  <button
+                    type="button"
+                    onClick={() => handlePhotoEditorZoomChange(-0.1)}
+                    disabled={isUploadingPhoto || photoEditorZoom <= MIN_PHOTO_EDITOR_ZOOM}
+                    className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Zoom out"
+                  >
+                    <ZoomOut className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex min-h-16 items-center justify-end bg-[#191b1a] px-5 py-3">
+                <button
+                  type="button"
+                  onClick={() => void handlePhotoEditorUpload()}
+                  disabled={isUploadingPhoto}
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#21c667] text-white shadow-lg shadow-[#21c667]/20 transition hover:scale-105 hover:bg-[#19b85c] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  aria-label="Upload adjusted photo"
+                >
+                  {isUploadingPhoto ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Check className="h-6 w-6" />}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </motion.div>
   );
 }

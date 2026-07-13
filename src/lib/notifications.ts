@@ -20,6 +20,7 @@ function normalizeNotificationType(value: unknown): NotificationType {
     case 'campaign_sent':
     case 'email_campaign_sent':
     case 'display_name_approved':
+    case 'display_name_rejected':
     case 'team_member_joined':
       return value;
     default:

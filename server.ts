@@ -2107,6 +2107,7 @@ function normalizeNotificationType(value: unknown): NotificationType {
     case 'campaign_sent':
     case 'email_campaign_sent':
     case 'display_name_approved':
+    case 'display_name_rejected':
     case 'team_member_joined':
       return value;
     default:
@@ -2192,6 +2193,7 @@ function notificationTypeToPreferenceKey(
     case 'email_campaign_sent':
       return 'emailCampaignEnabled';
     case 'display_name_approved':
+    case 'display_name_rejected':
       return 'displayNameApprovedEnabled';
     case 'team_member_joined':
       return 'teamJoinedEnabled';
@@ -14553,6 +14555,44 @@ function getBusinessProfileDisplayNameStatus(
   return getDisplayNameStatus(phoneSnapshot?.name_status) || requestStatus;
 }
 
+function isRejectedDisplayNameStatus(status: string | null | undefined) {
+  const normalized = (status || '').toUpperCase();
+
+  return normalized.includes('REJECT') || normalized.includes('DECLIN');
+}
+
+async function createDisplayNameReviewNotification(args: {
+  userId: string;
+  phoneNumberId: string;
+  verifiedName: string;
+  displayPhoneNumber: string;
+  status: 'APPROVED' | 'REJECTED' | 'DECLINED';
+  rejectionReason?: string | null;
+}) {
+  const rejected = isRejectedDisplayNameStatus(args.status);
+  const body = rejected
+    ? `${args.verifiedName} was rejected for ${args.displayPhoneNumber}.${
+        args.rejectionReason ? ` Reason: ${args.rejectionReason}` : ''
+      }`
+    : `${args.verifiedName} is now approved for ${args.displayPhoneNumber}.`;
+
+  await createUserNotification({
+    userId: args.userId,
+    type: rejected ? 'display_name_rejected' : 'display_name_approved',
+    title: rejected ? 'WhatsApp display name rejected' : 'WhatsApp display name approved',
+    body,
+    targetPath: '/dashboard/profile',
+    metadata: {
+      phoneNumberId: args.phoneNumberId,
+      verifiedName: args.verifiedName,
+      displayPhoneNumber: args.displayPhoneNumber,
+      status: args.status,
+      rejectionReason: args.rejectionReason || null,
+    },
+    dedupeKey: `display-name-${rejected ? 'rejected' : 'approved'}:${args.phoneNumberId}:${args.verifiedName}`,
+  });
+}
+
 async function createIncomingMessageNotification(args: {
   userId: string;
   source: 'WhatsApp' | 'Messenger' | 'Instagram';
@@ -20740,7 +20780,7 @@ async function handlePhoneNumberNameUpdateWebhook(args: {
 
   const nextChannel = updatedChannel as Record<string, unknown>;
 
-  if (decision === 'APPROVED') {
+  if (decision === 'APPROVED' || isRejectedDisplayNameStatus(decision)) {
     const verifiedName =
       requestedName ||
       normalizeOptionalString(phoneSnapshot?.verified_name) ||
@@ -20752,21 +20792,17 @@ async function handlePhoneNumberNameUpdateWebhook(args: {
       normalizeOptionalString(nextChannel.display_phone_number) ||
       'your connected sender';
 
-    await createUserNotification({
+    await createDisplayNameReviewNotification({
       userId,
-      type: 'display_name_approved',
-      title: 'WhatsApp display name approved',
-      body: `${verifiedName} is now approved for ${displayPhone}.`,
-      targetPath: '/dashboard/profile',
-      metadata: {
-        phoneNumberId: String(nextChannel.phone_number_id),
-        verifiedName,
-        displayPhoneNumber: displayPhone,
-        status: decision,
-      },
-      dedupeKey: `display-name-approved:${String(nextChannel.phone_number_id)}:${verifiedName}`,
+      phoneNumberId: String(nextChannel.phone_number_id),
+      verifiedName,
+      displayPhoneNumber: displayPhone,
+      status: decision === 'APPROVED' ? 'APPROVED' : 'REJECTED',
+      rejectionReason,
     });
+  }
 
+  if (decision === 'APPROVED') {
     await maybeAutoRegisterApprovedDisplayName({
       userId,
       row: nextChannel,

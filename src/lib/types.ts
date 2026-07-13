@@ -63,6 +63,7 @@ export type NotificationType =
   | 'campaign_sent'
   | 'email_campaign_sent'
   | 'display_name_approved'
+  | 'display_name_rejected'
   | 'team_member_joined';
 
 export type NotificationSoundPreset = 'classic' | 'soft' | 'pulse';

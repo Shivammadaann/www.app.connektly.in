@@ -132,6 +132,13 @@ function getNotificationTone(type: UserNotification['type']): NotificationTone {
         iconBackgroundClassName: 'bg-green-50',
         status: 'Display name',
       };
+    case 'display_name_rejected':
+      return {
+        icon: XCircle,
+        iconClassName: 'text-red-600',
+        iconBackgroundClassName: 'bg-red-50',
+        status: 'Display name',
+      };
     case 'team_member_joined':
       return {
         icon: UserPlus,
