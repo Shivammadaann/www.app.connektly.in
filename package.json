@@ -7,7 +7,7 @@
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:client\"",
     "dev:client": "vite --port=3000 --host=0.0.0.0",
     "dev:api": "tsx server.ts",
-    "build": "vite build",
+    "build": "node scripts/build.mjs",
     "preview": "vite preview --port=3000 --host=0.0.0.0",
     "start": "node server.js",
     "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\"",
@@ -30,14 +30,15 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.14.0",
-    "tsx": "^4.23.11",
     "vite": "^6.2.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "concurrently": "^9.2.1",
+    "esbuild": "^0.28.1",
     "tailwindcss": "^4.1.14",
+    "tsx": "^4.23.11",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   },
