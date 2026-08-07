@@ -1,3 +1,6 @@
 import { tsImport } from 'tsx/esm/api';
 
-await tsImport('./server.ts', import.meta.url);
+tsImport('./server.ts', import.meta.url).catch((error) => {
+  console.error('Failed to start the Connektly server:', error);
+  process.exitCode = 1;
+});
