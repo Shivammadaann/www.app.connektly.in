@@ -26,7 +26,7 @@
     "mailparser": "^3.9.8",
     "motion": "^12.23.24",
     "multer": "^2.1.1",
-    "nodemailer": "^8.0.5",
+    "nodemailer": "^9.0.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.14.0",
@@ -37,7 +37,7 @@
     "@types/node": "^22.14.0",
     "concurrently": "^9.2.1",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.11",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
