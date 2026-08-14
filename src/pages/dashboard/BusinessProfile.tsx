@@ -37,6 +37,7 @@ import { Link } from 'react-router-dom';
 import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
+import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import ProfilePhotoEditor from '../../components/ProfilePhotoEditor';
 import defaultProfilePictureUrl from '../../assets/profile.png';
@@ -603,6 +604,8 @@ export default function BusinessProfile() {
   const [usernameDraft, setUsernameDraft] = useState(() => businessProfile?.username || '');
   const [usernameValidationError, setUsernameValidationError] = useState<string | null>(null);
   const [isSubmittingUsername, setIsSubmittingUsername] = useState(false);
+  const [isDeleteUsernameDialogOpen, setIsDeleteUsernameDialogOpen] = useState(false);
+  const [isDeletingUsername, setIsDeletingUsername] = useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
   const [photoEditorSourceUrl, setPhotoEditorSourceUrl] = useState<string | null>(null);
@@ -821,6 +824,31 @@ export default function BusinessProfile() {
       );
     } finally {
       setIsSubmittingUsername(false);
+    }
+  };
+
+  const handleDeleteUsername = async () => {
+    const currentUsername = businessProfile?.username;
+
+    if (!currentUsername) {
+      setIsDeleteUsernameDialogOpen(false);
+      return;
+    }
+
+    try {
+      setIsDeletingUsername(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await appApi.deleteWhatsAppBusinessUsername();
+      setBusinessProfile(() => response.profile);
+      setUsernameDraft('');
+      setIsDeleteUsernameDialogOpen(false);
+      setSuccess(`WhatsApp username @${currentUsername} was deleted.`);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete the WhatsApp username.');
+    } finally {
+      setIsDeletingUsername(false);
     }
   };
 
@@ -1185,16 +1213,27 @@ export default function BusinessProfile() {
                     <div className="min-w-0">
                       {businessProfile?.username ? (
                         <div className="flex flex-wrap items-center gap-2.5">
-                          <p className="truncate text-lg font-semibold text-gray-900">@{businessProfile.username}</p>
+                          <p className="truncate text-sm font-semibold text-gray-900">@{businessProfile.username}</p>
                           <StatusSummary label={usernameStatus.label} className={usernameStatus.badgeClassName} />
                         </div>
                       ) : (
                         <p className="text-sm font-medium text-gray-600">No WhatsApp username created yet.</p>
                       )}
                     </div>
-                    <ActionButton variant="primary" onClick={handleOpenUsernameDialog}>
-                      {businessProfile?.username ? 'Change' : 'Create'}
-                    </ActionButton>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <ActionButton variant="primary" onClick={handleOpenUsernameDialog}>
+                        {businessProfile?.username ? 'Change' : 'Create'}
+                      </ActionButton>
+                      {businessProfile?.username ? (
+                        <ActionButton
+                          className="border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50"
+                          onClick={() => setIsDeleteUsernameDialogOpen(true)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </ActionButton>
+                      ) : null}
+                    </div>
                   </div>
                 </ProfileSection>
 
@@ -1297,6 +1336,59 @@ export default function BusinessProfile() {
                     </div>
                   </div>
                 </div>
+                </ProfileSection>
+
+                <ProfileSection
+                  title="Social accounts"
+                  description="Connect your Facebook Page or Instagram account to enable click-to-WhatsApp ads, a unified inbox, and profile synchronization."
+                  icon={Share2}
+                  shouldReduceMotion={shouldReduceMotion}
+                >
+                  <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50/70 px-4">
+                    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white">
+                          <ChannelBrandIcon channel="messenger" className="h-6 w-6" alt="Facebook" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">Facebook</p>
+                          <p className="mt-0.5 truncate text-xs text-gray-500">
+                            {bootstrap.messengerChannel
+                              ? `1 Page connected${bootstrap.messengerChannel.pageName ? ` · ${bootstrap.messengerChannel.pageName}` : ''}`
+                              : 'No Page connected'}
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        to="/dashboard/connections?channel=messenger"
+                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                      >
+                        {bootstrap.messengerChannel ? 'Manage' : 'Connect Facebook'}
+                      </Link>
+                    </div>
+
+                    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white">
+                          <ChannelBrandIcon channel="instagram" className="h-6 w-6" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">Instagram</p>
+                          <p className="mt-0.5 truncate text-xs text-gray-500">
+                            {bootstrap.instagramChannel
+                              ? `${bootstrap.instagramChannel.instagramUsername ? `@${bootstrap.instagramChannel.instagramUsername}` : 'Instagram account'} connected`
+                              : 'No Instagram account connected'}
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        to="/dashboard/connections?channel=instagram"
+                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                      >
+                        {bootstrap.instagramChannel ? 'Manage' : 'Connect Instagram'}
+                      </Link>
+                    </div>
+                  </div>
                 </ProfileSection>
 
                 <motion.div
@@ -1548,6 +1640,38 @@ export default function BusinessProfile() {
         onError={setError}
         onSave={handlePhotoEditorUpload}
       />
+
+      <ProfileDialog
+        isOpen={isDeleteUsernameDialogOpen}
+        title="Delete WhatsApp username?"
+        description={
+          <>
+            This will permanently remove <span className="font-semibold">@{businessProfile?.username}</span> from this WhatsApp phone number. You can request another username later, subject to Meta&apos;s availability and review.
+          </>
+        }
+        isBusy={isDeletingUsername}
+        onClose={() => setIsDeleteUsernameDialogOpen(false)}
+        footer={
+          <>
+            <ActionButton onClick={() => setIsDeleteUsernameDialogOpen(false)} disabled={isDeletingUsername}>
+              Cancel
+            </ActionButton>
+            <button
+              type="button"
+              onClick={() => void handleDeleteUsername()}
+              disabled={isDeletingUsername}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeletingUsername ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {isDeletingUsername ? 'Deleting...' : 'Delete username'}
+            </button>
+          </>
+        }
+      >
+        <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-800">
+          Deleting the username removes it from this WhatsApp number immediately after Meta confirms the request.
+        </div>
+      </ProfileDialog>
     </motion.div>
   );
 }

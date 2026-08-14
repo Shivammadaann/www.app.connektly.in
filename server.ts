@@ -5877,6 +5877,18 @@ async function updateWhatsAppBusinessUsername(
   };
 }
 
+async function deleteWhatsAppBusinessUsername(accessToken: string, phoneNumberId: string) {
+  const response = await metaRequest<{ success?: boolean }>({
+    accessToken,
+    path: `${phoneNumberId}/username`,
+    method: 'DELETE',
+  });
+
+  if (response.success !== true) {
+    throw new Error('Meta did not confirm that the WhatsApp username was deleted.');
+  }
+}
+
 async function fetchOfficialBusinessAccountStatus(accessToken: string, phoneNumberId: string) {
   const response = await metaRequest<{
     id?: string;
@@ -23516,6 +23528,38 @@ app.post('/api/meta/business-username', async (req, res) => {
           ...remoteProfile,
           username: normalizeOptionalString(remoteProfile.username) || usernameResult.username,
           username_status: normalizeOptionalString(remoteProfile.username_status) || usernameResult.status,
+        },
+        snapshot.channelRow,
+        snapshot.phone,
+        officialBusinessAccountStatus,
+      ),
+    });
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
+app.delete('/api/meta/business-username', async (req, res) => {
+  try {
+    const { row, accessToken } = await getChannelWithToken(req.authedUser!.id);
+    await deleteWhatsAppBusinessUsername(accessToken, String(row.phone_number_id));
+
+    const [snapshot, remoteProfile] = await Promise.all([
+      refreshChannelSnapshot(req.authedUser!.id, row, accessToken),
+      fetchBusinessProfile(accessToken, String(row.phone_number_id)),
+    ]);
+    const officialBusinessAccountStatus = await getOfficialBusinessAccountStatusForChannel({
+      userId: req.authedUser!.id,
+      row: snapshot.channelRow,
+      accessToken,
+    });
+
+    res.json({
+      profile: mapBusinessProfile(
+        {
+          ...remoteProfile,
+          username: null,
+          username_status: null,
         },
         snapshot.channelRow,
         snapshot.phone,

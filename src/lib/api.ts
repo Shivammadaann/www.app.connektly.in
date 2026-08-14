@@ -993,6 +993,11 @@ export const appApi = {
       body: JSON.stringify(payload),
     });
   },
+  deleteWhatsAppBusinessUsername() {
+    return apiRequest<{ profile: WhatsAppBusinessProfile }>('/meta/business-username', {
+      method: 'DELETE',
+    });
+  },
   updateBusinessProfile(payload: WhatsAppBusinessProfileUpdateInput) {
     return apiRequest<{ profile: WhatsAppBusinessProfile }>('/meta/business-profile', {
       method: 'POST',

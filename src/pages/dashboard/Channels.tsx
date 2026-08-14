@@ -846,7 +846,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const { bootstrap, businessProfile, refresh, refreshBusinessProfile } = useAppData();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [selectedChannelId, setSelectedChannelId] = useState<ChannelId>('whatsapp');
   const [isWhatsAppDisconnecting, setIsWhatsAppDisconnecting] = useState(false);
   const [isInstagramConnecting, setIsInstagramConnecting] = useState(false);
@@ -875,6 +875,14 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   const [isWhatsAppWebhookUpdating, setIsWhatsAppWebhookUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const requestedChannel = searchParams.get('channel');
+
+    if (requestedChannel === 'whatsapp' || requestedChannel === 'instagram' || requestedChannel === 'messenger') {
+      setSelectedChannelId(requestedChannel);
+    }
+  }, [searchParams]);
 
   const whatsappChannel = bootstrap?.channel || null;
   const instagramChannel = bootstrap?.instagramChannel || null;
