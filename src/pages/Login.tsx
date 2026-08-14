@@ -671,21 +671,12 @@ export default function Login() {
 
   return (
     <AuthLayout
-      mode="login"
-      heroTitle={
-        <>
-          Do more with <span className="text-[#1381FF]">Ads</span> and{' '}
-          <span className="text-[#1381FF]">Conversations</span>
-        </>
-      }
-      heroDescription="Connektly keeps messages, campaigns, calls, leads, and notifications organized for fast-moving teams."
       switchText="Not a member yet?"
       switchHref="/signup"
       switchLabel="Sign up"
     >
       <AuthForm
-        title="Welcome Back"
-        description="Sign in to continue to Connektly."
+        title="Log in to your account"
       >
         <div className="space-y-4">
           {error ? <AuthAlert>{error}</AuthAlert> : null}

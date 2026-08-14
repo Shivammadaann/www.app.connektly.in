@@ -214,20 +214,12 @@ export default function Signup() {
 
   return (
     <AuthLayout
-      mode="signup"
-      heroTitle={
-        <>
-          Do more with <span className="text-[#1381FF]">Ads</span> and{' '}
-          <span className="text-[#1381FF]">Conversations</span>
-        </>
-      }
-      heroDescription="Connektly keeps messages, campaigns, calls, leads, and notifications organized for fast-moving teams."
       switchText="Already have an account?"
       switchHref="/login"
       switchLabel="Log in"
     >
       <AuthForm
-        eyebrow="Get started"
+        eyebrow="Start your free trial"
         title="Create your account"
         description="Use Google, Facebook, or create an account with your work email."
       >

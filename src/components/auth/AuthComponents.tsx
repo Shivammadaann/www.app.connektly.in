@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import BrandMark from '../BrandMark';
-import connectionsMapImage from '../../../assets/connections-map.png';
 
 export const authMotion = {
   fadeIn: {
@@ -23,7 +22,6 @@ export const authMotion = {
   },
 };
 
-type AuthLayoutMode = 'login' | 'signup';
 const MAIN_WEBSITE_URL = 'https://connektly.in/';
 const AUTH_FOOTER_LINKS = [
   { label: 'Privacy Policy', href: 'https://connektly.in/privacy-policy/' },
@@ -33,16 +31,11 @@ const AUTH_FOOTER_LINKS = [
 ] as const;
 
 export function AuthLayout({
-  heroTitle,
-  heroDescription,
   switchText,
   switchHref,
   switchLabel,
   children,
 }: {
-  mode: AuthLayoutMode;
-  heroTitle: ReactNode;
-  heroDescription: string;
   switchText: string;
   switchHref: string;
   switchLabel: string;
@@ -50,46 +43,14 @@ export function AuthLayout({
 }) {
   return (
     <div className="min-h-dvh bg-[#F8FAFC] text-[#0F172A]">
-      <div className="mx-auto flex min-h-dvh max-w-[1280px]">
-        <motion.aside
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, delay: 0.04, ease: [0.4, 0, 0.2, 1] }}
-          className="hidden w-[48%] min-w-0 flex-col bg-[#F8FAFC] px-12 py-12 lg:flex"
-        >
-          <a
-            href={MAIN_WEBSITE_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex w-fit items-center gap-3"
-          >
-            <BrandMark className="h-10 w-10 shrink-0" />
-            <span className="text-xl font-semibold tracking-tight text-[#0F172A]">Connektly</span>
-          </a>
-
-          <div className="mt-8 max-w-[440px]">
-            <h1 className="text-[32px] font-semibold leading-10 tracking-tight text-[#0F172A]">{heroTitle}</h1>
-            <p className="mt-4 text-sm leading-5 text-[#64748B]">{heroDescription}</p>
-          </div>
-
-          <motion.img
-            src={connectionsMapImage}
-            alt="Connektly dashboard preview"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, delay: 0.16, ease: [0.4, 0, 0.2, 1] }}
-            className="mt-8 w-full max-w-[620px] -translate-x-24 object-contain"
-            referrerPolicy="no-referrer"
-          />
-        </motion.aside>
-
-        <main className="flex min-h-dvh w-full min-w-0 flex-1 flex-col rounded-b-[24px] border-x border-b border-[#E2E8F0] bg-white px-7 pt-5 pb-4 shadow-sm sm:m-6 sm:min-h-[calc(100dvh-3rem)] sm:rounded-[32px] sm:border sm:px-10 sm:py-4 lg:my-6 lg:mr-6 lg:ml-0 lg:w-[52%] lg:px-12 lg:py-10">
+      <div className="mx-auto flex min-h-dvh w-full items-center justify-center">
+        <main className="flex min-h-dvh w-full min-w-0 flex-col rounded-b-[24px] border-x border-b border-[#E2E8F0] bg-white px-7 pt-5 pb-4 shadow-sm sm:m-6 sm:min-h-[calc(100dvh-3rem)] sm:max-w-[680px] sm:rounded-[32px] sm:border sm:px-10 sm:py-4 lg:px-12 lg:py-10">
           <div className="flex items-center justify-center gap-4 text-sm sm:justify-between">
             <a
               href={MAIN_WEBSITE_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center sm:gap-2 lg:hidden"
+              className="inline-flex items-center justify-center sm:gap-2"
             >
               <BrandMark className="h-20 w-32 shrink-0 sm:h-9 sm:w-9" />
               <span className="hidden font-semibold tracking-tight text-[#0F172A] sm:inline">Connektly</span>
@@ -129,6 +90,9 @@ export function AuthLayout({
                 </a>
               ))}
             </nav>
+            <p className="mt-3 text-center text-[10px] text-[#94A3B8] sm:text-xs">
+              © 2026 Connektly. All rights reserved.
+            </p>
           </footer>
         </main>
       </div>
