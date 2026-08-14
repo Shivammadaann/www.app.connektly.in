@@ -20,6 +20,7 @@ import { appApi } from '../lib/api';
 import { useAppData } from '../context/AppDataContext';
 import FeedbackPopupStack from '../components/FeedbackPopupStack';
 import OnboardingTopBar from '../components/OnboardingTopBar';
+import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
 import UserAvatar from '../components/UserAvatar';
 import { DropdownSelect } from '../components/ui/DropdownSelect';
 import {
@@ -105,6 +106,8 @@ export default function OnboardingProfile() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
   const [profilePicturePreviewUrl, setProfilePicturePreviewUrl] = useState<string | null>(null);
+  const [profilePictureEditorSourceUrl, setProfilePictureEditorSourceUrl] = useState<string | null>(null);
+  const [profilePictureEditorFileName, setProfilePictureEditorFileName] = useState('profile-photo.jpg');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -134,6 +137,14 @@ export default function OnboardingProfile() {
       }
     };
   }, [profilePicturePreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (profilePictureEditorSourceUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(profilePictureEditorSourceUrl);
+      }
+    };
+  }, [profilePictureEditorSourceUrl]);
 
   useEffect(() => {
     if (hasEditedPreferredCurrency || normalizePreferredCurrency(bootstrap?.profile?.preferredCurrency)) {
@@ -170,7 +181,7 @@ export default function OnboardingProfile() {
   const previewPhone = phoneDigits ? `${countryCode} ${phoneDigits}` : 'Add your contact number';
   const previewCurrency = getCurrencyLabel(preferredCurrency);
 
-  const handleProfilePictureUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePictureSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
 
@@ -191,6 +202,12 @@ export default function OnboardingProfile() {
     }
 
     setError(null);
+    setProfilePictureEditorSourceUrl(URL.createObjectURL(file));
+    setProfilePictureEditorFileName(file.name || 'profile-photo.jpg');
+    input.value = '';
+  };
+
+  const handleProfilePictureUpload = async (file: File) => {
     setIsUploadingProfilePicture(true);
     setProfilePicturePreviewUrl(URL.createObjectURL(file));
 
@@ -206,12 +223,12 @@ export default function OnboardingProfile() {
           : current,
       );
       setProfilePicturePreviewUrl(response.profile?.profilePictureUrl || null);
+      setProfilePictureEditorSourceUrl(null);
     } catch (uploadError) {
       setProfilePicturePreviewUrl(null);
       setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload profile picture.');
     } finally {
       setIsUploadingProfilePicture(false);
-      input.value = '';
     }
   };
 
@@ -328,7 +345,7 @@ export default function OnboardingProfile() {
               ref={profilePictureInputRef}
               type="file"
               accept="image/png,image/jpeg"
-              onChange={handleProfilePictureUpload}
+              onChange={handleProfilePictureSelection}
               className="hidden"
             />
             <p className="mt-4 border-t border-gray-100 pt-4 text-xs leading-4 text-gray-500">
@@ -507,6 +524,14 @@ export default function OnboardingProfile() {
             This keeps your workspace activity clear for your team.
           </p>
         </form>
+        <ProfilePhotoEditor
+          sourceUrl={profilePictureEditorSourceUrl}
+          fileName={profilePictureEditorFileName}
+          isSaving={isUploadingProfilePicture}
+          onCancel={() => setProfilePictureEditorSourceUrl(null)}
+          onError={setError}
+          onSave={handleProfilePictureUpload}
+        />
       </motion.main>
     </div>
   );

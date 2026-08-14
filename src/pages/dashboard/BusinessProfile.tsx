@@ -5,19 +5,16 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type ChangeEvent,
-  type PointerEvent,
   type ReactNode,
-  type SyntheticEvent,
-  type WheelEvent,
 } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowLeft,
+  AtSign,
   BadgeCheck,
   Building2,
   Camera,
-  Check,
   CheckCircle2,
   Eye,
   FolderOpen,
@@ -35,14 +32,13 @@ import {
   Trash2,
   UserCircle,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
+import ProfilePhotoEditor from '../../components/ProfilePhotoEditor';
 import defaultProfilePictureUrl from '../../assets/profile.png';
 import type {
   DashboardBootstrap,
@@ -128,111 +124,6 @@ const fieldInputClassName =
   'min-h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#1381FF]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]';
 const fieldTextareaClassName =
   'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-900 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-gray-400 focus:border-[#1381FF]/70 focus:bg-white focus:shadow-[0_0_0_4px_rgba(19,129,255,0.08)]';
-const MIN_PHOTO_EDITOR_ZOOM = 1;
-const MAX_PHOTO_EDITOR_ZOOM = 3;
-const PROFILE_PHOTO_OUTPUT_SIZE = 640;
-const PHOTO_EDITOR_CROP_RATIO = 0.82;
-
-interface PhotoEditorImageSize {
-  width: number;
-  height: number;
-}
-
-interface PhotoEditorDragState {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  initialOffset: { x: number; y: number };
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function getBoundedPhotoOffset(
-  offset: { x: number; y: number },
-  zoom: number,
-  previewSize: number,
-  imageSize: PhotoEditorImageSize | null,
-) {
-  const naturalWidth = imageSize?.width || 1;
-  const naturalHeight = imageSize?.height || 1;
-  const coverScale = Math.max(previewSize / naturalWidth, previewSize / naturalHeight);
-  const renderedWidth = naturalWidth * coverScale * zoom;
-  const renderedHeight = naturalHeight * coverScale * zoom;
-  const cropSize = previewSize * PHOTO_EDITOR_CROP_RATIO;
-  const maxOffsetX = Math.max(0, (renderedWidth - cropSize) / 2);
-  const maxOffsetY = Math.max(0, (renderedHeight - cropSize) / 2);
-
-  return {
-    x: clamp(offset.x, -maxOffsetX, maxOffsetX),
-    y: clamp(offset.y, -maxOffsetY, maxOffsetY),
-  };
-}
-
-function loadEditorImage(sourceUrl: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new window.Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Unable to load the selected image.'));
-    image.src = sourceUrl;
-  });
-}
-
-async function createAdjustedProfilePhotoFile({
-  sourceUrl,
-  fileName,
-  zoom,
-  offset,
-  previewSize,
-}: {
-  sourceUrl: string;
-  fileName: string;
-  zoom: number;
-  offset: { x: number; y: number };
-  previewSize: number;
-}) {
-  const image = await loadEditorImage(sourceUrl);
-  const canvas = document.createElement('canvas');
-  canvas.width = PROFILE_PHOTO_OUTPUT_SIZE;
-  canvas.height = PROFILE_PHOTO_OUTPUT_SIZE;
-
-  const context = canvas.getContext('2d');
-
-  if (!context) {
-    throw new Error('Unable to prepare the adjusted profile photo.');
-  }
-
-  const safePreviewSize = previewSize > 0 ? previewSize : PROFILE_PHOTO_OUTPUT_SIZE;
-  const previewCoverScale = Math.max(
-    safePreviewSize / image.naturalWidth,
-    safePreviewSize / image.naturalHeight,
-  );
-  const cropSize = safePreviewSize * PHOTO_EDITOR_CROP_RATIO;
-  const outputOffsetScale = PROFILE_PHOTO_OUTPUT_SIZE / cropSize;
-  const scaledWidth = image.naturalWidth * previewCoverScale * zoom * outputOffsetScale;
-  const scaledHeight = image.naturalHeight * previewCoverScale * zoom * outputOffsetScale;
-  const drawX = (PROFILE_PHOTO_OUTPUT_SIZE - scaledWidth) / 2 + offset.x * outputOffsetScale;
-  const drawY = (PROFILE_PHOTO_OUTPUT_SIZE - scaledHeight) / 2 + offset.y * outputOffsetScale;
-
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, PROFILE_PHOTO_OUTPUT_SIZE, PROFILE_PHOTO_OUTPUT_SIZE);
-  context.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((nextBlob) => {
-      if (nextBlob) {
-        resolve(nextBlob);
-      } else {
-        reject(new Error('Unable to export the adjusted profile photo.'));
-      }
-    }, 'image/jpeg', 0.92);
-  });
-  const normalizedFileName = `${fileName.replace(/\.[^.]+$/, '') || 'profile-photo'}.jpg`;
-
-  return new File([blob], normalizedFileName, { type: 'image/jpeg' });
-}
-
 function mapForm(profile: WhatsAppBusinessProfile | null): BusinessProfileFormState {
   return {
     about: profile?.about || '',
@@ -317,6 +208,51 @@ function getDisplayNameStatusMeta(value: string | null | undefined) {
     label: formatVerticalLabel(normalized),
     badgeClassName: 'border border-slate-200 bg-slate-50 text-slate-700',
   };
+}
+
+function getUsernameStatusMeta(value: string | null | undefined) {
+  const normalized = (value || '').trim().toUpperCase();
+
+  if (normalized === 'APPROVED') {
+    return {
+      label: 'Approved',
+      badgeClassName: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+    };
+  }
+
+  if (normalized === 'RESERVED') {
+    return {
+      label: 'Reserved',
+      badgeClassName: 'border border-amber-200 bg-amber-50 text-amber-700',
+    };
+  }
+
+  return {
+    label: normalized ? formatVerticalLabel(normalized) : 'Under review',
+    badgeClassName: 'border border-amber-200 bg-amber-50 text-amber-700',
+  };
+}
+
+function getBusinessUsernameValidationError(value: string) {
+  const username = value.trim().replace(/^@+/, '');
+
+  if (username.length < 3 || username.length > 35) {
+    return 'Username must be between 3 and 35 characters.';
+  }
+
+  if (!/^[a-z0-9._]+$/i.test(username) || !/[a-z]/i.test(username)) {
+    return 'Use English letters, numbers, periods, or underscores, including at least one letter.';
+  }
+
+  if (username.startsWith('.') || username.endsWith('.') || username.includes('..')) {
+    return 'Username cannot start or end with a period or contain consecutive periods.';
+  }
+
+  if (/^www/i.test(username)) {
+    return 'Username cannot start with www.';
+  }
+
+  return null;
 }
 
 function getOfficialBusinessAccountStatusMeta(status: WhatsAppOfficialBusinessAccountStatus | null | undefined) {
@@ -446,7 +382,7 @@ function SectionHeader({
   action,
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   icon?: LucideIcon;
   action?: ReactNode;
 }) {
@@ -474,7 +410,7 @@ function ProfileSection({
   className = '',
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   icon?: LucideIcon;
   action?: ReactNode;
   children: ReactNode;
@@ -527,6 +463,67 @@ function StatusSummary({
       {icon || <span className={`h-2 w-2 rounded-full ${getStatusDotClassName(className)} ${pulse ? 'animate-pulse' : ''}`} />}
       {label}
     </span>
+  );
+}
+
+function ProfileDialog({
+  isOpen,
+  title,
+  description,
+  isBusy,
+  onClose,
+  children,
+  footer,
+}: {
+  isOpen: boolean;
+  title: string;
+  description?: ReactNode;
+  isBusy: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  footer: ReactNode;
+}) {
+  return (
+    <AnimatePresence>
+      {isOpen ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[170] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
+          role="presentation"
+        >
+          <motion.div
+            initial={{ y: 12, scale: 0.98 }}
+            animate={{ y: 0, scale: 1 }}
+            exit={{ y: 12, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: MOTION_EASE }}
+            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+          >
+            <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5 sm:px-6">
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold text-slate-800">{title}</h2>
+                {description ? <div className="mt-2 text-sm leading-6 text-gray-500">{description}</div> : null}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isBusy}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-gray-100 disabled:opacity-50"
+                aria-label="Close dialog"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-5 pb-5 sm:px-6">{children}</div>
+            <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:px-6">{footer}</div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -599,16 +596,17 @@ export default function BusinessProfile() {
   const [displayNameDraft, setDisplayNameDraft] = useState(
     () => businessProfile?.displayNameRequest?.requestedName || businessProfile?.verifiedName || bootstrap?.channel?.verifiedName || '',
   );
+  const [isDisplayNameDialogOpen, setIsDisplayNameDialogOpen] = useState(false);
   const [isDisplayNameDirty, setIsDisplayNameDirty] = useState(false);
   const [isSubmittingDisplayName, setIsSubmittingDisplayName] = useState(false);
+  const [isUsernameDialogOpen, setIsUsernameDialogOpen] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState(() => businessProfile?.username || '');
+  const [usernameValidationError, setUsernameValidationError] = useState<string | null>(null);
+  const [isSubmittingUsername, setIsSubmittingUsername] = useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
   const [photoEditorSourceUrl, setPhotoEditorSourceUrl] = useState<string | null>(null);
   const [photoEditorFileName, setPhotoEditorFileName] = useState('profile-photo.jpg');
-  const [photoEditorZoom, setPhotoEditorZoom] = useState(MIN_PHOTO_EDITOR_ZOOM);
-  const [photoEditorOffset, setPhotoEditorOffset] = useState({ x: 0, y: 0 });
-  const [photoEditorImageSize, setPhotoEditorImageSize] = useState<PhotoEditorImageSize | null>(null);
-  const [photoEditorDragState, setPhotoEditorDragState] = useState<PhotoEditorDragState | null>(null);
   const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -616,7 +614,6 @@ export default function BusinessProfile() {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const takePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const photoMenuRef = useRef<HTMLDivElement | null>(null);
-  const photoEditorPreviewRef = useRef<HTMLDivElement | null>(null);
 
   const serverForm = useMemo(() => mapForm(businessProfile), [businessProfile]);
   const currentDisplayName =
@@ -661,28 +658,6 @@ export default function BusinessProfile() {
   }, [photoEditorSourceUrl]);
 
   useEffect(() => {
-    if (!photoEditorSourceUrl) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || isUploadingPhoto) {
-        return;
-      }
-
-      event.preventDefault();
-      setPhotoEditorDragState(null);
-      setPhotoEditorSourceUrl(null);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isUploadingPhoto, photoEditorSourceUrl]);
-
-  useEffect(() => {
     if (!isPhotoMenuOpen) {
       return;
     }
@@ -707,6 +682,13 @@ export default function BusinessProfile() {
       setDisplayNameDraft(editableDisplayName);
     }
   }, [editableDisplayName, isDisplayNameDirty]);
+
+  useEffect(() => {
+    if (!isUsernameDialogOpen) {
+      setUsernameDraft(businessProfile?.username || '');
+      setUsernameValidationError(null);
+    }
+  }, [businessProfile?.username, isUsernameDialogOpen]);
 
   if (!bootstrap?.channel) {
     return (
@@ -764,6 +746,13 @@ export default function BusinessProfile() {
     setSuccess(null);
   };
 
+  const handleOpenDisplayNameDialog = () => {
+    setDisplayNameDraft(editableDisplayName);
+    setIsDisplayNameDirty(false);
+    setIsDisplayNameDialogOpen(true);
+    setError(null);
+  };
+
   const handleSubmitDisplayName = async () => {
     const nextDisplayName = displayNameDraft.trim();
 
@@ -785,11 +774,53 @@ export default function BusinessProfile() {
       setBusinessProfile(() => response.profile);
       setDisplayNameDraft(response.profile.displayNameRequest?.requestedName || response.profile.verifiedName || nextDisplayName);
       setIsDisplayNameDirty(false);
+      setIsDisplayNameDialogOpen(false);
       setSuccess('Display name submitted to Meta for review.');
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Failed to submit display name.');
     } finally {
       setIsSubmittingDisplayName(false);
+    }
+  };
+
+  const handleOpenUsernameDialog = () => {
+    setUsernameDraft(businessProfile?.username || '');
+    setUsernameValidationError(null);
+    setIsUsernameDialogOpen(true);
+    setError(null);
+  };
+
+  const handleUsernameDraftChange = (value: string) => {
+    const normalizedValue = value.replace(/^@+/, '');
+    setUsernameDraft(normalizedValue);
+    setUsernameValidationError(normalizedValue ? getBusinessUsernameValidationError(normalizedValue) : null);
+  };
+
+  const handleSubmitUsername = async () => {
+    const username = usernameDraft.trim().replace(/^@+/, '');
+    const validationError = getBusinessUsernameValidationError(username);
+
+    if (validationError) {
+      setUsernameValidationError(validationError);
+      return;
+    }
+
+    try {
+      setIsSubmittingUsername(true);
+      setUsernameValidationError(null);
+      setError(null);
+      setSuccess(null);
+
+      const response = await appApi.updateWhatsAppBusinessUsername({ username });
+      setBusinessProfile(() => response.profile);
+      setIsUsernameDialogOpen(false);
+      setSuccess(`WhatsApp username @${response.profile.username || username} submitted.`);
+    } catch (submitError) {
+      setUsernameValidationError(
+        submitError instanceof Error ? submitError.message : 'Failed to create WhatsApp username.',
+      );
+    } finally {
+      setIsSubmittingUsername(false);
     }
   };
 
@@ -813,10 +844,6 @@ export default function BusinessProfile() {
     setIsPhotoMenuOpen(false);
     setPhotoEditorSourceUrl(URL.createObjectURL(file));
     setPhotoEditorFileName(file.name || 'profile-photo.jpg');
-    setPhotoEditorZoom(MIN_PHOTO_EDITOR_ZOOM);
-    setPhotoEditorOffset({ x: 0, y: 0 });
-    setPhotoEditorImageSize(null);
-    setPhotoEditorDragState(null);
     input.value = '';
   };
 
@@ -853,105 +880,20 @@ export default function BusinessProfile() {
     }
   };
 
-  const getPhotoEditorPreviewSize = () => photoEditorPreviewRef.current?.getBoundingClientRect().width || 360;
-
-  const handlePhotoEditorPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (isUploadingPhoto) {
-      return;
-    }
-
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
-    setPhotoEditorDragState({
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      initialOffset: photoEditorOffset,
-    });
-  };
-
-  const handlePhotoEditorPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!photoEditorDragState || photoEditorDragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    event.preventDefault();
-    const previewSize = getPhotoEditorPreviewSize();
-    setPhotoEditorOffset(
-      getBoundedPhotoOffset({
-        x: photoEditorDragState.initialOffset.x + event.clientX - photoEditorDragState.startX,
-        y: photoEditorDragState.initialOffset.y + event.clientY - photoEditorDragState.startY,
-      }, photoEditorZoom, previewSize, photoEditorImageSize),
-    );
-  };
-
-  const handlePhotoEditorPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (photoEditorDragState?.pointerId === event.pointerId) {
-      setPhotoEditorDragState(null);
-    }
-  };
-
-  const handlePhotoEditorZoomChange = (delta: number) => {
-    const previewSize = getPhotoEditorPreviewSize();
-
-    setPhotoEditorZoom((currentZoom) => {
-      const nextZoom = clamp(currentZoom + delta, MIN_PHOTO_EDITOR_ZOOM, MAX_PHOTO_EDITOR_ZOOM);
-      setPhotoEditorOffset((currentOffset) =>
-        getBoundedPhotoOffset(currentOffset, nextZoom, previewSize, photoEditorImageSize),
-      );
-      return nextZoom;
-    });
-  };
-
-  const handlePhotoEditorImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
-    const nextImageSize = {
-      width: event.currentTarget.naturalWidth,
-      height: event.currentTarget.naturalHeight,
-    };
-    const previewSize = getPhotoEditorPreviewSize();
-
-    setPhotoEditorImageSize(nextImageSize);
-    setPhotoEditorOffset((currentOffset) =>
-      getBoundedPhotoOffset(currentOffset, photoEditorZoom, previewSize, nextImageSize),
-    );
-  };
-
-  const handlePhotoEditorWheel = (event: WheelEvent<HTMLDivElement>) => {
-    if (isUploadingPhoto) {
-      return;
-    }
-
-    event.preventDefault();
-    handlePhotoEditorZoomChange(event.deltaY > 0 ? -0.1 : 0.1);
-  };
-
   const handleClosePhotoEditor = () => {
     if (isUploadingPhoto) {
       return;
     }
 
-    setPhotoEditorDragState(null);
     setPhotoEditorSourceUrl(null);
-    setPhotoEditorImageSize(null);
   };
 
-  const handlePhotoEditorUpload = async () => {
-    if (!photoEditorSourceUrl) {
-      return;
-    }
-
+  const handlePhotoEditorUpload = async (adjustedFile: File) => {
     try {
       setIsUploadingPhoto(true);
       setError(null);
       setSuccess(null);
 
-      const adjustedFile = await createAdjustedProfilePhotoFile({
-        sourceUrl: photoEditorSourceUrl,
-        fileName: photoEditorFileName,
-        zoom: photoEditorZoom,
-        offset: photoEditorOffset,
-        previewSize: getPhotoEditorPreviewSize(),
-      });
       const localPreviewUrl = URL.createObjectURL(adjustedFile);
 
       setAvatarPreviewUrl(localPreviewUrl);
@@ -1037,6 +979,7 @@ export default function BusinessProfile() {
   const showSkeleton = isBusinessProfileLoading && !businessProfile;
   const displayNameStatus = getDisplayNameStatusMeta(businessProfile?.displayNameStatus);
   const displayNameRequest = businessProfile?.displayNameRequest || null;
+  const usernameStatus = getUsernameStatusMeta(businessProfile?.usernameStatus);
   const officialBusinessAccountStatus = businessProfile?.officialBusinessAccountStatus || null;
   const officialBusinessAccountMeta = getOfficialBusinessAccountStatusMeta(officialBusinessAccountStatus);
   const showOfficialBlueTick = officialBusinessAccountMeta.isApproved;
@@ -1101,22 +1044,21 @@ export default function BusinessProfile() {
         <motion.div variants={staggerContainer} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
           <motion.div variants={slideUp} className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
             <div>
-                <ProfileSection
-                  title="Identity"
-                  description="Profile image and display name shown on WhatsApp."
-                  icon={UserCircle}
-                  shouldReduceMotion={shouldReduceMotion}
-                  className={isPhotoMenuOpen ? 'z-50' : 'z-10'}
-                  action={<StatusSummary label={displayNameStatus.label} className={displayNameStatus.badgeClassName} />}
+                <motion.section
+                  variants={slideUp}
+                  whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+                  transition={{ duration: 0.16, ease: MOTION_EASE }}
+                  className={`relative border-b border-gray-100 pb-8 ${isPhotoMenuOpen ? 'z-50' : 'z-10'}`}
                 >
-                  <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
-                    <div className="flex justify-center lg:justify-start">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Display Name</p>
+                  <div className="mt-6 grid items-center gap-8 sm:grid-cols-[180px_minmax(0,1fr)] lg:px-4">
+                    <div className="flex justify-center">
                       <div ref={photoMenuRef} className="relative z-50 flex flex-col items-center">
                         <button
                           type="button"
                           onClick={() => setIsPhotoMenuOpen((current) => !current)}
                           disabled={isUploadingPhoto || isRemovingPhoto || isSaving}
-                          className="group relative h-32 w-32 rounded-full outline-none transition duration-200 hover:scale-[1.02] focus-visible:ring-4 focus-visible:ring-[#1381FF]/20 disabled:cursor-not-allowed disabled:opacity-70"
+                          className="group relative h-36 w-36 rounded-full outline-none transition duration-200 hover:scale-[1.02] focus-visible:ring-4 focus-visible:ring-[#1381FF]/20 disabled:cursor-not-allowed disabled:opacity-70"
                           aria-haspopup="menu"
                           aria-expanded={isPhotoMenuOpen}
                         >
@@ -1131,13 +1073,13 @@ export default function BusinessProfile() {
                               }}
                             />
                           </span>
-                          <span className="absolute -bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-[#00A884] shadow-sm transition group-hover:border-[#00A884]/40 group-hover:bg-[#f0fff8]">
-                            <Camera className={`h-4 w-4 ${isUploadingPhoto ? 'animate-pulse' : ''}`} />
-                            {isUploadingPhoto ? 'Uploading' : isRemovingPhoto ? 'Removing' : 'Edit'}
-                          </span>
+                          {!isPhotoMenuOpen ? (
+                            <span className="absolute -bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-[#00A884] shadow-sm transition group-hover:border-[#00A884]/40 group-hover:bg-[#f0fff8]">
+                              <Camera className={`h-4 w-4 ${isUploadingPhoto ? 'animate-pulse' : ''}`} />
+                              {isUploadingPhoto ? 'Uploading' : isRemovingPhoto ? 'Removing' : 'Edit'}
+                            </span>
+                          ) : null}
                         </button>
-
-                        <p className="mt-7 text-center text-xs leading-5 text-gray-500">PNG or JPEG only.</p>
 
                         <AnimatePresence>
                           {isPhotoMenuOpen ? (
@@ -1146,7 +1088,7 @@ export default function BusinessProfile() {
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: -4, scale: 0.98 }}
                               transition={{ duration: 0.16, ease: MOTION_EASE }}
-                              className="absolute left-1/2 top-[calc(100%+0.5rem)] z-[120] w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-black/10 bg-[#202124] py-2 text-sm font-semibold text-gray-300 shadow-2xl lg:left-3/4"
+                              className="absolute left-1/2 top-[calc(100%-1rem)] z-[120] w-44 -translate-x-1/2 overflow-hidden rounded-lg border border-black/10 bg-[#202124] py-2 text-sm font-semibold text-gray-300 shadow-2xl"
                               role="menu"
                             >
                               <button type="button" onClick={handleViewPhoto} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-white/5 hover:text-white" role="menuitem">
@@ -1194,65 +1136,72 @@ export default function BusinessProfile() {
                       </div>
                     </div>
 
-                    <div className="min-w-0 space-y-4">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <h2 className="truncate text-xl font-semibold text-gray-900">{previewName}</h2>
+                    <div className="min-w-0 self-center">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Display Name</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                        <h2 className="min-w-0 truncate text-xl font-semibold text-gray-900">
+                          {editableDisplayName || previewName}
+                        </h2>
                         {showOfficialBlueTick ? (
                           <BadgeCheck
                             aria-label="Official Business Account approved"
                             className="h-5 w-5 shrink-0 fill-blue-500 text-white"
                           />
                         ) : null}
-                      </div>
-
-                      <FormField
-                        label="Display name"
-                        description="Meta reviews public display name changes before customers see them."
-                      >
-                      <div className="flex flex-col gap-3 sm:flex-row">
-                        <div className="relative min-w-0 flex-1">
-                          <Pencil className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                          <input
-                            type="text"
-                            value={displayNameDraft}
-                            onChange={(event) => handleDisplayNameDraftChange(event.target.value)}
-                            maxLength={100}
-                            placeholder="Enter WhatsApp display name"
-                            className={`${fieldInputClassName} pl-9`}
-                          />
-                        </div>
-                        <ActionButton
-                          variant="primary"
-                          onClick={() => void handleSubmitDisplayName()}
-                          disabled={
-                            isSubmittingDisplayName ||
-                            isBusinessProfileLoading ||
-                            !isDisplayNameDirty ||
-                            displayNameDraft.trim().length < 3
-                          }
-                        >
-                          {isSubmittingDisplayName ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                          Submit for review
+                        <StatusSummary label={displayNameStatus.label} className={displayNameStatus.badgeClassName} />
+                        <ActionButton className="h-9 min-h-9 rounded-xl px-3 text-xs" onClick={handleOpenDisplayNameDialog}>
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
                         </ActionButton>
                       </div>
-                      </FormField>
-
                       {displayNameRequest ? (
-                        <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                          Last submitted: <span className="font-semibold">{displayNameRequest.requestedName}</span>
-                          {' on '}
-                          {new Date(displayNameRequest.requestedAt).toLocaleString()}
-                          {displayNameRequest.status ? ` \u2022 ${displayNameRequest.status}` : ''}
-                        </div>
+                        <p className="mt-2 text-xs leading-5 text-gray-500">
+                          Last submitted {new Date(displayNameRequest.requestedAt).toLocaleString()}.
+                        </p>
                       ) : null}
                     </div>
+                  </div>
+                </motion.section>
+
+                <ProfileSection
+                  title="Username"
+                  description={
+                    <>
+                      Usernames are a new way for customers to contact you without using your phone number. Your phone number will still appear on your profile.{' '}
+                      <a
+                        href="https://faq.whatsapp.com/658755553162769/?helpref=uf_share"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-[#1381FF] hover:underline"
+                      >
+                        Learn more
+                      </a>
+                    </>
+                  }
+                  icon={AtSign}
+                  shouldReduceMotion={shouldReduceMotion}
+                >
+                  <div className="flex flex-col gap-3 rounded-2xl bg-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      {businessProfile?.username ? (
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <p className="truncate text-lg font-semibold text-gray-900">@{businessProfile.username}</p>
+                          <StatusSummary label={usernameStatus.label} className={usernameStatus.badgeClassName} />
+                        </div>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-600">No WhatsApp username created yet.</p>
+                      )}
+                    </div>
+                    <ActionButton variant="primary" onClick={handleOpenUsernameDialog}>
+                      {businessProfile?.username ? 'Change' : 'Create'}
+                    </ActionButton>
                   </div>
                 </ProfileSection>
 
                 <ProfileSection
-                  title="Marketing"
-                  description="Short profile copy customers use to understand your business."
-                  icon={Store}
+                  title="Business information"
+                  description="Add some details about your business."
+                  icon={Building2}
                   shouldReduceMotion={shouldReduceMotion}
                 >
                 <div className="grid gap-4">
@@ -1296,15 +1245,8 @@ export default function BusinessProfile() {
                     />
                   </div>
                 </div>
-                </ProfileSection>
 
-                <ProfileSection
-                  title="Communication"
-                  description="Public contact details customers can use outside chat."
-                  icon={MessageSquare}
-                  shouldReduceMotion={shouldReduceMotion}
-                >
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="mt-5 grid gap-4 border-t border-gray-100 pt-5 md:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Email</label>
                     <input
@@ -1357,38 +1299,9 @@ export default function BusinessProfile() {
                 </div>
                 </ProfileSection>
 
-                <ProfileSection
-                  title="Trust"
-                  description="Meta review and verification signals for this profile."
-                  icon={ShieldCheck}
-                  shouldReduceMotion={shouldReduceMotion}
-                >
-                  <div className="divide-y divide-gray-100 rounded-2xl bg-gray-50/70">
-                    <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900">Display name approval</p>
-                        <p className="mt-1 text-xs leading-5 text-gray-500">Public name status returned by Meta.</p>
-                      </div>
-                      <StatusSummary label={displayNameStatus.label} className={displayNameStatus.badgeClassName} />
-                    </div>
-
-                    <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900">Official Business Account</p>
-                        <p className="mt-1 text-xs leading-5 text-gray-500">{officialBusinessAccountMeta.message}</p>
-                      </div>
-                      <StatusSummary
-                        label={officialBusinessAccountMeta.label}
-                        className={officialBusinessAccountMeta.badgeClassName}
-                        icon={showOfficialBlueTick ? <BadgeCheck className="h-4 w-4 shrink-0 fill-blue-500 text-white" /> : undefined}
-                      />
-                    </div>
-                  </div>
-                </ProfileSection>
-
                 <motion.div
                   variants={slideUp}
-                  className="sticky bottom-0 -mx-6 mt-2 flex flex-col gap-3 border-t border-gray-100 bg-white/95 px-6 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+                  className="mt-2 flex flex-col gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <p className="text-sm text-gray-500">
                     {isDirty ? 'Unsaved changes in progress.' : 'Everything is in sync with the last saved profile.'}
@@ -1524,102 +1437,117 @@ export default function BusinessProfile() {
         </motion.div>
       )}
 
-      <AnimatePresence>
-        {photoEditorSourceUrl ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: MOTION_EASE }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4"
-          >
-            <motion.div
-              initial={shouldReduceMotion ? false : { y: 16, scale: 0.98 }}
-              animate={shouldReduceMotion ? undefined : { y: 0, scale: 1 }}
-              exit={shouldReduceMotion ? undefined : { y: 16, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: MOTION_EASE }}
-              className="flex max-h-[82vh] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl bg-[#111312] text-white shadow-2xl"
+      <ProfileDialog
+        isOpen={isDisplayNameDialogOpen}
+        title="Edit display name"
+        description={
+          <>
+            Ensure that your name follows WhatsApp&apos;s{' '}
+            <a
+              href="https://www.facebook.com/business/help/338047025165344"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-[#1381FF] hover:underline"
             >
-              <div className="flex min-h-12 items-center border-b border-white/10 px-3 sm:px-4">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={handleClosePhotoEditor}
-                    disabled={isUploadingPhoto}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    aria-label="Close photo editor"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                  <h2 className="truncate text-base font-semibold">Drag the image to adjust</h2>
-                </div>
-              </div>
+              naming guidelines
+            </a>
+            .
+          </>
+        }
+        isBusy={isSubmittingDisplayName}
+        onClose={() => setIsDisplayNameDialogOpen(false)}
+        footer={
+          <>
+            <ActionButton onClick={() => setIsDisplayNameDialogOpen(false)} disabled={isSubmittingDisplayName}>
+              Cancel
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              onClick={() => void handleSubmitDisplayName()}
+              disabled={
+                isSubmittingDisplayName ||
+                isBusinessProfileLoading ||
+                !isDisplayNameDirty ||
+                displayNameDraft.trim().length < 3
+              }
+            >
+              {isSubmittingDisplayName ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
+              Save
+            </ActionButton>
+          </>
+        }
+      >
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-slate-800">Display name</span>
+          <input
+            type="text"
+            value={displayNameDraft}
+            onChange={(event) => handleDisplayNameDraftChange(event.target.value)}
+            maxLength={100}
+            autoFocus
+            placeholder="Enter WhatsApp display name"
+            className={fieldInputClassName}
+          />
+        </label>
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      </ProfileDialog>
 
-              <div className="relative flex min-h-0 flex-1 items-center justify-center bg-[#06100d] px-4 py-4">
-                <div
-                  ref={photoEditorPreviewRef}
-                  onPointerDown={handlePhotoEditorPointerDown}
-                  onPointerMove={handlePhotoEditorPointerMove}
-                  onPointerUp={handlePhotoEditorPointerUp}
-                  onPointerCancel={handlePhotoEditorPointerUp}
-                  onWheel={handlePhotoEditorWheel}
-                  className="relative aspect-square w-full max-w-[390px] touch-none cursor-grab overflow-hidden bg-black active:cursor-grabbing"
-                >
-                  <img
-                    src={photoEditorSourceUrl}
-                    alt="Selected profile preview"
-                    className="absolute max-w-none select-none"
-                    draggable={false}
-                    onLoad={handlePhotoEditorImageLoad}
-                    style={{
-                      left: `calc(50% + ${photoEditorOffset.x}px)`,
-                      top: `calc(50% + ${photoEditorOffset.y}px)`,
-                      width: `${Math.max(1, (photoEditorImageSize?.width || 1) / (photoEditorImageSize?.height || 1)) * photoEditorZoom * 100}%`,
-                      height: `${Math.max(1, (photoEditorImageSize?.height || 1) / (photoEditorImageSize?.width || 1)) * photoEditorZoom * 100}%`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                  />
-                  <div className="pointer-events-none absolute left-1/2 top-1/2 h-[82%] w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-full shadow-[0_0_0_9999px_rgba(0,0,0,0.48)] ring-1 ring-white/10" />
-                </div>
+      <ProfileDialog
+        isOpen={isUsernameDialogOpen}
+        title={`${businessProfile?.username ? 'Change' : 'Create a'} WhatsApp username to help customers find you`}
+        isBusy={isSubmittingUsername}
+        onClose={() => setIsUsernameDialogOpen(false)}
+        footer={
+          <>
+            <ActionButton onClick={() => setIsUsernameDialogOpen(false)} disabled={isSubmittingUsername}>
+              Cancel
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              onClick={() => void handleSubmitUsername()}
+              disabled={
+                isSubmittingUsername ||
+                Boolean(getBusinessUsernameValidationError(usernameDraft)) ||
+                usernameDraft.trim() === (businessProfile?.username || '')
+              }
+            >
+              {isSubmittingUsername ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
+              Save
+            </ActionButton>
+          </>
+        }
+      >
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-slate-800">Username</span>
+          <div className={`flex min-h-11 items-center rounded-md border bg-white px-3 transition ${
+            usernameValidationError ? 'border-red-400 ring-1 ring-red-200' : 'border-gray-300 focus-within:border-[#1381FF] focus-within:ring-1 focus-within:ring-[#1381FF]'
+          }`}>
+            <AtSign className="h-5 w-5 shrink-0 text-slate-600" />
+            <input
+              type="text"
+              value={usernameDraft}
+              onChange={(event) => handleUsernameDraftChange(event.target.value)}
+              maxLength={35}
+              autoFocus
+              aria-label="Username"
+              className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2 text-base text-slate-900 outline-none"
+            />
+          </div>
+        </label>
+        {usernameValidationError ? <p className="mt-3 text-sm text-red-600">{usernameValidationError}</p> : null}
+        <p className="mt-3 text-xs leading-5 text-gray-500">
+          3–35 characters. Use English letters, numbers, periods, or underscores.
+        </p>
+      </ProfileDialog>
 
-                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-black/40 text-white shadow-lg backdrop-blur">
-                  <button
-                    type="button"
-                    onClick={() => handlePhotoEditorZoomChange(0.1)}
-                    disabled={isUploadingPhoto || photoEditorZoom >= MAX_PHOTO_EDITOR_ZOOM}
-                    className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Zoom in"
-                  >
-                    <ZoomIn className="h-5 w-5" />
-                  </button>
-                  <div className="mx-3 border-t border-white/15" />
-                  <button
-                    type="button"
-                    onClick={() => handlePhotoEditorZoomChange(-0.1)}
-                    disabled={isUploadingPhoto || photoEditorZoom <= MIN_PHOTO_EDITOR_ZOOM}
-                    className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Zoom out"
-                  >
-                    <ZoomOut className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex min-h-16 items-center justify-end bg-[#191b1a] px-5 py-3">
-                <button
-                  type="button"
-                  onClick={() => void handlePhotoEditorUpload()}
-                  disabled={isUploadingPhoto}
-                  className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#21c667] text-white shadow-lg shadow-[#21c667]/20 transition hover:scale-105 hover:bg-[#19b85c] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  aria-label="Upload adjusted photo"
-                >
-                  {isUploadingPhoto ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Check className="h-6 w-6" />}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      <ProfilePhotoEditor
+        sourceUrl={photoEditorSourceUrl}
+        fileName={photoEditorFileName}
+        isSaving={isUploadingPhoto}
+        onCancel={handleClosePhotoEditor}
+        onError={setError}
+        onSave={handlePhotoEditorUpload}
+      />
     </motion.div>
   );
 }

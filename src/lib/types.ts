@@ -898,6 +898,8 @@ export interface WhatsAppBusinessProfile {
   description: string | null;
   displayNameStatus: string | null;
   displayNameRequest: WhatsAppDisplayNameRequest | null;
+  username: string | null;
+  usernameStatus: string | null;
   twoStepVerification: WhatsAppTwoStepVerificationStatus | null;
   officialBusinessAccountStatus: WhatsAppOfficialBusinessAccountStatus | null;
   email: string | null;
@@ -915,6 +917,11 @@ export interface WhatsAppBusinessProfile {
 
 export interface WhatsAppDisplayNameUpdateInput {
   displayName: string;
+}
+
+export interface WhatsAppBusinessUsernameUpdateInput {
+  username: string;
+  transferAction?: 'none' | 'force_transfer';
 }
 
 export interface WhatsAppBusinessProfileUpdateInput {

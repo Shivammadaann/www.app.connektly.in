@@ -80,6 +80,7 @@ import type {
   VerifyBillingSubscriptionInput,
   VerifyWalletTopupInput,
   WhatsAppBusinessProfile,
+  WhatsAppBusinessUsernameUpdateInput,
   WhatsAppBusinessActivitiesFilters,
   WhatsAppBusinessActivitiesResponse,
   WhatsAppDisplayNameUpdateInput,
@@ -982,6 +983,12 @@ export const appApi = {
   },
   updateWhatsAppDisplayName(payload: WhatsAppDisplayNameUpdateInput) {
     return apiRequest<{ profile: WhatsAppBusinessProfile }>('/meta/display-name', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  updateWhatsAppBusinessUsername(payload: WhatsAppBusinessUsernameUpdateInput) {
+    return apiRequest<{ profile: WhatsAppBusinessProfile }>('/meta/business-username', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

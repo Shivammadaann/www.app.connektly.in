@@ -2756,6 +2756,21 @@ function buildMetaApiError(response, payload) {
   if (code === 133010) {
     message = "This WhatsApp phone number is connected to the WABA but is not registered as a Cloud API sender yet. Open Meta Channels and complete sender registration with a 6-digit PIN.";
   }
+  if (code === 147001) {
+    message = "This username is unavailable. Try a different username.";
+  }
+  if (code === 147002) {
+    message = "This WhatsApp Business account is not yet eligible to request a username.";
+  }
+  if (code === 147003) {
+    message = "Link the Facebook Page that already uses this username before claiming it.";
+  }
+  if (code === 147004) {
+    message = "Link the Instagram account that already uses this username before claiming it.";
+  }
+  if (code === 147005) {
+    message = "This username is assigned to another phone number in the same business portfolio and must be transferred first.";
+  }
   if (code === 200 && message.toLowerCase().includes("necessary permission") && message.toLowerCase().includes("whatsapp business account")) {
     message = "The connected Meta token does not have permission to act on this WhatsApp Business Account. Reconnect WhatsApp with a Meta user/system token that has whatsapp_business_messaging and whatsapp_business_management permissions, and confirm the app or system user has access to this WABA and phone number in Meta Business Manager.";
   }
@@ -4039,14 +4054,60 @@ async function manageRemoteCall(accessToken, phoneNumberId, input) {
   };
 }
 async function fetchBusinessProfile(accessToken, phoneNumberId) {
+  const [response, usernameResponse] = await Promise.all([
+    metaRequest({
+      accessToken,
+      path: `${phoneNumberId}/whatsapp_business_profile`,
+      query: {
+        fields: "about,address,description,email,profile_picture_url,websites,vertical"
+      }
+    }),
+    metaRequest({
+      accessToken,
+      path: `${phoneNumberId}/username`
+    }).catch(() => null)
+  ]);
+  return {
+    ...response.data?.[0] || {},
+    username: normalizeOptionalString(usernameResponse?.username),
+    username_status: normalizeOptionalString(usernameResponse?.status)
+  };
+}
+function normalizeBusinessUsername(value) {
+  const username = normalizeOptionalString(value)?.replace(/^@+/, "") || "";
+  if (username.length < 3 || username.length > 35) {
+    throw new Error("Username must be between 3 and 35 characters.");
+  }
+  if (!/^[a-z0-9._]+$/i.test(username) || !/[a-z]/i.test(username)) {
+    throw new Error("Username can only contain English letters, numbers, periods, and underscores.");
+  }
+  if (username.startsWith(".") || username.endsWith(".") || username.includes("..")) {
+    throw new Error("Username cannot start or end with a period or contain consecutive periods.");
+  }
+  if (/^www/i.test(username)) {
+    throw new Error("Username cannot start with www.");
+  }
+  if (/\.(?:com|org|net|int|edu|gov|mil|html|[a-z]{2})$/i.test(username)) {
+    throw new Error("Username cannot end with a domain name.");
+  }
+  return username;
+}
+async function updateWhatsAppBusinessUsername(accessToken, phoneNumberId, input) {
+  const username = normalizeBusinessUsername(input.username);
+  const transferAction = input.transferAction === "force_transfer" ? "force_transfer" : "none";
   const response = await metaRequest({
     accessToken,
-    path: `${phoneNumberId}/whatsapp_business_profile`,
-    query: {
-      fields: "about,address,description,email,profile_picture_url,websites,vertical"
+    path: `${phoneNumberId}/username`,
+    method: "POST",
+    body: {
+      username,
+      transfer_action: transferAction
     }
   });
-  return response.data?.[0] || {};
+  return {
+    username,
+    status: normalizeOptionalString(response.status)
+  };
 }
 async function fetchOfficialBusinessAccountStatus(accessToken, phoneNumberId) {
   const response = await metaRequest({
@@ -8594,6 +8655,8 @@ function mapBusinessProfile(raw, channelRow, phoneSnapshot, officialBusinessAcco
     description: normalizeOptionalString(raw.description),
     displayNameStatus: getBusinessProfileDisplayNameStatus(channelRow.metadata, phoneSnapshot),
     displayNameRequest: getStoredDisplayNameRequest(channelRow.metadata),
+    username: normalizeOptionalString(raw.username),
+    usernameStatus: normalizeOptionalString(raw.username_status),
     twoStepVerification: mapStoredTwoStepVerificationStatus(channelRow.metadata),
     officialBusinessAccountStatus: officialBusinessAccountStatus || null,
     email: normalizeOptionalString(raw.email),
@@ -16049,6 +16112,39 @@ app.post("/api/meta/display-name", async (req, res) => {
         remoteProfile,
         registration.row,
         registration.phone,
+        officialBusinessAccountStatus
+      )
+    });
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+app.post("/api/meta/business-username", async (req, res) => {
+  try {
+    const { row, accessToken } = await getChannelWithToken(req.authedUser.id);
+    const usernameResult = await updateWhatsAppBusinessUsername(
+      accessToken,
+      String(row.phone_number_id),
+      req.body
+    );
+    const [snapshot, remoteProfile] = await Promise.all([
+      refreshChannelSnapshot(req.authedUser.id, row, accessToken),
+      fetchBusinessProfile(accessToken, String(row.phone_number_id))
+    ]);
+    const officialBusinessAccountStatus = await getOfficialBusinessAccountStatusForChannel({
+      userId: req.authedUser.id,
+      row: snapshot.channelRow,
+      accessToken
+    });
+    res.json({
+      profile: mapBusinessProfile(
+        {
+          ...remoteProfile,
+          username: normalizeOptionalString(remoteProfile.username) || usernameResult.username,
+          username_status: normalizeOptionalString(remoteProfile.username_status) || usernameResult.status
+        },
+        snapshot.channelRow,
+        snapshot.phone,
         officialBusinessAccountStatus
       )
     });

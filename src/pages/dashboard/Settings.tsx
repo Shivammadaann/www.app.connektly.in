@@ -45,6 +45,7 @@ import { useEscapeKey } from '../../lib/useEscapeKey';
 import { User as SupabaseUser, type Factor } from '@supabase/supabase-js';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
+import ProfilePhotoEditor from '../../components/ProfilePhotoEditor';
 import UserAvatar from '../../components/UserAvatar';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import { getCachedSession, supabase } from '../../lib/supabase';
@@ -764,6 +765,8 @@ export default function Settings() {
     industry: '',
   });
   const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState<string | null>(null);
+  const [profilePhotoEditorSourceUrl, setProfilePhotoEditorSourceUrl] = useState<string | null>(null);
+  const [profilePhotoEditorFileName, setProfilePhotoEditorFileName] = useState('profile-photo.jpg');
   const [companyLogoPreviewUrl, setCompanyLogoPreviewUrl] = useState<string | null>(null);
   const [isUploadingProfilePhoto, setIsUploadingProfilePhoto] = useState(false);
   const [isUploadingCompanyLogo, setIsUploadingCompanyLogo] = useState(false);
@@ -917,6 +920,14 @@ export default function Settings() {
       URL.revokeObjectURL(profilePhotoPreviewUrl);
     };
   }, [profilePhotoPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (profilePhotoEditorSourceUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(profilePhotoEditorSourceUrl);
+      }
+    };
+  }, [profilePhotoEditorSourceUrl]);
 
   useEffect(() => {
     if (!companyLogoPreviewUrl?.startsWith('blob:')) {
@@ -1205,7 +1216,7 @@ export default function Settings() {
   }
 })`;
 
-  const handleProfilePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePhotoSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
 
@@ -1229,6 +1240,12 @@ export default function Settings() {
 
     setError(null);
     setProfileNotice(null);
+    setProfilePhotoEditorSourceUrl(URL.createObjectURL(file));
+    setProfilePhotoEditorFileName(file.name || 'profile-photo.jpg');
+    input.value = '';
+  };
+
+  const handleProfilePhotoUpload = async (file: File) => {
     setIsUploadingProfilePhoto(true);
     setProfilePhotoPreviewUrl(URL.createObjectURL(file));
 
@@ -1244,13 +1261,13 @@ export default function Settings() {
           : current,
       );
       setProfilePhotoPreviewUrl(response.profile?.profilePictureUrl || null);
+      setProfilePhotoEditorSourceUrl(null);
       setProfileNotice('Profile picture updated.');
     } catch (uploadError) {
       setProfilePhotoPreviewUrl(null);
       setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload profile picture.');
     } finally {
       setIsUploadingProfilePhoto(false);
-      input.value = '';
     }
   };
 
@@ -2360,7 +2377,7 @@ export default function Settings() {
                       ref={profilePhotoInputRef}
                       type="file"
                       accept="image/png,image/jpeg"
-                      onChange={handleProfilePhotoUpload}
+                      onChange={handleProfilePhotoSelection}
                       className="hidden"
                     />
 
@@ -4623,6 +4640,15 @@ export default function Settings() {
         isLoading={isDeletingAccount}
         onClose={() => setIsDeleteAccountConfirmationOpen(false)}
         onConfirm={() => void confirmDeleteAccount()}
+      />
+
+      <ProfilePhotoEditor
+        sourceUrl={profilePhotoEditorSourceUrl}
+        fileName={profilePhotoEditorFileName}
+        isSaving={isUploadingProfilePhoto}
+        onCancel={() => setProfilePhotoEditorSourceUrl(null)}
+        onError={setError}
+        onSave={handleProfilePhotoUpload}
       />
     </div>
   );
