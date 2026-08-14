@@ -165,16 +165,6 @@ Meta Lead Capture
 - Recent lead capture event display.
 - Optional auto-creation of CRM leads from captured Meta lead data.
 
-Email
-- SMTP and IMAP email connection setup.
-- Email connection verification before saving.
-- Email connection delete/disconnect.
-- Email inbox fetch and display with folder normalization and safe preview rendering.
-- Email template builder with subject, HTML body, preview, create/update, and delete.
-- Email campaign sender with recipients from templates or custom recipient lists.
-- Email campaign history.
-- Incoming email notification sync.
-
 WhatsApp Calls
 - WhatsApp call settings fetch and update.
 - Call enable/disable, call icon visibility, callback permission, weekly operating hours, timezone, and holiday schedule controls.
@@ -261,7 +251,6 @@ Realtime and Data Synchronization
 - Periodic dashboard refresh every 12 seconds while visible.
 - Business profile polling every 45 seconds while visible.
 - Silent WhatsApp template sync every 30 seconds while visible.
-- Email notification polling while the dashboard is active.
 
 Database and Persistence
 - app_profiles for workspace profile, onboarding, billing, trial, photo, and logo data.
@@ -279,7 +268,6 @@ Database and Persistence
 - user_notifications and user_notification_preferences for alerts.
 - developer_api_credentials and developer_webhook_endpoints for developer tooling.
 - woocommerce_connections for store credentials and automation settings.
-- email_connections, email_templates, and email_campaigns for email features.
 - Row-level security policies are enabled for user-owned data.
 
 Known Incomplete or Scaffolded Areas

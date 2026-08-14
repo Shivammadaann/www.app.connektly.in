@@ -3,15 +3,12 @@ import "dotenv/config";
 import crypto from "node:crypto";
 import dns from "node:dns";
 import fs from "node:fs";
-import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import express from "express";
 import multer from "multer";
 import { createClient } from "@supabase/supabase-js";
-import { ImapFlow } from "imapflow";
-import { simpleParser } from "mailparser";
 import nodemailer from "nodemailer";
 
 // src/lib/billing.ts
@@ -1587,13 +1584,11 @@ function normalizeWorkspaceUserStatus(value) {
 function normalizeNotificationType(value) {
   switch (value) {
     case "incoming_message":
-    case "incoming_email":
     case "template_approved":
     case "template_rejected":
     case "missed_call":
     case "lead_created":
     case "campaign_sent":
-    case "email_campaign_sent":
     case "display_name_approved":
     case "display_name_rejected":
     case "team_member_joined":
@@ -1628,12 +1623,10 @@ function getDefaultNotificationPreferences(userId) {
     soundPreset: "classic",
     volume: 0.8,
     incomingMessageEnabled: true,
-    incomingEmailEnabled: true,
     templateReviewEnabled: true,
     missedCallEnabled: true,
     leadEnabled: true,
     campaignSentEnabled: true,
-    emailCampaignEnabled: true,
     displayNameApprovedEnabled: true,
     teamJoinedEnabled: true,
     createdAt: now,
@@ -1644,8 +1637,6 @@ function notificationTypeToPreferenceKey(type) {
   switch (type) {
     case "incoming_message":
       return "incomingMessageEnabled";
-    case "incoming_email":
-      return "incomingEmailEnabled";
     case "template_approved":
     case "template_rejected":
       return "templateReviewEnabled";
@@ -1655,8 +1646,6 @@ function notificationTypeToPreferenceKey(type) {
       return "leadEnabled";
     case "campaign_sent":
       return "campaignSentEnabled";
-    case "email_campaign_sent":
-      return "emailCampaignEnabled";
     case "display_name_approved":
     case "display_name_rejected":
       return "displayNameApprovedEnabled";
@@ -1848,202 +1837,6 @@ function sendPasswordResetEmailInBackground(args) {
       console.error("Background password reset email failed:", error);
     });
   });
-}
-function normalizeEmailPort(value, label) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(numeric) || numeric <= 0 || numeric > 65535) {
-    throw new Error(`${label} must be a valid port number.`);
-  }
-  return numeric;
-}
-function normalizeEmailHost(value) {
-  let host = normalizeEditableString(value);
-  if (!host) {
-    return "";
-  }
-  host = host.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").trim();
-  host = host.split(/[/?#]/)[0]?.trim() || "";
-  host = host.includes("@") ? host.split("@").pop()?.trim() || "" : host;
-  if (host.startsWith("[")) {
-    const bracketEndIndex = host.indexOf("]");
-    return bracketEndIndex > 0 ? host.slice(1, bracketEndIndex).trim() : host;
-  }
-  return host.replace(/:\d+$/, "").trim();
-}
-function normalizeSmtpSecure(port2, value) {
-  if (port2 === 465) {
-    return true;
-  }
-  if (port2 === 587 || port2 === 25) {
-    return false;
-  }
-  return value !== false;
-}
-function normalizeImapSecure(port2, value) {
-  if (port2 === 993) {
-    return true;
-  }
-  if (port2 === 143) {
-    return false;
-  }
-  return value !== false;
-}
-function normalizeEmailConnectionInput(input) {
-  const displayName = normalizeEditableString(input.displayName);
-  const emailAddress = normalizeEmailAddress(input.emailAddress);
-  const authUser = normalizeEditableString(input.authUser);
-  const password = typeof input.password === "string" ? input.password.trim() : "";
-  const smtpHost = normalizeEmailHost(input.smtpHost);
-  const imapHost = normalizeEmailHost(input.imapHost);
-  if (!displayName) {
-    throw new Error("Display name is required.");
-  }
-  if (!emailAddress) {
-    throw new Error("A valid email address is required.");
-  }
-  if (!authUser) {
-    throw new Error("A valid SMTP/IMAP username is required.");
-  }
-  if (!password) {
-    throw new Error("Password is required.");
-  }
-  if (!smtpHost) {
-    throw new Error("SMTP host is required.");
-  }
-  if (!imapHost) {
-    throw new Error("IMAP host is required.");
-  }
-  const smtpPort = normalizeEmailPort(input.smtpPort, "SMTP port");
-  const imapPort = normalizeEmailPort(input.imapPort, "IMAP port");
-  return {
-    displayName,
-    emailAddress,
-    authUser,
-    password,
-    smtpHost,
-    smtpPort,
-    smtpSecure: normalizeSmtpSecure(smtpPort, input.smtpSecure),
-    imapHost,
-    imapPort,
-    imapSecure: normalizeImapSecure(imapPort, input.imapSecure)
-  };
-}
-function normalizeEmailConnectionIdentityInput(input) {
-  const displayName = normalizeEditableString(input.displayName);
-  const emailAddress = normalizeEmailAddress(input.emailAddress);
-  const authUser = normalizeEditableString(input.authUser);
-  const password = typeof input.password === "string" ? input.password.trim() : "";
-  if (!displayName) {
-    throw new Error("Display name is required.");
-  }
-  if (!emailAddress) {
-    throw new Error("A valid email address is required.");
-  }
-  if (!authUser) {
-    throw new Error("A valid SMTP/IMAP username is required.");
-  }
-  if (!password) {
-    throw new Error("Password is required.");
-  }
-  return {
-    displayName,
-    emailAddress,
-    authUser,
-    password
-  };
-}
-function normalizeEmailSmtpVerificationInput(input) {
-  const identity = normalizeEmailConnectionIdentityInput(input);
-  const smtpHost = normalizeEmailHost(input.smtpHost);
-  if (!smtpHost) {
-    throw new Error("SMTP host is required.");
-  }
-  const smtpPort = normalizeEmailPort(input.smtpPort, "SMTP port");
-  return {
-    ...identity,
-    smtpHost,
-    smtpPort,
-    smtpSecure: normalizeSmtpSecure(smtpPort, input.smtpSecure)
-  };
-}
-function normalizeEmailImapVerificationInput(input) {
-  const identity = normalizeEmailConnectionIdentityInput(input);
-  const imapHost = normalizeEmailHost(input.imapHost);
-  if (!imapHost) {
-    throw new Error("IMAP host is required.");
-  }
-  const imapPort = normalizeEmailPort(input.imapPort, "IMAP port");
-  return {
-    ...identity,
-    imapHost,
-    imapPort,
-    imapSecure: normalizeImapSecure(imapPort, input.imapSecure)
-  };
-}
-function normalizeEmailTemplateEditorMode(value) {
-  return value === "html" ? "html" : "rich";
-}
-function normalizeEmailTemplateInput(input) {
-  const name = normalizeEditableString(input.name);
-  const subject = normalizeEditableString(input.subject);
-  const htmlContent = typeof input.htmlContent === "string" ? input.htmlContent.trim() : "";
-  if (!name) {
-    throw new Error("Template name is required.");
-  }
-  if (!subject) {
-    throw new Error("Email subject is required.");
-  }
-  if (!htmlContent) {
-    throw new Error("Email template content cannot be empty.");
-  }
-  return {
-    name,
-    subject,
-    editorMode: normalizeEmailTemplateEditorMode(input.editorMode),
-    htmlContent
-  };
-}
-function normalizeEmailRecipients(value) {
-  if (!Array.isArray(value)) {
-    throw new Error("At least one email recipient is required.");
-  }
-  const deduped = /* @__PURE__ */ new Map();
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      continue;
-    }
-    const email = normalizeEmailAddress(entry.email);
-    if (!email) {
-      continue;
-    }
-    const name = normalizeEditableString(entry.name) || null;
-    deduped.set(email, { email, name });
-  }
-  const recipients = Array.from(deduped.values());
-  if (recipients.length === 0) {
-    throw new Error("At least one valid email recipient is required.");
-  }
-  return recipients;
-}
-function normalizeEmailCampaignInput(input) {
-  const templateId = normalizeOptionalIdentifier(input.templateId);
-  const campaignName = normalizeEditableString(input.campaignName);
-  const audienceSource = input.audienceSource === "custom" ? "custom" : "contacts";
-  if (!templateId) {
-    throw new Error("A saved email template is required.");
-  }
-  if (!campaignName) {
-    throw new Error("Campaign name is required.");
-  }
-  return {
-    templateId,
-    campaignName,
-    audienceSource,
-    recipients: normalizeEmailRecipients(input.recipients)
-  };
-}
-function stripHtmlTags(value) {
-  return value.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 function normalizeInsightsChannel(value) {
   if (value === "whatsapp" || value === "instagram" || value === "messenger") {
@@ -3443,12 +3236,12 @@ function shouldAutoRegisterApprovedDisplayName(row, phoneSnapshot) {
   const displayNameApproval = isRecord(metadata.displayNameApproval) ? metadata.displayNameApproval : {};
   const displayNameRequest = isRecord(metadata.displayNameRequest) ? metadata.displayNameRequest : {};
   const requestedName = normalizeOptionalString(displayNameRequest.requestedName) || normalizeOptionalString(phoneSnapshot.verified_name);
-  const verifiedName2 = normalizeOptionalString(phoneSnapshot.verified_name);
+  const verifiedName = normalizeOptionalString(phoneSnapshot.verified_name);
   const phoneStatus = getDisplayNameStatus(phoneSnapshot.name_status);
   const approvalStatus = getDisplayNameStatus(displayNameApproval.status);
   const requestStatus = getDisplayNameStatus(displayNameRequest.status);
   const requestMatchesCurrentName = Boolean(
-    requestedName && verifiedName2 && requestedName === verifiedName2 && phoneStatus === "APPROVED"
+    requestedName && verifiedName && requestedName === verifiedName && phoneStatus === "APPROVED"
   );
   const status = requestedName ? requestStatus === "APPROVED" || requestMatchesCurrentName ? "APPROVED" : requestStatus || phoneStatus || approvalStatus : approvalStatus === "APPROVED" || phoneStatus === "APPROVED" ? "APPROVED" : phoneStatus || approvalStatus || requestStatus;
   if (requestedName && isDisplayNameReviewStatus(requestStatus)) {
@@ -8118,10 +7911,6 @@ function mapNotificationPreferences(row, userId) {
       row.incoming_message_enabled,
       defaults.incomingMessageEnabled
     ),
-    incomingEmailEnabled: normalizeBooleanPreference(
-      row.incoming_email_enabled,
-      defaults.incomingEmailEnabled
-    ),
     templateReviewEnabled: normalizeBooleanPreference(
       row.template_review_enabled,
       defaults.templateReviewEnabled
@@ -8134,10 +7923,6 @@ function mapNotificationPreferences(row, userId) {
     campaignSentEnabled: normalizeBooleanPreference(
       row.campaign_sent_enabled,
       defaults.campaignSentEnabled
-    ),
-    emailCampaignEnabled: normalizeBooleanPreference(
-      row.email_campaign_enabled,
-      defaults.emailCampaignEnabled
     ),
     displayNameApprovedEnabled: normalizeBooleanPreference(
       row.display_name_approved_enabled,
@@ -8236,57 +8021,6 @@ function mapMessengerChannel(row) {
     connectedAt: String(row.connected_at || row.created_at),
     lastSyncedAt: normalizeOptionalString(row.last_synced_at),
     metadata: row.metadata || {}
-  };
-}
-function mapEmailConnection(row) {
-  if (!row) {
-    return null;
-  }
-  return {
-    userId: String(row.user_id),
-    displayName: String(row.display_name || ""),
-    emailAddress: String(row.email_address || ""),
-    authUser: String(row.auth_user || ""),
-    smtpHost: String(row.smtp_host || ""),
-    smtpPort: Number(row.smtp_port || 0),
-    smtpSecure: Boolean(row.smtp_secure),
-    imapHost: String(row.imap_host || ""),
-    imapPort: Number(row.imap_port || 0),
-    imapSecure: Boolean(row.imap_secure),
-    status: normalizeOptionalString(row.status) || "connected",
-    lastVerifiedAt: normalizeOptionalString(row.last_verified_at),
-    lastError: normalizeOptionalString(row.last_error),
-    createdAt: String(row.created_at || (/* @__PURE__ */ new Date()).toISOString()),
-    updatedAt: String(row.updated_at || (/* @__PURE__ */ new Date()).toISOString())
-  };
-}
-function mapEmailTemplate(row) {
-  return {
-    id: String(row.id),
-    userId: String(row.user_id),
-    name: String(row.name || ""),
-    subject: String(row.subject || ""),
-    editorMode: normalizeEmailTemplateEditorMode(row.editor_mode),
-    htmlContent: String(row.html_content || ""),
-    createdAt: String(row.created_at || (/* @__PURE__ */ new Date()).toISOString()),
-    updatedAt: String(row.updated_at || (/* @__PURE__ */ new Date()).toISOString())
-  };
-}
-function mapEmailCampaign(row) {
-  return {
-    id: String(row.id),
-    userId: String(row.user_id),
-    templateId: normalizeOptionalIdentifier(row.email_template_id),
-    templateName: normalizeOptionalString(row.template_name),
-    campaignName: String(row.campaign_name || ""),
-    subject: String(row.subject || ""),
-    htmlContent: String(row.html_content || ""),
-    audienceSource: row.audience_source === "custom" ? "custom" : "contacts",
-    recipientCount: Number(row.recipient_count || 0),
-    status: row.status === "partial" || row.status === "failed" ? row.status : "sent",
-    sentAt: normalizeOptionalString(row.sent_at),
-    createdAt: String(row.created_at || (/* @__PURE__ */ new Date()).toISOString()),
-    updatedAt: String(row.updated_at || (/* @__PURE__ */ new Date()).toISOString())
   };
 }
 function mapTemplate(row) {
@@ -9289,12 +9023,10 @@ async function saveNotificationPreferences(userId, input) {
     sound_preset: normalizeNotificationSoundPreset(input.soundPreset ?? current.soundPreset),
     volume: normalizeNotificationVolume(input.volume ?? current.volume, current.volume),
     incoming_message_enabled: input.incomingMessageEnabled ?? current.incomingMessageEnabled,
-    incoming_email_enabled: input.incomingEmailEnabled ?? current.incomingEmailEnabled,
     template_review_enabled: input.templateReviewEnabled ?? current.templateReviewEnabled,
     missed_call_enabled: input.missedCallEnabled ?? current.missedCallEnabled,
     lead_enabled: input.leadEnabled ?? current.leadEnabled,
     campaign_sent_enabled: input.campaignSentEnabled ?? current.campaignSentEnabled,
-    email_campaign_enabled: input.emailCampaignEnabled ?? current.emailCampaignEnabled,
     display_name_approved_enabled: input.displayNameApprovedEnabled ?? current.displayNameApprovedEnabled,
     team_joined_enabled: input.teamJoinedEnabled ?? current.teamJoinedEnabled,
     updated_at: (/* @__PURE__ */ new Date()).toISOString()
@@ -9783,9 +9515,9 @@ function getDisplayNameRequestStatusFromPhoneSnapshot(displayNameRequest, phoneS
   if (requestedName && newDisplayName && requestedName === newDisplayName && newNameStatus) {
     return newNameStatus;
   }
-  const verifiedName2 = normalizeOptionalString(phoneSnapshot.verified_name);
+  const verifiedName = normalizeOptionalString(phoneSnapshot.verified_name);
   const currentNameStatus = getDisplayNameStatus(phoneSnapshot.name_status);
-  if (requestedName && verifiedName2 && requestedName === verifiedName2 && currentNameStatus === "APPROVED") {
+  if (requestedName && verifiedName && requestedName === verifiedName && currentNameStatus === "APPROVED") {
     return currentNameStatus;
   }
   return null;
@@ -9852,35 +9584,6 @@ async function createIncomingMessageNotification(args) {
     },
     dedupeKey: `incoming-message:${args.source.toLowerCase()}:${messageId}`
   });
-}
-var LIVE_EMAIL_NOTIFICATION_WINDOW_MS = 30 * 60 * 1e3;
-async function syncIncomingEmailNotifications(userId, messages) {
-  const now = Date.now();
-  for (const message of messages) {
-    if (!message.isUnread) {
-      continue;
-    }
-    const receivedAt = normalizeOptionalString(message.receivedAt);
-    const receivedAtTimestamp = receivedAt ? Date.parse(receivedAt) : Number.NaN;
-    if (!Number.isFinite(receivedAtTimestamp) || now - receivedAtTimestamp > LIVE_EMAIL_NOTIFICATION_WINDOW_MS) {
-      continue;
-    }
-    const senderLabel = normalizeOptionalString(message.fromName) || normalizeOptionalString(message.fromEmail) || "New sender";
-    await createUserNotification({
-      userId,
-      type: "incoming_email",
-      title: `New email from ${senderLabel}`,
-      body: message.subject ? `${message.subject} - ${message.previewText}` : message.previewText,
-      targetPath: "/dashboard/inbox/email",
-      metadata: {
-        emailId: message.id,
-        fromEmail: normalizeOptionalString(message.fromEmail),
-        fromName: normalizeOptionalString(message.fromName),
-        receivedAt
-      },
-      dedupeKey: `incoming-email:${message.id}`
-    });
-  }
 }
 async function markNotificationsRead(userId, options) {
   let query = adminSupabase.from("user_notifications").update({
@@ -10538,7 +10241,7 @@ async function processMetaLeadCaptureChange(change, pageIdFallback) {
       getMetaLeadCaptureFieldValue(fieldMap, ["email", "email_address"])
     );
     const contactIdentity = phone || email || `meta-lead:${leadId}`;
-    const displayPhone2 = phone || email || `Lead ${leadId.slice(-6)}`;
+    const displayPhone = phone || email || `Lead ${leadId.slice(-6)}`;
     const previewText = `New Meta lead${formId ? ` from form ${formId}` : ""}`;
     const leadLabels = Array.from(/* @__PURE__ */ new Set(["meta lead", ...configLabels]));
     const leadMessageId = `meta-lead:${leadId}`;
@@ -10551,7 +10254,7 @@ async function processMetaLeadCaptureChange(change, pageIdFallback) {
       metaChannelId: normalizeOptionalString(config.meta_channel_id),
       contactWaId: contactIdentity,
       contactName: fullName,
-      displayPhone: displayPhone2,
+      displayPhone,
       email,
       source: "Meta",
       remark: previewText,
@@ -10599,7 +10302,7 @@ async function processMetaLeadCaptureChange(change, pageIdFallback) {
       type: "lead_created",
       title: "New lead added to CRM",
       body: `${fullName} was added to your lead list from Meta Lead Capture.`,
-      targetPath: "/dashboard/crm/leads",
+      targetPath: "/dashboard/contacts",
       metadata: {
         leadId,
         pageId,
@@ -11158,396 +10861,6 @@ async function resolveInstagramBusinessToken(userId, longLivedToken, accessToken
     return exchangeInstagramLongLivedAccessToken(normalizedAccessToken);
   }
   return resolveReusableMetaAccessToken(userId, null, "Instagram DM setup");
-}
-async function getEmailConnectionRow(userId) {
-  const { data, error } = await adminSupabase.from("email_connections").select("*").eq("user_id", userId).maybeSingle();
-  if (error && !isMissingSchemaError(error)) {
-    throw error;
-  }
-  return data || null;
-}
-async function getStoredEmailConnection(userId) {
-  return mapEmailConnection(await getEmailConnectionRow(userId));
-}
-async function getEmailConnectionWithPassword(userId) {
-  const row = await getEmailConnectionRow(userId);
-  if (!row) {
-    throw new Error("Connect an email account before using email features.");
-  }
-  const passwordCiphertext = normalizeOptionalString(row.password_ciphertext);
-  if (!passwordCiphertext) {
-    throw new Error("The saved email password is missing. Reconnect the email account.");
-  }
-  return {
-    row,
-    connection: mapEmailConnection(row),
-    password: decryptAccessToken(passwordCiphertext)
-  };
-}
-async function resolveEmailHostForIpv4(host, protocol) {
-  const normalizedHost = host.trim();
-  const hostFamily = net.isIP(normalizedHost);
-  if (hostFamily === 4) {
-    return { host: normalizedHost, servername: void 0, family: 4 };
-  }
-  if (hostFamily === 6) {
-    return { host: normalizedHost, servername: void 0, family: 6 };
-  }
-  try {
-    const addresses = await dns.promises.resolve4(normalizedHost);
-    const address = addresses.find((entry) => net.isIP(entry) === 4);
-    if (address) {
-      return { host: address, servername: normalizedHost, family: 4 };
-    }
-  } catch {
-  }
-  try {
-    const lookupResult = await dns.promises.lookup(normalizedHost, { family: 4 });
-    return { host: lookupResult.address, servername: normalizedHost, family: 4 };
-  } catch {
-    return { host: normalizedHost, servername: normalizedHost, family: void 0 };
-  }
-}
-async function createEmailTransporter(config) {
-  const resolvedHost = await resolveEmailHostForIpv4(config.smtpHost, "SMTP");
-  return nodemailer.createTransport({
-    host: resolvedHost.host,
-    port: config.smtpPort,
-    secure: config.smtpSecure,
-    ...resolvedHost.family ? { family: resolvedHost.family } : {},
-    servername: resolvedHost.servername,
-    requireTLS: config.smtpPort === 587,
-    auth: {
-      user: config.authUser,
-      pass: config.password
-    },
-    connectionTimeout: 3e4,
-    greetingTimeout: 3e4,
-    socketTimeout: 45e3,
-    tls: {
-      servername: resolvedHost.servername,
-      ...resolvedHost.family ? { family: resolvedHost.family } : {}
-    }
-  });
-}
-function getEmailVerificationErrorMessage(error, protocol) {
-  const fallback = `${protocol} verification failed.`;
-  if (!(error instanceof Error)) {
-    return fallback;
-  }
-  const code = normalizeOptionalString(error.code);
-  const message = error.message || fallback;
-  if (code === "ENOTFOUND" || code === "EAI_AGAIN") {
-    return `${protocol} host could not be resolved. Check the host name and try again.`;
-  }
-  if (code === "ETIMEDOUT" || /timed out|timeout/i.test(message)) {
-    return `${protocol} connection timed out. Check the host, port, SSL/TLS setting, and whether your provider allows app-password access from this server.`;
-  }
-  if (code === "ENETUNREACH" || /ENETUNREACH|network is unreachable/i.test(message)) {
-    return `${protocol} network route was unreachable while connecting over IPv4. Check whether the host and port are open from this server, or try your provider's alternate ${protocol} host and port.`;
-  }
-  if (/certificate|tls|ssl/i.test(message)) {
-    return `${protocol} TLS verification failed. Check whether this port uses SSL/TLS directly or STARTTLS.`;
-  }
-  if (/auth|credentials|login|password/i.test(message)) {
-    return `${protocol} authentication failed. Check the username and app password.`;
-  }
-  return message;
-}
-async function verifySmtpConnection(config) {
-  const startedAt = Date.now();
-  try {
-    const transporter = await createEmailTransporter(config);
-    await transporter.verify();
-    return {
-      ok: true,
-      message: "SMTP connection verified successfully.",
-      latencyMs: Date.now() - startedAt
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      message: getEmailVerificationErrorMessage(error, "SMTP"),
-      latencyMs: Date.now() - startedAt
-    };
-  }
-}
-async function verifyImapConnection(config) {
-  const startedAt = Date.now();
-  let client = null;
-  try {
-    const resolvedHost = await resolveEmailHostForIpv4(config.imapHost, "IMAP");
-    client = new ImapFlow({
-      host: resolvedHost.host,
-      port: config.imapPort,
-      secure: config.imapSecure,
-      servername: resolvedHost.servername,
-      auth: {
-        user: config.authUser,
-        pass: config.password
-      },
-      socketTimeout: 45e3,
-      greetingTimeout: 3e4,
-      connectionTimeout: 3e4,
-      logger: false,
-      tls: {
-        servername: resolvedHost.servername,
-        ...resolvedHost.family ? { family: resolvedHost.family } : {}
-      }
-    });
-    await client.connect();
-    await client.mailboxOpen("INBOX", { readOnly: true });
-    return {
-      ok: true,
-      message: "IMAP connection verified successfully.",
-      latencyMs: Date.now() - startedAt
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      message: getEmailVerificationErrorMessage(error, "IMAP"),
-      latencyMs: Date.now() - startedAt
-    };
-  } finally {
-    await client?.logout().catch(() => void 0);
-  }
-}
-async function verifyEmailConnectionInput(input) {
-  const normalizedInput = normalizeEmailConnectionInput(input);
-  const [smtp, imap] = await Promise.all([
-    verifySmtpConnection(normalizedInput),
-    verifyImapConnection(normalizedInput)
-  ]);
-  return {
-    smtp,
-    imap,
-    canConnect: smtp.ok && imap.ok
-  };
-}
-async function verifyEmailSmtpConnectionInput(input) {
-  return verifySmtpConnection(normalizeEmailSmtpVerificationInput(input));
-}
-async function verifyEmailImapConnectionInput(input) {
-  return verifyImapConnection(normalizeEmailImapVerificationInput(input));
-}
-async function saveEmailConnection(userId, input) {
-  const normalizedInput = normalizeEmailConnectionInput(input);
-  const verification = await verifyEmailConnectionInput(normalizedInput);
-  if (!verification.canConnect) {
-    const messages = [verification.smtp.message, verification.imap.message].filter(Boolean);
-    throw new Error(messages.join(" "));
-  }
-  const payload = {
-    user_id: userId,
-    display_name: normalizedInput.displayName,
-    email_address: normalizedInput.emailAddress,
-    auth_user: normalizedInput.authUser,
-    password_ciphertext: encryptAccessToken(normalizedInput.password),
-    smtp_host: normalizedInput.smtpHost,
-    smtp_port: normalizedInput.smtpPort,
-    smtp_secure: normalizedInput.smtpSecure,
-    imap_host: normalizedInput.imapHost,
-    imap_port: normalizedInput.imapPort,
-    imap_secure: normalizedInput.imapSecure,
-    status: "connected",
-    last_verified_at: (/* @__PURE__ */ new Date()).toISOString(),
-    last_error: null,
-    updated_at: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  const { data, error } = await adminSupabase.from("email_connections").upsert(payload, { onConflict: "user_id" }).select("*").single();
-  if (error) {
-    throw error;
-  }
-  return mapEmailConnection(data);
-}
-async function deleteEmailConnection(userId) {
-  const { error } = await adminSupabase.from("email_connections").delete().eq("user_id", userId);
-  if (error && !isMissingSchemaError(error)) {
-    throw error;
-  }
-  return { ok: true };
-}
-function mapParsedAddressList(addresses) {
-  return (addresses || []).map((entry) => normalizeEmailAddress(entry.address)).filter((entry) => Boolean(entry));
-}
-async function fetchEmailInbox(userId, options) {
-  const { connection, password } = await getEmailConnectionWithPassword(userId);
-  const client = new ImapFlow({
-    host: connection.imapHost,
-    port: connection.imapPort,
-    secure: connection.imapSecure,
-    auth: {
-      user: connection.authUser,
-      pass: password
-    },
-    socketTimeout: 15e3,
-    greetingTimeout: 1e4,
-    connectionTimeout: 1e4,
-    logger: false
-  });
-  try {
-    await client.connect();
-    const mailbox = await client.mailboxOpen("INBOX", { readOnly: true });
-    const total = mailbox.exists || 0;
-    const limit = Math.max(1, Math.min(options?.limit || 20, 50));
-    if (total === 0) {
-      return [];
-    }
-    const startSequence = Math.max(total - limit + 1, 1);
-    const messages = [];
-    for await (const message of client.fetch(`${startSequence}:${total}`, {
-      uid: true,
-      envelope: true,
-      flags: true,
-      source: true
-    })) {
-      const parsed = await simpleParser(message.source);
-      const htmlBody = typeof parsed.html === "string" ? parsed.html : parsed.html ? String(parsed.html) : null;
-      const textBody = normalizeOptionalString(parsed.text);
-      const fromEntry = parsed.from?.value?.[0];
-      const previewText = (textBody || (htmlBody ? stripHtmlTags(htmlBody) : "") || "No preview available.").slice(0, 180);
-      const flagValues = Array.from(message.flags || []);
-      messages.push({
-        id: `${message.uid || message.seq}:${parsed.messageId || parsed.subject || "email"}`,
-        folder: "INBOX",
-        subject: normalizeOptionalString(parsed.subject) || "No subject",
-        fromName: normalizeOptionalString(fromEntry?.name),
-        fromEmail: normalizeEmailAddress(fromEntry?.address),
-        to: mapParsedAddressList(parsed.to?.value),
-        receivedAt: parsed.date?.toISOString() || (message.envelope?.date instanceof Date ? message.envelope.date.toISOString() : null),
-        htmlBody,
-        textBody,
-        previewText,
-        isUnread: !flagValues.includes("\\Seen")
-      });
-    }
-    const orderedMessages = messages.reverse();
-    await syncIncomingEmailNotifications(userId, orderedMessages);
-    return orderedMessages;
-  } finally {
-    await client.logout().catch(() => void 0);
-  }
-}
-async function getEmailTemplateById(userId, templateId) {
-  const { data, error } = await adminSupabase.from("email_templates").select("*").eq("user_id", userId).eq("id", templateId).maybeSingle();
-  if (error) {
-    throw error;
-  }
-  if (!data) {
-    throw new Error("Email template not found.");
-  }
-  return mapEmailTemplate(data);
-}
-async function getEmailTemplates(userId) {
-  const { data, error } = await adminSupabase.from("email_templates").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
-  if (error && !isMissingSchemaError(error)) {
-    throw error;
-  }
-  return (data || []).map((row) => mapEmailTemplate(row));
-}
-async function saveEmailTemplate(userId, input) {
-  const normalizedInput = normalizeEmailTemplateInput(input);
-  const payload = {
-    user_id: userId,
-    name: normalizedInput.name,
-    subject: normalizedInput.subject,
-    editor_mode: normalizedInput.editorMode,
-    html_content: normalizedInput.htmlContent,
-    updated_at: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  const { data, error } = await adminSupabase.from("email_templates").insert(payload).select("*").single();
-  if (error) {
-    throw error;
-  }
-  return mapEmailTemplate(data);
-}
-async function deleteEmailTemplate(userId, templateId) {
-  const { error } = await adminSupabase.from("email_templates").delete().eq("user_id", userId).eq("id", templateId);
-  if (error) {
-    throw error;
-  }
-  return { ok: true };
-}
-async function getEmailCampaigns(userId) {
-  const { data, error } = await adminSupabase.from("email_campaigns").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50);
-  if (error && !isMissingSchemaError(error)) {
-    throw error;
-  }
-  return (data || []).map((row) => mapEmailCampaign(row));
-}
-async function insertEmailCampaign(args) {
-  const payload = {
-    user_id: args.userId,
-    email_template_id: args.template.id,
-    template_name: args.template.name,
-    campaign_name: args.campaignName,
-    subject: args.template.subject,
-    html_content: args.template.htmlContent,
-    audience_source: args.audienceSource,
-    recipient_count: args.recipientCount,
-    status: args.status,
-    sent_at: args.sentAt,
-    updated_at: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  const { data, error } = await adminSupabase.from("email_campaigns").insert(payload).select("*").single();
-  if (error) {
-    throw error;
-  }
-  return mapEmailCampaign(data);
-}
-async function sendEmailCampaign(userId, input) {
-  const normalizedInput = normalizeEmailCampaignInput(input);
-  const { connection, password } = await getEmailConnectionWithPassword(userId);
-  const template = await getEmailTemplateById(userId, normalizedInput.templateId);
-  const transporter = await createEmailTransporter({
-    smtpHost: connection.smtpHost,
-    smtpPort: connection.smtpPort,
-    smtpSecure: connection.smtpSecure,
-    authUser: connection.authUser,
-    password
-  });
-  let deliveredCount = 0;
-  for (const recipient of normalizedInput.recipients) {
-    try {
-      await transporter.sendMail({
-        from: {
-          name: connection.displayName,
-          address: connection.emailAddress
-        },
-        to: recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email,
-        subject: template.subject,
-        html: template.htmlContent
-      });
-      deliveredCount += 1;
-    } catch (error) {
-      console.error("Email send failure:", error);
-    }
-  }
-  const status = deliveredCount === normalizedInput.recipients.length ? "sent" : deliveredCount > 0 ? "partial" : "failed";
-  const campaign = await insertEmailCampaign({
-    userId,
-    template,
-    campaignName: normalizedInput.campaignName,
-    audienceSource: normalizedInput.audienceSource,
-    recipientCount: normalizedInput.recipients.length,
-    status,
-    sentAt: deliveredCount > 0 ? (/* @__PURE__ */ new Date()).toISOString() : null
-  });
-  if (campaign.status === "sent") {
-    await createUserNotification({
-      userId,
-      type: "email_campaign_sent",
-      title: "Email campaign sent successfully",
-      body: `${campaign.campaignName} reached ${campaign.recipientCount} recipient${campaign.recipientCount === 1 ? "" : "s"}.`,
-      targetPath: "/dashboard/emails/template-builder",
-      metadata: {
-        campaignId: campaign.id,
-        recipientCount: campaign.recipientCount,
-        status: campaign.status
-      }
-    });
-  }
-  return campaign;
 }
 async function getConversationalAutomationConfigRow(userId) {
   const { data, error } = await adminSupabase.from("meta_conversational_automation_configs").select("*").eq("user_id", userId).maybeSingle();
@@ -13072,7 +12385,7 @@ async function createContact(userId, input) {
       type: "lead_created",
       title: "New lead added to CRM",
       body: `${contactLabel} has been added to your lead list.`,
-      targetPath: "/dashboard/crm/leads",
+      targetPath: "/dashboard/contacts",
       metadata: {
         threadId: contact.id,
         source: contact.source,
@@ -13990,14 +13303,14 @@ async function handlePhoneNumberNameUpdateWebhook(args) {
     throw error;
   }
   const nextChannel = updatedChannel;
+  const verifiedName = requestedName || normalizeOptionalString(phoneSnapshot?.verified_name) || normalizeOptionalString(nextChannel.verified_name) || "Your WhatsApp display name";
+  const displayPhone = displayPhoneNumber || normalizeOptionalString(phoneSnapshot?.display_phone_number) || normalizeOptionalString(nextChannel.display_phone_number) || "your connected sender";
   if (decision === "APPROVED" || isRejectedDisplayNameStatus(decision)) {
-    const verifiedName2 = requestedName || normalizeOptionalString(phoneSnapshot?.verified_name) || normalizeOptionalString(nextChannel.verified_name) || "Your WhatsApp display name";
-    const displayPhone2 = displayPhoneNumber || normalizeOptionalString(phoneSnapshot?.display_phone_number) || normalizeOptionalString(nextChannel.display_phone_number) || "your connected sender";
     await createDisplayNameReviewNotification({
       userId,
       phoneNumberId: String(nextChannel.phone_number_id),
-      verifiedName: verifiedName2,
-      displayPhoneNumber: displayPhone2,
+      verifiedName,
+      displayPhoneNumber: displayPhone,
       status: decision === "APPROVED" ? "APPROVED" : "REJECTED",
       rejectionReason
     });
@@ -14810,104 +14123,6 @@ app.post("/api/notifications/preferences", async (req, res) => {
       req.body
     );
     res.json({ preferences });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.get("/api/email/connection", async (req, res) => {
-  try {
-    res.json({
-      connection: await getStoredEmailConnection(req.authedUser.id)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/email/connection/verify", async (req, res) => {
-  try {
-    res.json(await verifyEmailConnectionInput(req.body));
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/email/connection/verify/smtp", async (req, res) => {
-  try {
-    res.json(await verifyEmailSmtpConnectionInput(req.body));
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/email/connection/verify/imap", async (req, res) => {
-  try {
-    res.json(await verifyEmailImapConnectionInput(req.body));
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/email/connection", async (req, res) => {
-  try {
-    res.json({
-      connection: await saveEmailConnection(req.authedUser.id, req.body)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.delete("/api/email/connection", async (req, res) => {
-  try {
-    res.json(await deleteEmailConnection(req.authedUser.id));
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.get("/api/email/inbox", async (req, res) => {
-  try {
-    res.json({
-      messages: await fetchEmailInbox(req.authedUser.id)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.get("/api/email/templates", async (req, res) => {
-  try {
-    res.json({
-      templates: await getEmailTemplates(req.authedUser.id)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/email/templates", async (req, res) => {
-  try {
-    res.json({
-      template: await saveEmailTemplate(req.authedUser.id, req.body)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.delete("/api/email/templates/:templateId", async (req, res) => {
-  try {
-    res.json(await deleteEmailTemplate(req.authedUser.id, req.params.templateId));
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.get("/api/email/campaigns", async (req, res) => {
-  try {
-    res.json({
-      campaigns: await getEmailCampaigns(req.authedUser.id)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/email/campaigns/send", async (req, res) => {
-  try {
-    res.json({
-      campaign: await sendEmailCampaign(req.authedUser.id, req.body)
-    });
   } catch (error) {
     sendError(res, 400, error);
   }
@@ -16734,21 +15949,21 @@ app.get("/api/meta/business-profile", async (req, res) => {
       }
       profileChannelRow = updatedChannelRow;
       if (previousDisplayNameStatus !== "APPROVED" && nextDisplayNameStatus === "APPROVED") {
-        const verifiedName2 = normalizeOptionalString(snapshot.phone.verified_name) || normalizeOptionalString(snapshot.channelRow.verified_name) || "Your WhatsApp display name";
+        const verifiedName = normalizeOptionalString(snapshot.phone.verified_name) || normalizeOptionalString(snapshot.channelRow.verified_name) || "Your WhatsApp display name";
         const displayPhoneNumber = normalizeOptionalString(snapshot.phone.display_phone_number) || normalizeOptionalString(snapshot.channelRow.display_phone_number) || "your connected sender";
         await createUserNotification({
           userId: req.authedUser.id,
           type: "display_name_approved",
           title: "WhatsApp display name approved",
-          body: `${verifiedName2} is now approved for ${displayPhoneNumber}.`,
+          body: `${verifiedName} is now approved for ${displayPhoneNumber}.`,
           targetPath: "/dashboard/profile",
           metadata: {
             phoneNumberId: String(snapshot.channelRow.phone_number_id),
-            verifiedName: verifiedName2,
+            verifiedName,
             displayPhoneNumber,
             status: nextDisplayNameStatus
           },
-          dedupeKey: `display-name-approved:${String(snapshot.channelRow.phone_number_id)}:${verifiedName2}`
+          dedupeKey: `display-name-approved:${String(snapshot.channelRow.phone_number_id)}:${verifiedName}`
         });
       }
     }

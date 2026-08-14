@@ -12,13 +12,11 @@ function normalizeOptionalString(value: unknown) {
 function normalizeNotificationType(value: unknown): NotificationType {
   switch (value) {
     case 'incoming_message':
-    case 'incoming_email':
     case 'template_approved':
     case 'template_rejected':
     case 'missed_call':
     case 'lead_created':
     case 'campaign_sent':
-    case 'email_campaign_sent':
     case 'display_name_approved':
     case 'display_name_rejected':
     case 'team_member_joined':
@@ -82,12 +80,10 @@ export function getDefaultNotificationPreferences(userId = ''): NotificationPref
     soundPreset: 'classic',
     volume: 0.8,
     incomingMessageEnabled: true,
-    incomingEmailEnabled: true,
     templateReviewEnabled: true,
     missedCallEnabled: true,
     leadEnabled: true,
     campaignSentEnabled: true,
-    emailCampaignEnabled: true,
     displayNameApprovedEnabled: true,
     teamJoinedEnabled: true,
     createdAt: now,
@@ -131,10 +127,6 @@ export function mapNotificationPreferencesRecord(
       row.incoming_message_enabled,
       defaults.incomingMessageEnabled,
     ),
-    incomingEmailEnabled: normalizeBoolean(
-      row.incoming_email_enabled,
-      defaults.incomingEmailEnabled,
-    ),
     templateReviewEnabled: normalizeBoolean(
       row.template_review_enabled,
       defaults.templateReviewEnabled,
@@ -144,10 +136,6 @@ export function mapNotificationPreferencesRecord(
     campaignSentEnabled: normalizeBoolean(
       row.campaign_sent_enabled,
       defaults.campaignSentEnabled,
-    ),
-    emailCampaignEnabled: normalizeBoolean(
-      row.email_campaign_enabled,
-      defaults.emailCampaignEnabled,
     ),
     displayNameApprovedEnabled: normalizeBoolean(
       row.display_name_approved_enabled,

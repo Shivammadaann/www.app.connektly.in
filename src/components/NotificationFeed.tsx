@@ -4,7 +4,6 @@ import {
   Bell,
   CheckCheck,
   CheckCircle2,
-  Mail,
   Megaphone,
   MessageSquare,
   PhoneMissed,
@@ -83,13 +82,6 @@ function getNotificationTone(type: UserNotification['type']): NotificationTone {
         iconBackgroundClassName: 'bg-blue-50',
         status: 'Message',
       };
-    case 'incoming_email':
-      return {
-        icon: Mail,
-        iconClassName: 'text-cyan-600',
-        iconBackgroundClassName: 'bg-cyan-50',
-        status: 'Email',
-      };
     case 'template_approved':
       return {
         icon: CheckCircle2,
@@ -117,13 +109,6 @@ function getNotificationTone(type: UserNotification['type']): NotificationTone {
         iconClassName: 'text-violet-600',
         iconBackgroundClassName: 'bg-violet-50',
         status: 'Campaign',
-      };
-    case 'email_campaign_sent':
-      return {
-        icon: Mail,
-        iconClassName: 'text-emerald-600',
-        iconBackgroundClassName: 'bg-emerald-50',
-        status: 'Email campaign',
       };
     case 'display_name_approved':
       return {

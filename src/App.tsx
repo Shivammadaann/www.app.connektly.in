@@ -26,12 +26,10 @@ import Home from './pages/dashboard/Home';
 import Inbox from './pages/dashboard/Inbox';
 import Settings from './pages/dashboard/Settings';
 import Calls from './pages/dashboard/Calls';
-import EmailInbox from './pages/dashboard/EmailInbox';
 import WalletBilling from './pages/dashboard/WalletBilling';
 import Templates from './pages/dashboard/Templates';
 import Broadcasts from './pages/dashboard/Broadcasts';
 import Contacts from './pages/dashboard/Contacts';
-import LeadList from './pages/dashboard/LeadList';
 import BusinessProfile from './pages/dashboard/BusinessProfile';
 import Catalog from './pages/dashboard/Catalog';
 import Insights from './pages/dashboard/Insights';
@@ -41,7 +39,6 @@ import Automations from './pages/dashboard/Automations';
 import AutomationVisualBuilder from './pages/dashboard/AutomationVisualBuilder';
 import Flows from './pages/dashboard/Flows';
 import DeveloperTools from './pages/dashboard/DeveloperTools';
-import Emails from './pages/dashboard/Emails';
 import MetaAds from './pages/dashboard/MetaAds';
 import MetaAdsManager from './pages/dashboard/MetaAdsManager';
 
@@ -252,11 +249,9 @@ export default function App() {
               <Route index element={<Navigate to="/dashboard/home" replace />} />
               <Route path="home" element={<Home />} />
               <Route path="inbox" element={<Inbox />} />
-              <Route path="inbox/email" element={<EmailInbox />} />
               <Route path="analytics" element={<Navigate to="/dashboard/home" replace />} />
               <Route path="insights" element={<Insights />} />
               <Route path="calls" element={<Calls />} />
-              <Route path="leads" element={<LeadList />} />
               <Route path="contacts" element={<Contacts />} />
               <Route path="templates" element={<Templates />} />
               <Route path="campaigns" element={<Broadcasts />} />
@@ -289,7 +284,6 @@ export default function App() {
               <Route path="channel-status" element={<ChannelsRedirect />} />
               <Route path="crm/analytics" element={<Placeholder title="CRM Analytics" />} />
               <Route path="crm/reports" element={<Placeholder title="CRM Reports" />} />
-              <Route path="crm/leads" element={<Navigate to="/dashboard/leads" replace />} />
               <Route path="crm/pipeline" element={<Placeholder title="Pipeline" />} />
               <Route path="crm/meta-lead-capture" element={<Navigate to="/dashboard/connections?integration=meta-lead-capture" replace />} />
               <Route path="billing/wallet" element={<WalletBilling />} />
@@ -302,14 +296,9 @@ export default function App() {
               <Route path="connections/meta-lead-capture" element={<Integrations />} />
               <Route path="connections/meta-ads-manager" element={<Integrations />} />
               <Route path="connections/whatsapp" element={<ChannelsRedirect />} />
-              <Route path="connections/email" element={<Integrations />} />
               <Route path="connections/woocommerce" element={<Integrations />} />
               <Route path="connections/advanced" element={<DeveloperTools />} />
-              <Route path="emails" element={<Emails />} />
-              <Route path="emails/inbox" element={<Navigate to="/dashboard/inbox/email" replace />} />
-              <Route path="emails/template-builder" element={<Emails />} />
               <Route path="templates/whatsapp" element={<Navigate to="/dashboard/templates" replace />} />
-              <Route path="templates/email" element={<Navigate to="/dashboard/emails/template-builder" replace />} />
               <Route path="notifications" element={<Notifications />} />
               <Route path="developer" element={<DeveloperTools />} />
               <Route path="developer/api" element={<DeveloperTools />} />

@@ -55,13 +55,11 @@ export interface WorkspaceTeamMember {
 
 export type NotificationType =
   | 'incoming_message'
-  | 'incoming_email'
   | 'template_approved'
   | 'template_rejected'
   | 'missed_call'
   | 'lead_created'
   | 'campaign_sent'
-  | 'email_campaign_sent'
   | 'display_name_approved'
   | 'display_name_rejected'
   | 'team_member_joined';
@@ -89,12 +87,10 @@ export interface NotificationPreferences {
   soundPreset: NotificationSoundPreset;
   volume: number;
   incomingMessageEnabled: boolean;
-  incomingEmailEnabled: boolean;
   templateReviewEnabled: boolean;
   missedCallEnabled: boolean;
   leadEnabled: boolean;
   campaignSentEnabled: boolean;
-  emailCampaignEnabled: boolean;
   displayNameApprovedEnabled: boolean;
   teamJoinedEnabled: boolean;
   createdAt: string;
@@ -108,12 +104,10 @@ export interface NotificationPreferencesUpdateInput {
   soundPreset?: NotificationSoundPreset;
   volume?: number;
   incomingMessageEnabled?: boolean;
-  incomingEmailEnabled?: boolean;
   templateReviewEnabled?: boolean;
   missedCallEnabled?: boolean;
   leadEnabled?: boolean;
   campaignSentEnabled?: boolean;
-  emailCampaignEnabled?: boolean;
   displayNameApprovedEnabled?: boolean;
   teamJoinedEnabled?: boolean;
 }
@@ -867,136 +861,6 @@ export interface WooCommerceConnectionVerifyResponse {
 export interface WooCommerceSetupResponse {
   connection: WooCommerceConnection | null;
   callbackUrl: string;
-}
-
-export type EmailConnectionStatus = 'connected' | 'pending' | 'error';
-
-export interface EmailConnectionSummary {
-  userId: string;
-  displayName: string;
-  emailAddress: string;
-  authUser: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpSecure: boolean;
-  imapHost: string;
-  imapPort: number;
-  imapSecure: boolean;
-  status: EmailConnectionStatus;
-  lastVerifiedAt: string | null;
-  lastError: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface EmailConnectionUpsertInput {
-  displayName: string;
-  emailAddress: string;
-  authUser: string;
-  password: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpSecure: boolean;
-  imapHost: string;
-  imapPort: number;
-  imapSecure: boolean;
-}
-
-export interface EmailConnectionVerifySmtpInput {
-  displayName: string;
-  emailAddress: string;
-  authUser: string;
-  password: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpSecure: boolean;
-}
-
-export interface EmailConnectionVerifyImapInput {
-  displayName: string;
-  emailAddress: string;
-  authUser: string;
-  password: string;
-  imapHost: string;
-  imapPort: number;
-  imapSecure: boolean;
-}
-
-export interface EmailConnectionCheckResult {
-  ok: boolean;
-  message: string;
-  latencyMs: number | null;
-}
-
-export interface EmailConnectionVerifyResponse {
-  smtp: EmailConnectionCheckResult;
-  imap: EmailConnectionCheckResult;
-  canConnect: boolean;
-}
-
-export interface EmailMessage {
-  id: string;
-  folder: string;
-  subject: string;
-  fromName: string | null;
-  fromEmail: string | null;
-  to: string[];
-  receivedAt: string | null;
-  htmlBody: string | null;
-  textBody: string | null;
-  previewText: string;
-  isUnread: boolean;
-}
-
-export type EmailTemplateEditorMode = 'rich' | 'html';
-
-export interface EmailTemplate {
-  id: string;
-  userId: string;
-  name: string;
-  subject: string;
-  editorMode: EmailTemplateEditorMode;
-  htmlContent: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface EmailTemplateSaveInput {
-  name: string;
-  subject: string;
-  editorMode: EmailTemplateEditorMode;
-  htmlContent: string;
-}
-
-export interface EmailRecipient {
-  email: string;
-  name?: string | null;
-}
-
-export type EmailCampaignAudienceSource = 'contacts' | 'custom';
-export type EmailCampaignStatus = 'sent' | 'partial' | 'failed';
-
-export interface EmailCampaign {
-  id: string;
-  userId: string;
-  templateId: string | null;
-  templateName: string | null;
-  campaignName: string;
-  subject: string;
-  htmlContent: string;
-  audienceSource: EmailCampaignAudienceSource;
-  recipientCount: number;
-  status: EmailCampaignStatus;
-  sentAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface EmailCampaignSendInput {
-  templateId: string;
-  campaignName: string;
-  audienceSource: EmailCampaignAudienceSource;
-  recipients: EmailRecipient[];
 }
 
 export interface ContactUpsertInput {

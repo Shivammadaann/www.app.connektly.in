@@ -586,7 +586,7 @@ create unique index if not exists workspace_option_definitions_user_type_name_ke
 create table if not exists public.user_notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  type text not null check (type in ('incoming_message', 'incoming_email', 'template_approved', 'template_rejected', 'missed_call', 'lead_created', 'campaign_sent', 'email_campaign_sent', 'display_name_approved', 'team_member_joined')),
+  type text not null check (type in ('incoming_message', 'template_approved', 'template_rejected', 'missed_call', 'lead_created', 'campaign_sent', 'display_name_approved', 'team_member_joined')),
   title text not null,
   body text not null,
   target_path text,
@@ -603,7 +603,7 @@ alter table public.user_notifications
 
 alter table public.user_notifications
   add constraint user_notifications_type_check
-  check (type in ('incoming_message', 'incoming_email', 'template_approved', 'template_rejected', 'missed_call', 'lead_created', 'campaign_sent', 'email_campaign_sent', 'display_name_approved', 'team_member_joined'));
+  check (type in ('incoming_message', 'template_approved', 'template_rejected', 'missed_call', 'lead_created', 'campaign_sent', 'display_name_approved', 'team_member_joined'));
 
 create unique index if not exists user_notifications_user_dedupe_key
   on public.user_notifications (user_id, dedupe_key)
@@ -623,12 +623,10 @@ create table if not exists public.user_notification_preferences (
   sound_preset text not null default 'classic' check (sound_preset in ('classic', 'soft', 'pulse')),
   volume numeric(4, 2) not null default 0.8,
   incoming_message_enabled boolean not null default true,
-  incoming_email_enabled boolean not null default true,
   template_review_enabled boolean not null default true,
   missed_call_enabled boolean not null default true,
   lead_enabled boolean not null default true,
   campaign_sent_enabled boolean not null default true,
-  email_campaign_enabled boolean not null default true,
   display_name_approved_enabled boolean not null default true,
   team_joined_enabled boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
@@ -639,13 +637,7 @@ alter table public.user_notification_preferences
   add column if not exists incoming_message_enabled boolean not null default true;
 
 alter table public.user_notification_preferences
-  add column if not exists incoming_email_enabled boolean not null default true;
-
-alter table public.user_notification_preferences
   add column if not exists campaign_sent_enabled boolean not null default true;
-
-alter table public.user_notification_preferences
-  add column if not exists email_campaign_enabled boolean not null default true;
 
 alter table public.user_notification_preferences
   add column if not exists display_name_approved_enabled boolean not null default true;
@@ -702,60 +694,6 @@ create table if not exists public.woocommerce_connections (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
-
-create table if not exists public.email_connections (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null,
-  email_address text not null,
-  auth_user text not null,
-  password_ciphertext text not null,
-  smtp_host text not null,
-  smtp_port integer not null,
-  smtp_secure boolean not null default true,
-  imap_host text not null,
-  imap_port integer not null,
-  imap_secure boolean not null default true,
-  status text not null default 'connected',
-  last_verified_at timestamptz,
-  last_error text,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
-);
-
-create table if not exists public.email_templates (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null,
-  subject text not null,
-  editor_mode text not null default 'rich',
-  html_content text not null default '',
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
-);
-
-create index if not exists email_templates_user_updated_idx
-  on public.email_templates (user_id, updated_at desc);
-
-create table if not exists public.email_campaigns (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  email_template_id uuid references public.email_templates(id) on delete set null,
-  template_name text,
-  campaign_name text not null,
-  subject text not null,
-  html_content text not null default '',
-  audience_source text not null default 'contacts',
-  recipient_count integer not null default 0,
-  status text not null default 'sent',
-  sent_at timestamptz,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
-);
-
-alter table public.email_campaigns add column if not exists template_name text;
-
-create index if not exists email_campaigns_user_created_idx
-  on public.email_campaigns (user_id, created_at desc);
 
 drop trigger if exists app_profiles_set_updated_at on public.app_profiles;
 create trigger app_profiles_set_updated_at
@@ -872,21 +810,6 @@ create trigger woocommerce_connections_set_updated_at
 before update on public.woocommerce_connections
 for each row execute function public.set_updated_at();
 
-drop trigger if exists email_connections_set_updated_at on public.email_connections;
-create trigger email_connections_set_updated_at
-before update on public.email_connections
-for each row execute function public.set_updated_at();
-
-drop trigger if exists email_templates_set_updated_at on public.email_templates;
-create trigger email_templates_set_updated_at
-before update on public.email_templates
-for each row execute function public.set_updated_at();
-
-drop trigger if exists email_campaigns_set_updated_at on public.email_campaigns;
-create trigger email_campaigns_set_updated_at
-before update on public.email_campaigns
-for each row execute function public.set_updated_at();
-
 alter table public.app_profiles enable row level security;
 alter table public.meta_channels enable row level security;
 alter table public.instagram_channels enable row level security;
@@ -914,9 +837,6 @@ alter table public.user_notification_preferences enable row level security;
 alter table public.developer_api_credentials enable row level security;
 alter table public.developer_webhook_endpoints enable row level security;
 alter table public.woocommerce_connections enable row level security;
-alter table public.email_connections enable row level security;
-alter table public.email_templates enable row level security;
-alter table public.email_campaigns enable row level security;
 
 drop policy if exists app_profiles_self_access on public.app_profiles;
 create policy app_profiles_self_access
@@ -1160,27 +1080,6 @@ with check (auth.uid() = user_id);
 drop policy if exists woocommerce_connections_self_access on public.woocommerce_connections;
 create policy woocommerce_connections_self_access
 on public.woocommerce_connections
-for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists email_connections_self_access on public.email_connections;
-create policy email_connections_self_access
-on public.email_connections
-for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists email_templates_self_access on public.email_templates;
-create policy email_templates_self_access
-on public.email_templates
-for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists email_campaigns_self_access on public.email_campaigns;
-create policy email_campaigns_self_access
-on public.email_campaigns
 for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);

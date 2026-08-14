@@ -38,12 +38,10 @@ import {
   ChevronRight,
   LogOut,
   HelpCircle,
-  List,
   Package,
   Puzzle,
   Store,
   AlertTriangle,
-  Mail,
   X,
   Wallet,
   Loader2,
@@ -84,7 +82,7 @@ type SidebarDropdownItem = {
 };
 
 type SidebarItem = SidebarLinkItem | SidebarDropdownItem;
-type SidebarDropdownId = 'contacts-leads' | 'inbox' | 'campaigns' | 'automations' | 'commerce' | 'templates';
+type SidebarDropdownId = 'inbox' | 'campaigns' | 'automations' | 'commerce';
 
 function isSidebarRouteActive(
   pathname: string,
@@ -124,12 +122,6 @@ export default function DashboardLayout() {
   const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [isContactsLeadsOpen, setIsContactsLeadsOpen] = useState(
-    () =>
-      location.pathname.startsWith('/dashboard/contacts') ||
-      location.pathname.startsWith('/dashboard/leads') ||
-      location.pathname.startsWith('/dashboard/crm'),
-  );
   const [isInboxOpen, setIsInboxOpen] = useState(
     () => location.pathname.startsWith('/dashboard/inbox') || location.pathname.startsWith('/dashboard/calls'),
   );
@@ -146,11 +138,6 @@ export default function DashboardLayout() {
       location.pathname.startsWith('/dashboard/automations') ||
       location.pathname === '/dashboard/flows',
   );
-  const [isTemplatesOpen, setIsTemplatesOpen] = useState(
-    () =>
-      location.pathname.startsWith('/dashboard/templates') ||
-      location.pathname.startsWith('/dashboard/emails/template-builder'),
-  );
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [apiErrorNotice, setApiErrorNotice] = useState<DashboardApiErrorEventDetail | null>(null);
@@ -162,7 +149,6 @@ export default function DashboardLayout() {
   const collapsedDropdownTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const previousLatestNotificationIdRef = useRef<string | null>(null);
   const hasInitializedNotificationSoundRef = useRef(false);
-  const emailNotificationPollInFlightRef = useRef(false);
   const apiErrorNoticeTimerRef = useRef<number | null>(null);
   const showFinishOnboardingCta = Boolean(bootstrap?.profile?.onboardingCompleted && !bootstrap?.channel);
   const displayName = bootstrap?.profile?.fullName || getAuthUserDisplayName(user) || 'User';
@@ -389,66 +375,6 @@ export default function DashboardLayout() {
     }
   }, [notificationPreferences, notifications]);
 
-  useEffect(() => {
-    if (!user?.id || !notificationPreferences.enabled || !notificationPreferences.incomingEmailEnabled) {
-      return;
-    }
-
-    let isCancelled = false;
-
-    const pollIncomingEmails = async () => {
-      if (isCancelled || document.visibilityState !== 'visible' || emailNotificationPollInFlightRef.current) {
-        return;
-      }
-
-      emailNotificationPollInFlightRef.current = true;
-
-      try {
-        const connectionResponse = await appApi.getEmailConnection();
-
-        if (!connectionResponse.connection || isCancelled) {
-          return;
-        }
-
-        await appApi.getEmailInbox();
-      } catch {
-        // Silent background sync for inbox email notifications.
-      } finally {
-        emailNotificationPollInFlightRef.current = false;
-      }
-    };
-
-    void pollIncomingEmails();
-
-    const intervalId = window.setInterval(() => {
-      void pollIncomingEmails();
-    }, 90_000);
-
-    const handleWindowFocus = () => {
-      void pollIncomingEmails();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void pollIncomingEmails();
-      }
-    };
-
-    window.addEventListener('focus', handleWindowFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      isCancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleWindowFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [
-    notificationPreferences.enabled,
-    notificationPreferences.incomingEmailEnabled,
-    user?.id,
-  ]);
-
   const handleSignOut = async () => {
     setIsSigningOut(true);
     setIsSignOutModalOpen(false);
@@ -563,37 +489,15 @@ export default function DashboardLayout() {
 
   const toggleSidebarDropdown = (dropdownId: SidebarDropdownId) => {
     setActiveCollapsedDropdown(null);
-    setIsContactsLeadsOpen((current) => (dropdownId === 'contacts-leads' ? !current : false));
     setIsInboxOpen((current) => (dropdownId === 'inbox' ? !current : false));
     setIsCampaignsOpen((current) => (dropdownId === 'campaigns' ? !current : false));
     setIsAutomationsOpen((current) => (dropdownId === 'automations' ? !current : false));
     setIsCommerceOpen((current) => (dropdownId === 'commerce' ? !current : false));
-    setIsTemplatesOpen((current) => (dropdownId === 'templates' ? !current : false));
   };
 
   const navStructure: SidebarItem[] = [
     { id: 'home', type: 'link', icon: Home, label: 'Home', path: '/dashboard/home' },
-    {
-      id: 'contacts-leads',
-      type: 'dropdown',
-      icon: Users,
-      label: 'Contacts & Leads',
-      isOpen: isContactsLeadsOpen,
-      toggle: () => toggleSidebarDropdown('contacts-leads'),
-      children: [
-        {
-          icon: Users,
-          label: 'Contacts',
-          path: '/dashboard/contacts',
-        },
-        {
-          icon: List,
-          label: 'Lead List',
-          path: '/dashboard/leads',
-          activePaths: ['/dashboard/crm/leads'],
-        },
-      ],
-    },
+    { id: 'contacts', type: 'link', icon: Users, label: 'Contacts', path: '/dashboard/contacts' },
     {
       id: 'inbox',
       type: 'dropdown',
@@ -608,39 +512,13 @@ export default function DashboardLayout() {
           path: '/dashboard/inbox',
         },
         {
-          icon: Mail,
-          label: 'Email Inbox',
-          path: '/dashboard/inbox/email',
-          activePaths: ['/dashboard/emails/inbox'],
-        },
-        {
           icon: Phone,
           label: 'WhatsApp Calls',
           path: '/dashboard/calls',
         },
       ],
     },
-    {
-      id: 'templates',
-      type: 'dropdown',
-      icon: FileText,
-      label: 'Templates',
-      isOpen: isTemplatesOpen,
-      toggle: () => toggleSidebarDropdown('templates'),
-      children: [
-        {
-          icon: FileText,
-          label: 'WhatsApp Templates',
-          path: '/dashboard/templates',
-        },
-        {
-          icon: Mail,
-          label: 'Email Templates',
-          path: '/dashboard/emails/template-builder',
-          activePaths: ['/dashboard/emails'],
-        },
-      ],
-    },
+    { id: 'templates', type: 'link', icon: FileText, label: 'Templates', path: '/dashboard/templates' },
     {
       id: 'campaigns',
       type: 'dropdown',

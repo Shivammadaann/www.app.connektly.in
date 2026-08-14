@@ -25,7 +25,6 @@ import Channels from './Channels';
 import type {
   MetaLeadCaptureSetupResponse,
   MetaAdsIntegrationSetupResponse,
-  EmailConnectionSummary,
 } from '../../lib/types';
 
 interface MetaAdsFormState {
@@ -347,7 +346,6 @@ export default function Integrations() {
   const [metaAdsSetup, setMetaAdsSetup] = useState<MetaAdsIntegrationSetupResponse | null>(null);
   const [wooCommerceSetup, setWooCommerceSetup] =
     useState<Awaited<ReturnType<typeof appApi.getWooCommerceSetup>> | null>(null);
-  const [emailConnection, setEmailConnection] = useState<EmailConnectionSummary | null>(null);
   const [isMetaSetupLoading, setIsMetaSetupLoading] = useState(true);
   const [isMetaAdsSetupLoading, setIsMetaAdsSetupLoading] = useState(true);
   const [isWooCommerceSetupLoading, setIsWooCommerceSetupLoading] = useState(true);
@@ -430,30 +428,6 @@ export default function Integrations() {
 
   useEffect(() => {
     void loadWooCommerceSetup();
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadEmailConnection = async () => {
-      try {
-        const response = await appApi.getEmailConnection();
-
-        if (!cancelled) {
-          setEmailConnection(response.connection);
-        }
-      } catch (nextError) {
-        if (!cancelled) {
-          setError(nextError instanceof Error ? nextError.message : 'Failed to load email integration.');
-        }
-      }
-    };
-
-    void loadEmailConnection();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   useEffect(() => {

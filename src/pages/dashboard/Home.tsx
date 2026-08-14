@@ -22,7 +22,6 @@ import { appApi } from '../../lib/api';
 import { useAppData } from '../../context/AppDataContext';
 import type {
   AutomationRule,
-  EmailCampaign,
   MetaAdsManagedCampaign,
 } from '../../lib/types';
 
@@ -116,7 +115,6 @@ export default function Home() {
   const { bootstrap } = useAppData();
   const [performanceTab, setPerformanceTab] = useState<PerformanceTab>('ads');
   const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
-  const [emailCampaigns, setEmailCampaigns] = useState<EmailCampaign[]>([]);
   const [adCampaigns, setAdCampaigns] = useState<MetaAdsManagedCampaign[]>([]);
 
   useEffect(() => {
@@ -125,9 +123,8 @@ export default function Home() {
     const today = start.toISOString().slice(0, 10);
 
     const loadHomeData = async () => {
-      const [automationsResult, emailCampaignsResult, adsResult] = await Promise.allSettled([
+      const [automationsResult, adsResult] = await Promise.allSettled([
         appApi.getAutomationRules(),
-        appApi.getEmailCampaigns(),
         bootstrap?.adsIntegration?.status === 'ready'
           ? appApi.getMetaAdsCampaigns({ period: 'custom', since: today, until: today })
           : Promise.resolve(null),
@@ -137,10 +134,6 @@ export default function Home() {
 
       if (automationsResult.status === 'fulfilled') {
         setAutomationRules(automationsResult.value.rules);
-      }
-
-      if (emailCampaignsResult.status === 'fulfilled') {
-        setEmailCampaigns(emailCampaignsResult.value.campaigns);
       }
 
       if (adsResult.status === 'fulfilled' && adsResult.value) {
@@ -170,8 +163,8 @@ export default function Home() {
   const conversationsYesterday = conversations.filter((thread) =>
     isInsideRange(thread.lastMessageAt || thread.createdAt, yesterdayStart, todayStart),
   ).length;
-  const newLeadsToday = conversations.filter((thread) => isInsideRange(thread.createdAt, todayStart, todayEnd)).length;
-  const newLeadsYesterday = conversations.filter((thread) => isInsideRange(thread.createdAt, yesterdayStart, todayStart)).length;
+  const newContactsToday = conversations.filter((thread) => isInsideRange(thread.createdAt, todayStart, todayEnd)).length;
+  const newContactsYesterday = conversations.filter((thread) => isInsideRange(thread.createdAt, yesterdayStart, todayStart)).length;
   const repliesPending = conversations.reduce((total, thread) => total + (thread.unreadCount || 0), 0);
   const activeAdCampaigns = adCampaigns.filter((campaign) =>
     ['ACTIVE', 'IN_PROCESS'].includes((campaign.effectiveStatus || campaign.status || '').toUpperCase()),
@@ -180,23 +173,21 @@ export default function Home() {
   const adCurrency = adCampaigns.find((campaign) => campaign.currency)?.currency || bootstrap?.adsIntegration?.currency || 'INR';
   const callsToday = callHistory.filter((call) => isInsideRange(call.createdAt, todayStart, todayEnd));
   const missedCallsToday = callsToday.filter((call) => call.type === 'missed').length;
-  const unreadLeadCount = conversations.filter((thread) => thread.unreadCount > 0).length;
+  const unreadConversationCount = conversations.filter((thread) => thread.unreadCount > 0).length;
   const activeAutomations = automationRules.filter((rule) => rule.isEnabled);
   const lastTriggeredAutomation = [...automationRules]
     .filter((rule) => rule.lastTriggeredAt)
     .sort((left, right) => Date.parse(right.lastTriggeredAt || '') - Date.parse(left.lastTriggeredAt || ''))[0];
-  const sentEmailCampaignsToday = emailCampaigns.filter((campaign) => isInsideRange(campaign.sentAt || campaign.createdAt, todayStart, todayEnd));
   const campaignNotificationsToday = notifications.filter((notification) =>
-    ['campaign_sent', 'email_campaign_sent'].includes(notification.type) &&
+    notification.type === 'campaign_sent' &&
     isInsideRange(notification.createdAt, todayStart, todayEnd),
   );
-  const activeCampaignCount = activeAdCampaigns.length + sentEmailCampaignsToday.length + campaignNotificationsToday.length;
+  const activeCampaignCount = activeAdCampaigns.length + campaignNotificationsToday.length;
 
   const performance = useMemo(() => {
     const adClicks = adCampaigns.reduce((total, campaign) => total + (campaign.clicks || 0), 0);
     const adImpressions = adCampaigns.reduce((total, campaign) => total + (campaign.impressions || 0), 0);
     const ctr = adImpressions ? `${((adClicks / adImpressions) * 100).toFixed(1)}%` : '0%';
-    const campaignReach = sentEmailCampaignsToday.reduce((total, campaign) => total + campaign.recipientCount, 0);
     const whatsappReplies = conversations.filter((thread) => thread.unreadCount > 0).length;
 
     return {
@@ -207,10 +198,10 @@ export default function Home() {
         graph: [2, 5, 4, 7, 6, 9, Math.max(3, adClicks || 3)],
       },
       campaigns: {
-        metric: String(campaignReach || sentEmailCampaignsToday.length),
-        label: campaignReach ? 'Recipients today' : 'Campaigns today',
-        status: sentEmailCampaignsToday.length || campaignNotificationsToday.length ? 'Active' : 'Idle',
-        graph: [1, 2, 3, 2, 4, 3, Math.max(2, sentEmailCampaignsToday.length + 1)],
+        metric: String(campaignNotificationsToday.length),
+        label: 'Campaigns today',
+        status: campaignNotificationsToday.length ? 'Active' : 'Idle',
+        graph: [1, 2, 3, 2, 4, 3, Math.max(2, campaignNotificationsToday.length + 1)],
       },
       whatsapp: {
         metric: String(whatsappReplies),
@@ -226,7 +217,6 @@ export default function Home() {
     bootstrap?.channel,
     campaignNotificationsToday.length,
     conversations,
-    sentEmailCampaignsToday,
   ]);
 
   const selectedPerformance = performance[performanceTab];
@@ -255,7 +245,7 @@ export default function Home() {
     repliesPending > 0
       ? {
           icon: TrendingUp,
-          text: `You have ${repliesPending} pending ${repliesPending === 1 ? 'reply' : 'replies'} across ${unreadLeadCount} lead${unreadLeadCount === 1 ? '' : 's'}.`,
+          text: `You have ${repliesPending} pending ${repliesPending === 1 ? 'reply' : 'replies'} across ${unreadConversationCount} conversation${unreadConversationCount === 1 ? '' : 's'}.`,
           tone: 'text-[#1381FF] bg-[#f3f0ff]',
         }
       : {
@@ -263,17 +253,11 @@ export default function Home() {
           text: 'No pending replies right now. Inbox follow-up is clear.',
           tone: 'text-emerald-700 bg-emerald-50',
         },
-    sentEmailCampaignsToday[0]
-      ? {
-          icon: Megaphone,
-          text: `Best recent campaign: ${sentEmailCampaignsToday[0].campaignName}.`,
-          tone: 'text-blue-700 bg-blue-50',
-        }
-      : {
-          icon: Sparkles,
-          text: 'Create one focused campaign today to keep your audience warm.',
-          tone: 'text-amber-700 bg-amber-50',
-        },
+    {
+      icon: Sparkles,
+      text: 'Create one focused campaign today to keep your audience warm.',
+      tone: 'text-amber-700 bg-amber-50',
+    },
     conversationsToday < conversationsYesterday
       ? {
           icon: TrendingDown,
@@ -313,11 +297,11 @@ export default function Home() {
           sparkline={[conversationsYesterday, 2, 4, conversationsToday + 1, 3, 5, conversationsToday]}
         />
         <StatCard
-          label="New Leads"
-          value={String(newLeadsToday)}
-          change={`${formatPercentChange(newLeadsToday, newLeadsYesterday)} vs yesterday`}
-          changeTone={newLeadsToday >= newLeadsYesterday ? 'good' : 'bad'}
-          sparkline={[newLeadsYesterday, 1, 3, 2, newLeadsToday + 1, 2, newLeadsToday]}
+          label="New Contacts"
+          value={String(newContactsToday)}
+          change={`${formatPercentChange(newContactsToday, newContactsYesterday)} vs yesterday`}
+          changeTone={newContactsToday >= newContactsYesterday ? 'good' : 'bad'}
+          sparkline={[newContactsYesterday, 1, 3, 2, newContactsToday + 1, 2, newContactsToday]}
         />
         <StatCard
           label="Active Campaigns"

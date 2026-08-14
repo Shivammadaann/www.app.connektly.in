@@ -190,12 +190,10 @@ type NotificationControlKey =
   | 'soundEnabled'
   | 'callSoundEnabled'
   | 'incomingMessageEnabled'
-  | 'incomingEmailEnabled'
   | 'templateReviewEnabled'
   | 'missedCallEnabled'
   | 'leadEnabled'
   | 'campaignSentEnabled'
-  | 'emailCampaignEnabled'
   | 'displayNameApprovedEnabled'
   | 'teamJoinedEnabled';
 
@@ -254,12 +252,6 @@ const NOTIFICATION_TRIGGER_GROUPS: Array<{
         icon: MessageSquare,
       },
       {
-        key: 'incomingEmailEnabled',
-        title: 'New incoming emails',
-        description: 'Trigger when a new unread email reaches the connected inbox.',
-        icon: Mail,
-      },
-      {
         key: 'missedCallEnabled',
         title: 'WhatsApp missed calls',
         description: 'Trigger when a WhatsApp call ends as missed.',
@@ -283,12 +275,6 @@ const NOTIFICATION_TRIGGER_GROUPS: Array<{
         title: 'WhatsApp campaigns sent',
         description: 'Trigger when a marketing campaign is successfully sent to recipients.',
         icon: Megaphone,
-      },
-      {
-        key: 'emailCampaignEnabled',
-        title: 'Email campaigns sent',
-        description: 'Trigger when an email campaign is delivered successfully.',
-        icon: Mail,
       },
       {
         key: 'displayNameApprovedEnabled',
@@ -844,12 +830,10 @@ export default function Settings() {
       soundPreset: 'classic',
       volume: 0.8,
       incomingMessageEnabled: true,
-      incomingEmailEnabled: true,
       templateReviewEnabled: true,
       missedCallEnabled: true,
       leadEnabled: true,
       campaignSentEnabled: true,
-      emailCampaignEnabled: true,
       displayNameApprovedEnabled: true,
       teamJoinedEnabled: true,
     });
@@ -984,12 +968,10 @@ export default function Settings() {
       soundPreset: preferences.soundPreset,
       volume: preferences.volume,
       incomingMessageEnabled: preferences.incomingMessageEnabled,
-      incomingEmailEnabled: preferences.incomingEmailEnabled,
       templateReviewEnabled: preferences.templateReviewEnabled,
       missedCallEnabled: preferences.missedCallEnabled,
       leadEnabled: preferences.leadEnabled,
       campaignSentEnabled: preferences.campaignSentEnabled,
-      emailCampaignEnabled: preferences.emailCampaignEnabled,
       displayNameApprovedEnabled: preferences.displayNameApprovedEnabled,
       teamJoinedEnabled: preferences.teamJoinedEnabled,
     });
@@ -1427,12 +1409,10 @@ export default function Settings() {
         soundPreset: response.preferences.soundPreset,
         volume: response.preferences.volume,
         incomingMessageEnabled: response.preferences.incomingMessageEnabled,
-        incomingEmailEnabled: response.preferences.incomingEmailEnabled,
         templateReviewEnabled: response.preferences.templateReviewEnabled,
         missedCallEnabled: response.preferences.missedCallEnabled,
         leadEnabled: response.preferences.leadEnabled,
         campaignSentEnabled: response.preferences.campaignSentEnabled,
-        emailCampaignEnabled: response.preferences.emailCampaignEnabled,
         displayNameApprovedEnabled: response.preferences.displayNameApprovedEnabled,
         teamJoinedEnabled: response.preferences.teamJoinedEnabled,
       });
@@ -2713,7 +2693,7 @@ export default function Settings() {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Labels & Attributes</h2>
                   <p className="mt-1 text-sm text-gray-500">
-                    Define the label and contact attribute options your team can reuse across Inbox, Contacts, Leads, and Automations.
+                    Define the label and contact attribute options your team can reuse across Inbox, Contacts, and Automations.
                   </p>
                 </div>
 
@@ -3648,7 +3628,7 @@ export default function Settings() {
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">Connection Center</h3>
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-                          Open Connections to manage Meta, WhatsApp, Email Provider, WooCommerce, and Advanced integrations.
+                          Open Connections to manage Meta, WhatsApp, WooCommerce, and Advanced integrations.
                         </p>
                       </div>
                     </div>

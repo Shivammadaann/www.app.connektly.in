@@ -19,16 +19,6 @@ import type {
   DeveloperWebhookCreateInput,
   DeveloperWebhookEndpoint,
   DeveloperWebhookUpdateInput,
-  EmailCampaign,
-  EmailCampaignSendInput,
-  EmailConnectionSummary,
-  EmailConnectionUpsertInput,
-  EmailConnectionVerifyImapInput,
-  EmailConnectionVerifyResponse,
-  EmailConnectionVerifySmtpInput,
-  EmailMessage,
-  EmailTemplate,
-  EmailTemplateSaveInput,
   BillingPlansResponse,
   BillingQuoteInput,
   BillingQuoteResponse,
@@ -688,72 +678,6 @@ export const appApi = {
   deleteContact(threadId: string) {
     return apiRequest<void>(`/contacts/${threadId}`, {
       method: 'DELETE',
-    });
-  },
-  getEmailConnection() {
-    return apiRequest<{ connection: EmailConnectionSummary | null }>('/email/connection', {
-      cache: 'no-store',
-    });
-  },
-  verifyEmailConnection(payload: EmailConnectionUpsertInput) {
-    return apiRequest<EmailConnectionVerifyResponse>('/email/connection/verify', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-  verifyEmailSmtpConnection(payload: EmailConnectionVerifySmtpInput) {
-    return apiRequest<EmailConnectionVerifyResponse['smtp']>('/email/connection/verify/smtp', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-  verifyEmailImapConnection(payload: EmailConnectionVerifyImapInput) {
-    return apiRequest<EmailConnectionVerifyResponse['imap']>('/email/connection/verify/imap', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-  saveEmailConnection(payload: EmailConnectionUpsertInput) {
-    return apiRequest<{ connection: EmailConnectionSummary }>('/email/connection', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-  deleteEmailConnection() {
-    return apiRequest<{ ok: true }>('/email/connection', {
-      method: 'DELETE',
-    });
-  },
-  getEmailInbox() {
-    return apiRequest<{ messages: EmailMessage[] }>('/email/inbox', {
-      cache: 'no-store',
-    });
-  },
-  getEmailTemplates() {
-    return apiRequest<{ templates: EmailTemplate[] }>('/email/templates', {
-      cache: 'no-store',
-    });
-  },
-  saveEmailTemplate(payload: EmailTemplateSaveInput) {
-    return apiRequest<{ template: EmailTemplate }>('/email/templates', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-  deleteEmailTemplate(templateId: string) {
-    return apiRequest<{ ok: true }>(`/email/templates/${templateId}`, {
-      method: 'DELETE',
-    });
-  },
-  getEmailCampaigns() {
-    return apiRequest<{ campaigns: EmailCampaign[] }>('/email/campaigns', {
-      cache: 'no-store',
-    });
-  },
-  sendEmailCampaign(payload: EmailCampaignSendInput) {
-    return apiRequest<{ campaign: EmailCampaign }>('/email/campaigns/send', {
-      method: 'POST',
-      body: JSON.stringify(payload),
     });
   },
   markNotificationsRead(payload: { notificationId?: string; markAll?: boolean }) {
