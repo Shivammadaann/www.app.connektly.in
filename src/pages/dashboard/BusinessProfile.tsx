@@ -7,6 +7,7 @@ import {
   type ChangeEvent,
   type PointerEvent,
   type ReactNode,
+  type SyntheticEvent,
   type WheelEvent,
 } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -130,6 +131,12 @@ const fieldTextareaClassName =
 const MIN_PHOTO_EDITOR_ZOOM = 1;
 const MAX_PHOTO_EDITOR_ZOOM = 3;
 const PROFILE_PHOTO_OUTPUT_SIZE = 640;
+const PHOTO_EDITOR_CROP_RATIO = 0.82;
+
+interface PhotoEditorImageSize {
+  width: number;
+  height: number;
+}
 
 interface PhotoEditorDragState {
   pointerId: number;
@@ -146,12 +153,20 @@ function getBoundedPhotoOffset(
   offset: { x: number; y: number },
   zoom: number,
   previewSize: number,
+  imageSize: PhotoEditorImageSize | null,
 ) {
-  const maxOffset = Math.max(0, ((zoom - 1) * previewSize) / 2);
+  const naturalWidth = imageSize?.width || 1;
+  const naturalHeight = imageSize?.height || 1;
+  const coverScale = Math.max(previewSize / naturalWidth, previewSize / naturalHeight);
+  const renderedWidth = naturalWidth * coverScale * zoom;
+  const renderedHeight = naturalHeight * coverScale * zoom;
+  const cropSize = previewSize * PHOTO_EDITOR_CROP_RATIO;
+  const maxOffsetX = Math.max(0, (renderedWidth - cropSize) / 2);
+  const maxOffsetY = Math.max(0, (renderedHeight - cropSize) / 2);
 
   return {
-    x: clamp(offset.x, -maxOffset, maxOffset),
-    y: clamp(offset.y, -maxOffset, maxOffset),
+    x: clamp(offset.x, -maxOffsetX, maxOffsetX),
+    y: clamp(offset.y, -maxOffsetY, maxOffsetY),
   };
 }
 
@@ -188,13 +203,15 @@ async function createAdjustedProfilePhotoFile({
     throw new Error('Unable to prepare the adjusted profile photo.');
   }
 
-  const coverScale = Math.max(
-    PROFILE_PHOTO_OUTPUT_SIZE / image.naturalWidth,
-    PROFILE_PHOTO_OUTPUT_SIZE / image.naturalHeight,
-  ) * zoom;
-  const scaledWidth = image.naturalWidth * coverScale;
-  const scaledHeight = image.naturalHeight * coverScale;
-  const outputOffsetScale = previewSize > 0 ? PROFILE_PHOTO_OUTPUT_SIZE / previewSize : 1;
+  const safePreviewSize = previewSize > 0 ? previewSize : PROFILE_PHOTO_OUTPUT_SIZE;
+  const previewCoverScale = Math.max(
+    safePreviewSize / image.naturalWidth,
+    safePreviewSize / image.naturalHeight,
+  );
+  const cropSize = safePreviewSize * PHOTO_EDITOR_CROP_RATIO;
+  const outputOffsetScale = PROFILE_PHOTO_OUTPUT_SIZE / cropSize;
+  const scaledWidth = image.naturalWidth * previewCoverScale * zoom * outputOffsetScale;
+  const scaledHeight = image.naturalHeight * previewCoverScale * zoom * outputOffsetScale;
   const drawX = (PROFILE_PHOTO_OUTPUT_SIZE - scaledWidth) / 2 + offset.x * outputOffsetScale;
   const drawY = (PROFILE_PHOTO_OUTPUT_SIZE - scaledHeight) / 2 + offset.y * outputOffsetScale;
 
@@ -578,6 +595,7 @@ export default function BusinessProfile() {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState(
     () => businessProfile?.displayNameRequest?.requestedName || businessProfile?.verifiedName || bootstrap?.channel?.verifiedName || '',
   );
@@ -589,6 +607,7 @@ export default function BusinessProfile() {
   const [photoEditorFileName, setPhotoEditorFileName] = useState('profile-photo.jpg');
   const [photoEditorZoom, setPhotoEditorZoom] = useState(MIN_PHOTO_EDITOR_ZOOM);
   const [photoEditorOffset, setPhotoEditorOffset] = useState({ x: 0, y: 0 });
+  const [photoEditorImageSize, setPhotoEditorImageSize] = useState<PhotoEditorImageSize | null>(null);
   const [photoEditorDragState, setPhotoEditorDragState] = useState<PhotoEditorDragState | null>(null);
   const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -796,6 +815,7 @@ export default function BusinessProfile() {
     setPhotoEditorFileName(file.name || 'profile-photo.jpg');
     setPhotoEditorZoom(MIN_PHOTO_EDITOR_ZOOM);
     setPhotoEditorOffset({ x: 0, y: 0 });
+    setPhotoEditorImageSize(null);
     setPhotoEditorDragState(null);
     input.value = '';
   };
@@ -807,13 +827,30 @@ export default function BusinessProfile() {
     window.open(nextPhotoUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const handleRemovePhoto = () => {
-    setAvatarPreviewUrl(null);
-    setIsPhotoRemoved(true);
+  const handleRemovePhoto = async () => {
     setIsPhotoMenuOpen(false);
     setPhotoEditorSourceUrl(null);
-    setSuccess('Profile photo removed from this preview. Upload a new photo to replace it in Meta.');
-    setError(null);
+
+    if (!previewAvatarUrl) {
+      return;
+    }
+
+    try {
+      setIsRemovingPhoto(true);
+      setSuccess(null);
+      setError(null);
+
+      const response = await appApi.updateBusinessProfile({ profilePictureHandle: '' });
+
+      setBusinessProfile(() => response.profile);
+      setAvatarPreviewUrl(null);
+      setIsPhotoRemoved(true);
+      setSuccess('Profile photo removed from WhatsApp.');
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'Failed to remove profile photo.');
+    } finally {
+      setIsRemovingPhoto(false);
+    }
   };
 
   const getPhotoEditorPreviewSize = () => photoEditorPreviewRef.current?.getBoundingClientRect().width || 360;
@@ -824,6 +861,7 @@ export default function BusinessProfile() {
     }
 
     event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
     setPhotoEditorDragState({
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -837,12 +875,13 @@ export default function BusinessProfile() {
       return;
     }
 
+    event.preventDefault();
     const previewSize = getPhotoEditorPreviewSize();
     setPhotoEditorOffset(
       getBoundedPhotoOffset({
         x: photoEditorDragState.initialOffset.x + event.clientX - photoEditorDragState.startX,
         y: photoEditorDragState.initialOffset.y + event.clientY - photoEditorDragState.startY,
-      }, photoEditorZoom, previewSize),
+      }, photoEditorZoom, previewSize, photoEditorImageSize),
     );
   };
 
@@ -857,9 +896,24 @@ export default function BusinessProfile() {
 
     setPhotoEditorZoom((currentZoom) => {
       const nextZoom = clamp(currentZoom + delta, MIN_PHOTO_EDITOR_ZOOM, MAX_PHOTO_EDITOR_ZOOM);
-      setPhotoEditorOffset((currentOffset) => getBoundedPhotoOffset(currentOffset, nextZoom, previewSize));
+      setPhotoEditorOffset((currentOffset) =>
+        getBoundedPhotoOffset(currentOffset, nextZoom, previewSize, photoEditorImageSize),
+      );
       return nextZoom;
     });
+  };
+
+  const handlePhotoEditorImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    const nextImageSize = {
+      width: event.currentTarget.naturalWidth,
+      height: event.currentTarget.naturalHeight,
+    };
+    const previewSize = getPhotoEditorPreviewSize();
+
+    setPhotoEditorImageSize(nextImageSize);
+    setPhotoEditorOffset((currentOffset) =>
+      getBoundedPhotoOffset(currentOffset, photoEditorZoom, previewSize, nextImageSize),
+    );
   };
 
   const handlePhotoEditorWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -878,6 +932,7 @@ export default function BusinessProfile() {
 
     setPhotoEditorDragState(null);
     setPhotoEditorSourceUrl(null);
+    setPhotoEditorImageSize(null);
   };
 
   const handlePhotoEditorUpload = async () => {
@@ -1002,7 +1057,7 @@ export default function BusinessProfile() {
         </div>
         <ActionButton
           onClick={() => void handleSync()}
-          disabled={isBusinessProfileLoading || isSaving || isUploadingPhoto}
+          disabled={isBusinessProfileLoading || isSaving || isUploadingPhoto || isRemovingPhoto}
         >
           <RefreshCw className={`h-4 w-4 ${isBusinessProfileLoading ? 'animate-spin' : ''}`} />
           Sync now
@@ -1060,7 +1115,7 @@ export default function BusinessProfile() {
                         <button
                           type="button"
                           onClick={() => setIsPhotoMenuOpen((current) => !current)}
-                          disabled={isUploadingPhoto || isSaving}
+                          disabled={isUploadingPhoto || isRemovingPhoto || isSaving}
                           className="group relative h-32 w-32 rounded-full outline-none transition duration-200 hover:scale-[1.02] focus-visible:ring-4 focus-visible:ring-[#1381FF]/20 disabled:cursor-not-allowed disabled:opacity-70"
                           aria-haspopup="menu"
                           aria-expanded={isPhotoMenuOpen}
@@ -1078,7 +1133,7 @@ export default function BusinessProfile() {
                           </span>
                           <span className="absolute -bottom-4 left-1/2 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-[#00A884] shadow-sm transition group-hover:border-[#00A884]/40 group-hover:bg-[#f0fff8]">
                             <Camera className={`h-4 w-4 ${isUploadingPhoto ? 'animate-pulse' : ''}`} />
-                            {isUploadingPhoto ? 'Uploading' : 'Edit'}
+                            {isUploadingPhoto ? 'Uploading' : isRemovingPhoto ? 'Removing' : 'Edit'}
                           </span>
                         </button>
 
@@ -1107,9 +1162,15 @@ export default function BusinessProfile() {
                                 Upload photo
                               </button>
                               <div className="my-2 border-t border-white/10" />
-                              <button type="button" onClick={handleRemovePhoto} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-white/5 hover:text-white" role="menuitem">
-                                <Trash2 className="h-5 w-5 text-gray-400" />
-                                Remove photo
+                              <button
+                                type="button"
+                                onClick={() => void handleRemovePhoto()}
+                                disabled={!previewAvatarUrl || isRemovingPhoto}
+                                className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                                role="menuitem"
+                              >
+                                {isRemovingPhoto ? <RefreshCw className="h-5 w-5 animate-spin text-gray-400" /> : <Trash2 className="h-5 w-5 text-gray-400" />}
+                                {isRemovingPhoto ? 'Removing photo' : 'Remove photo'}
                               </button>
                             </motion.div>
                           ) : null}
@@ -1507,11 +1568,15 @@ export default function BusinessProfile() {
                   <img
                     src={photoEditorSourceUrl}
                     alt="Selected profile preview"
-                    className="absolute left-0 top-0 h-full w-full select-none object-cover"
+                    className="absolute max-w-none select-none"
                     draggable={false}
+                    onLoad={handlePhotoEditorImageLoad}
                     style={{
-                      transform: `translate(${photoEditorOffset.x}px, ${photoEditorOffset.y}px) scale(${photoEditorZoom})`,
-                      transformOrigin: 'center',
+                      left: `calc(50% + ${photoEditorOffset.x}px)`,
+                      top: `calc(50% + ${photoEditorOffset.y}px)`,
+                      width: `${Math.max(1, (photoEditorImageSize?.width || 1) / (photoEditorImageSize?.height || 1)) * photoEditorZoom * 100}%`,
+                      height: `${Math.max(1, (photoEditorImageSize?.height || 1) / (photoEditorImageSize?.width || 1)) * photoEditorZoom * 100}%`,
+                      transform: 'translate(-50%, -50%)',
                     }}
                   />
                   <div className="pointer-events-none absolute left-1/2 top-1/2 h-[82%] w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-full shadow-[0_0_0_9999px_rgba(0,0,0,0.48)] ring-1 ring-white/10" />

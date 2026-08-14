@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { getCachedSession, supabase } from '../lib/supabase';
@@ -22,9 +22,9 @@ import { getDefaultNotificationPreferences, getUnreadNotificationCount } from '.
 import { playNotificationChime } from '../lib/soundManager';
 import {
   MessageSquare, 
-  Users, 
+  Users,
   Megaphone, 
-  FileText, 
+  FileText,
   Zap, 
   GitMerge, 
   Phone, 
@@ -56,7 +56,6 @@ type SidebarChildItem = {
   icon: NavIcon;
   label: string;
   path: string;
-  sectionLabel?: string;
   activePaths?: string[];
   activePrefixes?: string[];
 };
@@ -82,7 +81,7 @@ type SidebarDropdownItem = {
 };
 
 type SidebarItem = SidebarLinkItem | SidebarDropdownItem;
-type SidebarDropdownId = 'inbox' | 'campaigns' | 'automations' | 'commerce';
+type SidebarDropdownId = 'ads' | 'automations';
 
 function isSidebarRouteActive(
   pathname: string,
@@ -122,17 +121,11 @@ export default function DashboardLayout() {
   const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [isInboxOpen, setIsInboxOpen] = useState(
-    () => location.pathname.startsWith('/dashboard/inbox') || location.pathname.startsWith('/dashboard/calls'),
-  );
-  const [isCampaignsOpen, setIsCampaignsOpen] = useState(
+  const [isAdsOpen, setIsAdsOpen] = useState(
     () =>
-      location.pathname.startsWith('/dashboard/campaigns') ||
-      location.pathname.startsWith('/dashboard/broadcasts') ||
       location.pathname.startsWith('/dashboard/ads') ||
       location.pathname.startsWith('/dashboard/meta-ads'),
   );
-  const [isCommerceOpen, setIsCommerceOpen] = useState(() => location.pathname.startsWith('/dashboard/commerce'));
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(
     () =>
       location.pathname.startsWith('/dashboard/automations') ||
@@ -153,6 +146,22 @@ export default function DashboardLayout() {
   const showFinishOnboardingCta = Boolean(bootstrap?.profile?.onboardingCompleted && !bootstrap?.channel);
   const displayName = bootstrap?.profile?.fullName || getAuthUserDisplayName(user) || 'User';
   const displaySecondaryText = user?.email || bootstrap?.profile?.companyName || 'Workspace';
+  const wabaConnectionStatus = bootstrap?.channel?.status || 'disconnected';
+  const wabaContactNumber = bootstrap?.channel?.displayPhoneNumber || 'WABA not connected';
+  const wabaStatusLabel =
+    wabaConnectionStatus === 'connected'
+      ? 'Connected'
+      : wabaConnectionStatus === 'pending'
+        ? 'Pending'
+        : wabaConnectionStatus === 'error'
+          ? 'Connection error'
+          : 'Disconnected';
+  const wabaStatusDotClassName =
+    wabaConnectionStatus === 'connected'
+      ? 'bg-emerald-400 ring-emerald-400/20'
+      : wabaConnectionStatus === 'pending'
+        ? 'bg-amber-400 ring-amber-400/20'
+        : 'bg-red-400 ring-red-400/20';
   const displayProfilePictureUrl =
     bootstrap?.profile?.profilePictureUrl || getAuthUserProfilePictureUrl(user);
   const wallet = bootstrap?.wallet;
@@ -489,62 +498,42 @@ export default function DashboardLayout() {
 
   const toggleSidebarDropdown = (dropdownId: SidebarDropdownId) => {
     setActiveCollapsedDropdown(null);
-    setIsInboxOpen((current) => (dropdownId === 'inbox' ? !current : false));
-    setIsCampaignsOpen((current) => (dropdownId === 'campaigns' ? !current : false));
+    setIsAdsOpen((current) => (dropdownId === 'ads' ? !current : false));
     setIsAutomationsOpen((current) => (dropdownId === 'automations' ? !current : false));
-    setIsCommerceOpen((current) => (dropdownId === 'commerce' ? !current : false));
   };
 
   const navStructure: SidebarItem[] = [
     { id: 'home', type: 'link', icon: Home, label: 'Home', path: '/dashboard/home' },
+    { id: 'inbox', type: 'link', icon: MessageSquare, label: 'Inbox', path: '/dashboard/inbox' },
+    { id: 'calls', type: 'link', icon: Phone, label: 'WhatsApp Calls', path: '/dashboard/calls' },
     { id: 'contacts', type: 'link', icon: Users, label: 'Contacts', path: '/dashboard/contacts' },
     {
-      id: 'inbox',
-      type: 'dropdown',
-      icon: MessageSquare,
-      label: 'Inbox',
-      isOpen: isInboxOpen,
-      toggle: () => toggleSidebarDropdown('inbox'),
-      children: [
-        {
-          icon: MessageSquare,
-          label: 'All Conversations',
-          path: '/dashboard/inbox',
-        },
-        {
-          icon: Phone,
-          label: 'WhatsApp Calls',
-          path: '/dashboard/calls',
-        },
-      ],
+      id: 'campaigns',
+      type: 'link',
+      icon: Megaphone,
+      label: 'Campaigns',
+      path: '/dashboard/campaigns',
+      activePaths: ['/dashboard/broadcasts'],
     },
     { id: 'templates', type: 'link', icon: FileText, label: 'Templates', path: '/dashboard/templates' },
     {
-      id: 'campaigns',
+      id: 'ads',
       type: 'dropdown',
       icon: Megaphone,
-      label: 'Campaigns',
-      isOpen: isCampaignsOpen,
-      toggle: () => toggleSidebarDropdown('campaigns'),
+      label: 'Ads',
+      isOpen: isAdsOpen,
+      toggle: () => toggleSidebarDropdown('ads'),
       children: [
-        {
-          icon: Megaphone,
-          label: 'WhatsApp Campaigns',
-          path: '/dashboard/campaigns',
-          activePaths: ['/dashboard/broadcasts'],
-        },
         {
           icon: Megaphone,
           label: 'Overview',
           path: '/dashboard/ads/meta-ads-manager',
-          sectionLabel: 'Ads',
           activePaths: ['/dashboard/ads', '/dashboard/meta-ads', '/dashboard/meta-ads/campaigns', '/dashboard/meta-ads/budget', '/dashboard/meta-ads/analytics'],
         },
         {
           icon: MessageSquare,
           label: 'Create Ad',
           path: '/dashboard/ads/manager',
-          sectionLabel: 'Ads',
           activePaths: ['/dashboard/ads/ctwa', '/dashboard/meta-ads/ad-accounts', '/dashboard/meta-ads/connected-pages'],
         },
       ],
@@ -577,21 +566,14 @@ export default function DashboardLayout() {
       ],
     },
     {
-      id: 'commerce',
-      type: 'dropdown',
-      icon: Store,
-      label: 'Commerce',
-      isOpen: isCommerceOpen,
-      toggle: () => toggleSidebarDropdown('commerce'),
-      children: [
-        {
-          icon: Package,
-          label: 'Catalog',
-          path: '/dashboard/commerce/catalog',
-          activePaths: ['/dashboard/commerce'],
-        },
-      ],
+      id: 'catalog',
+      type: 'link',
+      icon: Package,
+      label: 'Catalog',
+      path: '/dashboard/commerce/catalog',
+      activePaths: ['/dashboard/commerce'],
     },
+    { id: 'business-profile', type: 'link', icon: Store, label: 'Business Profile', path: '/dashboard/profile' },
     {
       id: 'connections',
       type: 'link',
@@ -779,31 +761,22 @@ export default function DashboardLayout() {
                           className="overflow-hidden"
                         >
                           <div className="pl-11 pr-3 py-1 space-y-1">
-                            {item.children.map((child, childIndex) => {
+                            {item.children.map((child) => {
                               const isActive = isNavItemActive(child);
-                              const shouldShowSectionLabel =
-                                child.sectionLabel &&
-                                item.children[childIndex - 1]?.sectionLabel !== child.sectionLabel;
 
                               return (
-                                <Fragment key={child.path}>
-                                  {shouldShowSectionLabel ? (
-                                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                                      {child.sectionLabel}
-                                    </div>
-                                  ) : null}
-                                  <NavLink
-                                    to={child.path}
-                                    className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
-                                      isActive
-                                        ? 'bg-[#1381FF] text-white font-medium'
-                                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                                    }`}
-                                  >
-                                    <child.icon className={`w-4 h-4 mr-3 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
-                                    <span className="truncate">{child.label}</span>
-                                  </NavLink>
-                                </Fragment>
+                                <NavLink
+                                  key={child.path}
+                                  to={child.path}
+                                  className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
+                                    isActive
+                                      ? 'bg-[#1381FF] text-white font-medium'
+                                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                  }`}
+                                >
+                                  <child.icon className={`w-4 h-4 mr-3 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                                  <span className="truncate">{child.label}</span>
+                                </NavLink>
                               );
                             })}
                           </div>
@@ -829,32 +802,23 @@ export default function DashboardLayout() {
                             {item.label}
                           </div>
                           <div className="space-y-1">
-                            {item.children.map((child, childIndex) => {
+                            {item.children.map((child) => {
                               const isActive = isNavItemActive(child);
-                              const shouldShowSectionLabel =
-                                child.sectionLabel &&
-                                item.children[childIndex - 1]?.sectionLabel !== child.sectionLabel;
 
                               return (
-                                <Fragment key={child.path}>
-                                  {shouldShowSectionLabel ? (
-                                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                                      {child.sectionLabel}
-                                    </div>
-                                  ) : null}
-                                  <NavLink
-                                    to={child.path}
-                                    onClick={() => setActiveCollapsedDropdown(null)}
-                                    className={`flex items-center px-3 py-2.5 rounded-xl transition-colors text-sm ${
-                                      isActive
-                                        ? 'bg-[#1381FF] text-white font-medium'
-                                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                                    }`}
-                                  >
-                                    <child.icon className={`w-4 h-4 mr-3 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
-                                    <span className="truncate">{child.label}</span>
-                                  </NavLink>
-                                </Fragment>
+                                <NavLink
+                                  key={child.path}
+                                  to={child.path}
+                                  onClick={() => setActiveCollapsedDropdown(null)}
+                                  className={`flex items-center px-3 py-2.5 rounded-xl transition-colors text-sm ${
+                                    isActive
+                                      ? 'bg-[#1381FF] text-white font-medium'
+                                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                  }`}
+                                >
+                                  <child.icon className={`w-4 h-4 mr-3 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                                  <span className="truncate">{child.label}</span>
+                                </NavLink>
                               );
                             })}
                           </div>
@@ -1089,8 +1053,12 @@ export default function DashboardLayout() {
                   <p className="text-sm font-medium text-white leading-tight">
                     {displayName}
                   </p>
-                  <p className="text-xs text-gray-500 truncate max-w-[150px]">
-                    {displaySecondaryText}
+                  <p className="flex max-w-[170px] items-center justify-end gap-1.5 text-xs text-gray-400" title={`WABA: ${wabaStatusLabel}`}>
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full ring-4 ${wabaStatusDotClassName}`}
+                      aria-label={`WABA ${wabaStatusLabel}`}
+                    />
+                    <span className="truncate">{wabaContactNumber}</span>
                   </p>
                 </div>
                 <UserAvatar
@@ -1206,7 +1174,13 @@ export default function DashboardLayout() {
                   <BrandMark className="h-9 w-9 shrink-0" />
                   <div className="min-w-0">
                     <p className="truncate text-base font-bold text-white">Connektly</p>
-                    <p className="truncate text-xs text-gray-500">{displaySecondaryText}</p>
+                    <p className="flex items-center gap-1.5 text-xs text-gray-400" title={`WABA: ${wabaStatusLabel}`}>
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ring-4 ${wabaStatusDotClassName}`}
+                        aria-label={`WABA ${wabaStatusLabel}`}
+                      />
+                      <span className="truncate">{wabaContactNumber}</span>
+                    </p>
                   </div>
                 </div>
                 <button
@@ -1308,32 +1282,23 @@ export default function DashboardLayout() {
                                 className="overflow-hidden"
                               >
                                 <div className="space-y-1 pl-4">
-                                  {item.children.map((child, childIndex) => {
+                                  {item.children.map((child) => {
                                     const isActive = isNavItemActive(child);
-                                    const shouldShowSectionLabel =
-                                      child.sectionLabel &&
-                                      item.children[childIndex - 1]?.sectionLabel !== child.sectionLabel;
 
                                     return (
-                                      <Fragment key={child.path}>
-                                        {shouldShowSectionLabel ? (
-                                          <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                                            {child.sectionLabel}
-                                          </div>
-                                        ) : null}
-                                        <NavLink
-                                          to={child.path}
-                                          onClick={() => setIsMobileMenuOpen(false)}
-                                          className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition ${
-                                            isActive
-                                              ? 'bg-[#1381FF] text-white'
-                                              : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                                          }`}
-                                        >
-                                          <child.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
-                                          <span className="truncate">{child.label}</span>
-                                        </NavLink>
-                                      </Fragment>
+                                      <NavLink
+                                        key={child.path}
+                                        to={child.path}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition ${
+                                          isActive
+                                            ? 'bg-[#1381FF] text-white'
+                                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                        }`}
+                                      >
+                                        <child.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                                        <span className="truncate">{child.label}</span>
+                                      </NavLink>
                                     );
                                   })}
                                 </div>
