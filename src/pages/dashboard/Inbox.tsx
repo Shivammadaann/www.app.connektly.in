@@ -232,8 +232,8 @@ function ContactDetailsContent({
     (isExternalMessagingThread ? getConversationDisplayDetail(activeThread) : null);
 
   return (
-    <div className="h-full bg-white px-4 py-3">
-      <div className="group mb-2 border-b border-gray-100 pb-3">
+    <div className="h-full bg-white px-5 py-5">
+      <div className="group mb-3 border-b border-slate-200 pb-5">
         <div className="flex items-center gap-3">
           <ConversationAvatar thread={activeThread} size="panel" />
           <div className="min-w-0 flex-1">
@@ -4012,15 +4012,15 @@ export default function Inbox() {
       initial={shouldReduceMotion ? false : 'hidden'}
       animate="visible"
       variants={layoutStaggerVariants}
-      className="flex h-[calc(100dvh-8rem)] min-h-[34rem] flex-col overflow-hidden rounded-[2rem] bg-gray-50 p-3 shadow-[0_18px_48px_rgba(15,23,42,0.07)] ring-1 ring-gray-100 lg:flex-row lg:gap-3"
+      className="flex h-[calc(100dvh-8rem)] min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)] lg:flex-row"
     >
       <motion.div
         variants={panelRiseVariants}
         className={`${
           shouldHideThreadList ? 'hidden' : 'flex'
-        } w-full shrink-0 flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100 lg:w-[21rem]`}
+        } w-full shrink-0 flex-col overflow-hidden bg-white lg:w-[20rem] lg:border-r lg:border-slate-200`}
       >
-        <div className="border-b border-gray-100 p-4">
+        <div className="border-b border-slate-200 px-5 py-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-xl font-bold text-gray-900">Inbox</h2>
@@ -4116,8 +4116,8 @@ export default function Inbox() {
                 transition={{ duration: 0.18, delay: Math.min(index * 0.018, 0.14), ease: MOTION_EASE }}
                 whileHover={shouldReduceMotion ? undefined : { scale: 1.01 }}
                 whileTap={shouldReduceMotion ? undefined : { scale: 0.995 }}
-                className={`group flex w-full cursor-pointer gap-3 border-b border-gray-50 px-4 py-3 text-left transition-colors duration-200 ease-out ${
-                  selectedThreadId === thread.id ? 'bg-[#f3f1ff]' : 'hover:bg-gray-50'
+                className={`group flex w-full cursor-pointer gap-3 border-b border-slate-100 px-5 py-3.5 text-left transition-colors duration-200 ease-out ${
+                  selectedThreadId === thread.id ? 'bg-[#eef6ff]' : 'hover:bg-slate-50'
                 }`}
               >
                 <ConversationAvatar thread={thread} />
@@ -4184,9 +4184,9 @@ export default function Inbox() {
         variants={panelRiseVariants}
         className={`${
           isMobileViewport && mobileView === 'threads' ? 'hidden' : 'flex'
-        } min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100`}
+        } min-w-0 flex-1 flex-col overflow-hidden bg-white`}
       >
-        <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-white px-4 py-3 shrink-0 sm:px-6 lg:flex-nowrap">
+        <div className="flex min-h-[4.75rem] flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3.5 shrink-0 sm:px-6 lg:flex-nowrap">
           <div className="flex min-w-0 items-center gap-3">
             {!isMobileViewport && isThreadListCollapsed ? (
               <button
@@ -4346,7 +4346,7 @@ export default function Inbox() {
         <div
           ref={messagesViewportRef}
           onScroll={handleMessagesScroll}
-          className="flex-1 overflow-y-auto bg-[#f7f8fa] p-4 scrollbar-hide sm:p-6"
+          className="flex-1 overflow-y-auto bg-[#f6f8fb] p-5 scrollbar-hide sm:p-7"
         >
           <div ref={messagesContentRef} className="space-y-4">
             {activeThreadMessages.map((message, index) => {
@@ -4409,7 +4409,7 @@ export default function Inbox() {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-gray-100 bg-white p-3">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3.5 sm:px-5">
           <input
             ref={fileInputRef}
             type="file"
@@ -4658,12 +4658,12 @@ export default function Inbox() {
           ) : (
           <motion.div
             initial={shouldReduceMotion ? false : { width: 0, opacity: 0 }}
-            animate={shouldReduceMotion ? { width: 320, opacity: 1 } : { width: 320, opacity: 1 }}
+            animate={shouldReduceMotion ? { width: 288, opacity: 1 } : { width: 288, opacity: 1 }}
             exit={shouldReduceMotion ? undefined : { width: 0, opacity: 0 }}
             transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: 'easeInOut' }}
-            className="hidden shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100 lg:block"
+            className="hidden shrink-0 overflow-hidden border-l border-slate-200 bg-white lg:block"
           >
-            <div className="h-full w-80 flex flex-col overflow-y-auto scrollbar-hide">
+            <div className="h-full w-72 flex flex-col overflow-y-auto scrollbar-hide">
               <ContactDetailsContent
                 activeThread={activeThread}
                 activeThreadChannel={activeThreadChannel}
