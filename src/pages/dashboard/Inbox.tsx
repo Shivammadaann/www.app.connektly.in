@@ -58,6 +58,7 @@ import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import type { ChannelBrand } from '../../components/ChannelBrandIcon';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
+import { normalizePhoneLike } from '../../lib/phone';
 import { lockBodyScroll } from '../../lib/useBodyScrollLock';
 import defaultProfilePictureUrl from '../../assets/profile.png';
 import type {
@@ -86,7 +87,7 @@ interface PendingAttachment {
 type InboxThreadFilter = 'all' | 'unread' | 'starred';
 type InboxChannelFilter = 'all' | 'whatsapp' | 'instagram' | 'messenger';
 type TemplateMediaHeaderType = 'IMAGE' | 'VIDEO' | 'DOCUMENT';
-type ContactDetailsSection = 'contact' | 'labels' | 'crm';
+type ContactDetailsSection = 'contact' | 'labels';
 
 interface HeaderMediaPreviewMetadata {
   previewUrl?: string;
@@ -155,6 +156,26 @@ function getChannelLabel(channel: Exclude<InboxChannelFilter, 'all'>) {
   }
 }
 
+function getInboxConversationName(thread: ConversationThread | null | undefined) {
+  const displayName = getConversationDisplayName(thread);
+
+  if (!thread || getThreadChannel(thread) !== 'whatsapp') {
+    return displayName;
+  }
+
+  const displayPhone = getConversationDisplayDetail(thread);
+  const normalizedName = normalizePhoneLike(displayName);
+  const normalizedPhone = normalizePhoneLike(displayPhone);
+
+  return normalizedName && normalizedPhone && normalizedName === normalizedPhone
+    ? 'WhatsApp contact'
+    : displayName;
+}
+
+function getInboxConversationPhone(thread: ConversationThread | null | undefined) {
+  return thread && getThreadChannel(thread) === 'whatsapp' ? getConversationDisplayDetail(thread) : '';
+}
+
 function DetailsAccordionSection({
   title,
   icon,
@@ -204,7 +225,6 @@ function ContactDetailsContent({
   activeThread,
   activeThreadChannel,
   activeThreadChannelLabel,
-  ownerName,
   openSections,
   onToggleSection,
   onAddLabel,
@@ -215,7 +235,6 @@ function ContactDetailsContent({
   activeThread: ConversationThread | null;
   activeThreadChannel: Exclude<InboxChannelFilter, 'all'> | null;
   activeThreadChannelLabel: string;
-  ownerName: string;
   openSections: Record<ContactDetailsSection, boolean>;
   onToggleSection: (section: ContactDetailsSection) => void;
   onAddLabel?: () => void;
@@ -238,11 +257,17 @@ function ContactDetailsContent({
           <ConversationAvatar thread={activeThread} size="panel" />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold text-gray-900">
-              {activeThread ? getConversationDisplayName(activeThread) : 'No contact selected'}
+              {activeThread ? getInboxConversationName(activeThread) : 'No contact selected'}
             </h2>
             <div className="mt-1 flex min-w-0 items-center gap-2 text-xs font-medium text-gray-500">
               {activeThreadChannel ? <ChannelBrandIcon channel={activeThreadChannel} className="h-4 w-4 shrink-0" alt="" /> : null}
-              <span className="truncate">{activeThreadChannel ? getChannelLabel(activeThreadChannel) : activeThreadChannelLabel}</span>
+              <span className="truncate">
+                {activeThreadChannel === 'whatsapp'
+                  ? getInboxConversationPhone(activeThread) || 'Number unavailable'
+                  : activeThreadChannel
+                    ? getChannelLabel(activeThreadChannel)
+                    : activeThreadChannelLabel}
+              </span>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
@@ -367,41 +392,6 @@ function ContactDetailsContent({
           </div>
         </DetailsAccordionSection>
 
-        <DetailsAccordionSection
-          title="CRM Properties"
-          icon={<User className="h-4 w-4" />}
-          isOpen={openSections.crm}
-          onToggle={() => onToggleSection('crm')}
-        >
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-gray-400">Source</p>
-              <p className="mt-0.5 truncate text-sm font-medium text-gray-900">{activeThread?.source || activeThreadChannelLabel}</p>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-gray-400">Status</p>
-              <p className="mt-0.5 truncate text-sm font-medium text-gray-900">{activeThread?.status || 'New Lead'}</p>
-            </div>
-            <div className="min-w-0 col-span-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-gray-400">Owner</p>
-                  <p className="mt-0.5 truncate text-sm font-medium text-gray-900">{activeThread?.ownerName || ownerName}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={onAssignOwner}
-                  disabled={!activeThread || !onAssignOwner}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label="Assign owner"
-                  title="Assign owner"
-                >
-                  <User className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </DetailsAccordionSection>
       </div>
     </div>
   );
@@ -461,7 +451,7 @@ function ConversationAvatar({
       {shouldShowImage ? (
         <img
           src={avatarUrl!}
-          alt={thread ? `${getConversationDisplayName(thread)} profile` : 'Profile'}
+          alt={thread ? `${getInboxConversationName(thread)} profile` : 'Profile'}
           className="h-full w-full object-cover"
           referrerPolicy="no-referrer"
           onError={() => setFailedAvatarUrl(avatarUrl)}
@@ -469,7 +459,7 @@ function ConversationAvatar({
       ) : (
         <img
           src={defaultProfilePictureUrl}
-          alt={thread ? `${getConversationDisplayName(thread)} default profile` : 'Default profile'}
+          alt={thread ? `${getInboxConversationName(thread)} default profile` : 'Default profile'}
           className="h-full w-full object-cover"
           draggable={false}
         />
@@ -2447,7 +2437,6 @@ export default function Inbox() {
   const [openContactDetailSections, setOpenContactDetailSections] = useState<Record<ContactDetailsSection, boolean>>({
     contact: true,
     labels: false,
-    crm: false,
   });
   const [isComposerActionsOpen, setIsComposerActionsOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
@@ -3154,7 +3143,7 @@ export default function Inbox() {
           return true;
         }
 
-        const haystack = `${getConversationDisplayName(thread)} ${thread.contactName || ''} ${thread.username || ''} ${thread.lastMessageText || ''} ${thread.displayPhone || ''}`.toLowerCase();
+        const haystack = `${getInboxConversationName(thread)} ${thread.contactName || ''} ${thread.username || ''} ${thread.lastMessageText || ''} ${thread.displayPhone || ''}`.toLowerCase();
         return haystack.includes(deferredQuery.trim().toLowerCase());
       })
       .sort(sortThreadsReverseChronological);
@@ -3748,7 +3737,7 @@ export default function Inbox() {
     }
   };
 
-  const activeContactName = getConversationDisplayName(activeThread);
+  const activeContactName = getInboxConversationName(activeThread);
   const openBlockContactConfirmation = () => {
     if (!activeThreadSupportsWhatsAppActions) {
       setError('Blocking is currently available only for WhatsApp conversations.');
@@ -3766,7 +3755,7 @@ export default function Inbox() {
 
     setPendingBlockConfirmation({
       waId: targetWaId,
-      contactName: getConversationDisplayName(activeThread),
+      contactName: getInboxConversationName(activeThread),
     });
     setIsConversationActionsOpen(false);
   };
@@ -4123,7 +4112,14 @@ export default function Inbox() {
                 <ConversationAvatar thread={thread} />
                 <div className="flex-1 min-w-0">
                   <div className="mb-1 flex items-start justify-between gap-2">
-                    <h4 className="truncate text-sm font-semibold text-gray-900">{getConversationDisplayName(thread)}</h4>
+                    <div className="min-w-0">
+                      <h4 className="truncate text-sm font-semibold text-gray-900">{getInboxConversationName(thread)}</h4>
+                      {threadChannel === 'whatsapp' && getInboxConversationPhone(thread) ? (
+                        <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">
+                          {getInboxConversationPhone(thread)}
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <span className="text-[11px] text-gray-400">
                         {formatMessageTime(thread.lastMessageAt)}
@@ -4210,12 +4206,16 @@ export default function Inbox() {
             ) : null}
             <div className="min-w-0">
               <h2 className="truncate text-lg font-bold text-gray-900">
-                {activeThread ? getConversationDisplayName(activeThread) : 'Select a conversation'}
+                {activeThread ? getInboxConversationName(activeThread) : 'Select a conversation'}
               </h2>
               {activeThread ? (
                 <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-gray-500">
                   {activeThreadChannel ? <ChannelBrandIcon channel={activeThreadChannel} className="h-4 w-4 shrink-0" alt="" /> : null}
-                  <span className="truncate">{activeThreadChannelLabel}</span>
+                  <span className="truncate">
+                    {activeThreadChannel === 'whatsapp'
+                      ? getInboxConversationPhone(activeThread) || activeThreadChannelLabel
+                      : activeThreadChannelLabel}
+                  </span>
                   <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${activeConversationWindow.isActive ? 'bg-emerald-500' : 'bg-gray-300'}`} />
                   <span className="truncate">{activeThreadWindowStatus}</span>
                 </div>
@@ -4630,7 +4630,10 @@ export default function Inbox() {
                   <div className="flex items-center justify-between border-b border-gray-100 p-5">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Contact details</p>
-                      <h3 className="mt-1 text-lg font-bold text-gray-900">{getConversationDisplayName(activeThread)}</h3>
+                      <h3 className="mt-1 text-lg font-bold text-gray-900">{getInboxConversationName(activeThread)}</h3>
+                      {activeThreadChannel === 'whatsapp' && getInboxConversationPhone(activeThread) ? (
+                        <p className="mt-1 text-xs font-medium text-gray-500">{getInboxConversationPhone(activeThread)}</p>
+                      ) : null}
                     </div>
                     <button
                       type="button"
@@ -4644,7 +4647,6 @@ export default function Inbox() {
                     activeThread={activeThread}
                     activeThreadChannel={activeThreadChannel}
                     activeThreadChannelLabel={activeThreadChannelLabel}
-                    ownerName={bootstrap?.profile?.fullName || 'Unassigned'}
                     openSections={openContactDetailSections}
                     onToggleSection={toggleContactDetailSection}
                     onAddLabel={openAddLabelModal}
@@ -4668,7 +4670,6 @@ export default function Inbox() {
                 activeThread={activeThread}
                 activeThreadChannel={activeThreadChannel}
                 activeThreadChannelLabel={activeThreadChannelLabel}
-                ownerName={bootstrap?.profile?.fullName || 'Unassigned'}
                 openSections={openContactDetailSections}
                 onToggleSection={toggleContactDetailSection}
                 onAddLabel={openAddLabelModal}
@@ -4706,7 +4707,7 @@ export default function Inbox() {
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Add label</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Save a label for {activeThread ? getConversationDisplayName(activeThread) : 'this conversation'}.
+                    Save a label for {activeThread ? getInboxConversationName(activeThread) : 'this conversation'}.
                   </p>
                 </div>
                 <button
@@ -4907,7 +4908,7 @@ export default function Inbox() {
                           { value: '', label: 'Choose a contact...', disabled: true },
                           ...conversations.map((thread) => ({
                             value: thread.displayPhone || thread.contactWaId,
-                            label: getConversationDisplayName(thread),
+                            label: getInboxConversationName(thread),
                           })),
                         ]}
                         placeholder="Choose a contact..."
