@@ -929,7 +929,7 @@ export default function DashboardLayout() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.95 }}
                       transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                      className="absolute right-0 top-full z-40 mt-3"
+                      className="fixed inset-x-3 top-[4.75rem] z-40 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3"
                     >
                       <WalletDropdown
                         wallet={wallet}
@@ -976,9 +976,9 @@ export default function DashboardLayout() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                     transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                    className="absolute right-0 top-full z-40 mt-3 w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+                    className="fixed inset-x-3 top-[4.75rem] z-40 flex max-h-[calc(100dvh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 sm:w-[360px] sm:max-h-none sm:rounded-3xl"
                   >
-                    <div className="border-b border-gray-100 px-4 py-3">
+                    <div className="shrink-0 border-b border-gray-100 px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
@@ -1009,7 +1009,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
 
-                    <div className="max-h-[390px] overflow-y-auto bg-white">
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-white sm:max-h-[390px]">
                       <NotificationFeed
                         notifications={notifications.slice(0, 8)}
                         compact
@@ -1020,7 +1020,7 @@ export default function DashboardLayout() {
                       />
                     </div>
 
-                    <div className="sticky bottom-0 border-t border-gray-100 bg-white/95 px-3 py-3 backdrop-blur">
+                    <div className="shrink-0 border-t border-gray-100 bg-white/95 px-3 py-3 backdrop-blur">
                       <button
                         type="button"
                         onClick={() => {

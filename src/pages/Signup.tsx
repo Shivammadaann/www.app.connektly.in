@@ -84,7 +84,7 @@ export default function Signup() {
         appApi
           .getBootstrap()
           .then((bootstrap) => {
-            navigate(bootstrap.profile?.onboardingCompleted ? '/dashboard/home' : '/onboarding/plans');
+            navigate(bootstrap.profile?.onboardingCompleted ? '/dashboard/home' : '/onboarding/profile');
           })
           .catch(() => {
             navigate('/dashboard/home');
@@ -151,7 +151,7 @@ export default function Signup() {
         setCaptchaToken(null);
         setCaptchaResetKey((current) => current + 1);
       } else if (data?.user) {
-        navigate('/onboarding/plans');
+        navigate('/onboarding/profile');
       } else {
         throw new Error('An unexpected error occurred during sign up.');
       }

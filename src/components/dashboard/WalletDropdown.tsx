@@ -14,7 +14,7 @@ export default function WalletDropdown({
   onViewHistory,
 }: WalletDropdownProps) {
   return (
-    <div className="w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+    <div className="max-h-[calc(100dvh-5.5rem)] w-full overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:w-[320px] sm:rounded-3xl">
       <div className="border-b border-gray-100 bg-[radial-gradient(circle_at_top_right,_rgba(19,129,255,0.18),_transparent_48%),linear-gradient(135deg,#111827,_#1f2937)] px-4 py-4 text-white">
         <div className="flex items-start justify-between gap-3">
           <div>

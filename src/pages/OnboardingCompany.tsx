@@ -2,11 +2,24 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowRight, Building2, CheckCircle2, Globe, Loader2, Sparkles } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Building2, CheckCircle2, Globe, Loader2, Sparkles } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 import { appApi } from '../lib/api';
 import FeedbackPopupStack from '../components/FeedbackPopupStack';
 import OnboardingTopBar from '../components/OnboardingTopBar';
+import { DropdownSelect } from '../components/ui/DropdownSelect';
+
+const INDUSTRY_OPTIONS = [
+  'Retail and e-commerce',
+  'Healthcare, beauty and wellness',
+  'Professional Services',
+  'Technology and Software',
+  'Food and Beverage',
+  'Education and Training',
+  'Real Estate',
+  'Manufacturing and Logistics',
+  'Other',
+].map((industry) => ({ value: industry, label: industry }));
 
 function FieldShell({
   label,
@@ -20,7 +33,7 @@ function FieldShell({
   children: ReactNode;
 }) {
   return (
-    <label className="block">
+    <div className="block">
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-xs font-medium leading-4 text-gray-700">{label}</span>
         {isValid ? (
@@ -36,7 +49,7 @@ function FieldShell({
       </div>
       {children}
       {helper ? <div className="mt-2 text-xs leading-4 text-gray-500">{helper}</div> : null}
-    </label>
+    </div>
   );
 }
 
@@ -46,13 +59,15 @@ export default function OnboardingCompany() {
   const companyNameInputRef = useRef<HTMLInputElement | null>(null);
   const [companyName, setCompanyName] = useState('');
   const [companyWebsite, setCompanyWebsite] = useState('');
+  const [industry, setIndustry] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setCompanyName(bootstrap?.profile?.companyName || '');
     setCompanyWebsite(bootstrap?.profile?.companyWebsite || '');
-  }, [bootstrap?.profile?.companyName, bootstrap?.profile?.companyWebsite]);
+    setIndustry(bootstrap?.profile?.industry || '');
+  }, [bootstrap?.profile?.companyName, bootstrap?.profile?.companyWebsite, bootstrap?.profile?.industry]);
 
   const trimmedCompanyName = companyName.trim();
   const trimmedCompanyWebsite = companyWebsite.trim();
@@ -60,8 +75,9 @@ export default function OnboardingCompany() {
   const hasWebsiteValue = trimmedCompanyWebsite !== '';
   const isCompanyWebsiteValid = !hasWebsiteValue || /^(https?:\/\/|www\.)/i.test(trimmedCompanyWebsite);
   const showCompanyWebsiteError = hasWebsiteValue && !isCompanyWebsiteValid;
-  const isFormValid = hasCompanyName && isCompanyWebsiteValid;
-  const progressPercent = hasCompanyName ? (hasWebsiteValue && isCompanyWebsiteValid ? 100 : 72) : 28;
+  const hasIndustry = industry !== '';
+  const isFormValid = hasCompanyName && hasIndustry && isCompanyWebsiteValid;
+  const progressPercent = hasCompanyName ? (hasIndustry ? 100 : 58) : 24;
   const previewCompanyName = trimmedCompanyName || 'Your company';
 
   const saveCompanyDetails = async (websiteOverride?: string) => {
@@ -77,9 +93,10 @@ export default function OnboardingCompany() {
       await appApi.saveProfile({
         companyName: trimmedCompanyName,
         companyWebsite: nextWebsite,
+        industry,
       });
       await refresh();
-      navigate('/onboarding/industry');
+      navigate('/onboarding/channel-connection');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to save company details.');
     } finally {
@@ -97,16 +114,6 @@ export default function OnboardingCompany() {
     await saveCompanyDetails();
   };
 
-  const handleSkipWebsite = async () => {
-    if (!trimmedCompanyName) {
-      companyNameInputRef.current?.focus();
-      return;
-    }
-
-    setCompanyWebsite('');
-    await saveCompanyDetails('');
-  };
-
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-y-auto bg-[#F8FAFC] px-4 pb-10 pt-24 font-sans sm:px-8">
       <OnboardingTopBar />
@@ -119,7 +126,7 @@ export default function OnboardingCompany() {
       >
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-xs font-medium text-gray-500">
-            <span>Company setup</span>
+            <span>Business details</span>
             <span>{progressPercent}%</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
@@ -132,19 +139,20 @@ export default function OnboardingCompany() {
         </div>
 
         <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Step 2 of 4</p>
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2, delay: 0.06 }}
-            className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-[#1381FF]"
+            className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-[#1381FF]"
           >
             <Building2 className="h-7 w-7" />
           </motion.div>
           <h1 className="mt-6 text-[32px] font-semibold leading-10 tracking-tight text-gray-950">
-            Let&apos;s get to know your company.
+            Tell us about your business.
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-5 text-gray-500">
-            We&apos;ll use this to personalize your workspace and prepare your WhatsApp setup.
+            Add the essentials once so we can tailor your workspace and WhatsApp setup.
           </p>
         </div>
 
@@ -182,6 +190,25 @@ export default function OnboardingCompany() {
           </FieldShell>
 
           <FieldShell
+            label="Industry"
+            isValid={hasIndustry}
+            helper="We use this to recommend relevant templates, labels, and automations."
+          >
+            <DropdownSelect
+              value={industry}
+              onChange={(value) => {
+                setIndustry(value);
+                setError(null);
+              }}
+              options={INDUSTRY_OPTIONS}
+              placeholder="Select your industry"
+              icon={<BriefcaseBusiness className="h-4 w-4" />}
+              ariaLabel="Select your industry"
+              buttonClassName="h-11 rounded-lg px-3 shadow-none hover:translate-y-0 hover:shadow-none"
+            />
+          </FieldShell>
+
+          <FieldShell
             label="Website"
             isValid={hasWebsiteValue && isCompanyWebsiteValid}
             helper={
@@ -213,7 +240,7 @@ export default function OnboardingCompany() {
             </div>
           </FieldShell>
 
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+          <div className="pt-2">
             <motion.button
               type="submit"
               whileHover={isFormValid && !isSaving ? { y: -1 } : undefined}
@@ -226,22 +253,13 @@ export default function OnboardingCompany() {
               }`}
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Continue to Industry
+              Continue to WhatsApp Connection
               {!isSaving ? <ArrowRight className="h-4 w-4" /> : null}
             </motion.button>
-
-            <button
-              type="button"
-              onClick={() => void handleSkipWebsite()}
-              disabled={!hasCompanyName || isSaving}
-              className="h-12 rounded-xl px-4 text-sm font-semibold text-gray-500 transition hover:bg-white hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Skip website
-            </button>
           </div>
 
           <p className="text-center text-xs leading-4 text-gray-400">
-            Quick step. Takes about 10 seconds.
+            Website is optional. You can update these details later in Settings.
           </p>
         </form>
       </motion.main>

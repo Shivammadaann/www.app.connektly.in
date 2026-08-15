@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
-  BriefcaseBusiness,
   Building2,
   Check,
   ChevronLeft,
@@ -18,18 +17,17 @@ function WhatsAppStepIcon({ className }: { className?: string }) {
 }
 
 const ONBOARDING_PREVIOUS_PATH_BY_ROUTE: Record<string, string> = {
-  '/onboarding': '/onboarding/plans',
-  '/onboarding/industry': '/onboarding',
-  '/onboarding/profile': '/onboarding/industry',
-  '/onboarding/channel-connection': '/onboarding/profile',
+  '/onboarding': '/onboarding/profile',
+  '/onboarding/industry': '/onboarding/profile',
+  '/onboarding/channel-connection': '/onboarding',
+  '/onboarding/plans': '/onboarding/channel-connection',
 };
 
 const ONBOARDING_STEPS = [
-  { path: '/onboarding/plans', label: 'Plan', icon: CreditCard },
-  { path: '/onboarding', label: 'Company', icon: Building2 },
-  { path: '/onboarding/industry', label: 'Industry', icon: BriefcaseBusiness },
   { path: '/onboarding/profile', label: 'Profile', icon: UserRound },
+  { path: '/onboarding', label: 'Business Details', icon: Building2 },
   { path: '/onboarding/channel-connection', label: 'WhatsApp', icon: WhatsAppStepIcon },
+  { path: '/onboarding/plans', label: 'Plan', icon: CreditCard },
 ] as const;
 
 export default function OnboardingTopBar() {

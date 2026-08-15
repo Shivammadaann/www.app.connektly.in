@@ -249,7 +249,7 @@ export default function OnboardingProfile() {
         preferredCurrency,
       });
       await refresh();
-      navigate('/onboarding/channel-connection');
+      navigate('/onboarding');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to save your profile.');
     } finally {
@@ -282,7 +282,7 @@ export default function OnboardingProfile() {
         </div>
 
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Step 4 of 5</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1381FF]">Step 1 of 4</p>
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -516,7 +516,7 @@ export default function OnboardingProfile() {
             }`}
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Continue to WhatsApp Setup
+            Continue to Business Details
             {!isSaving ? <ArrowRight className="h-4 w-4" /> : null}
           </motion.button>
 

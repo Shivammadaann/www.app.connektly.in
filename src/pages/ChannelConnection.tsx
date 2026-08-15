@@ -320,7 +320,7 @@ export default function ChannelConnection() {
       onboardingCompleted: true,
     });
     await refresh();
-    navigate('/dashboard/home');
+    navigate('/onboarding/plans');
   };
 
   const activateSenderWithGeneratedPin = async (failurePrefix: string) => {
@@ -487,7 +487,7 @@ export default function ChannelConnection() {
       <OnboardingTopBar />
 
       <OnboardingStepLayout
-        eyebrow="Step 5 of 5"
+        eyebrow="Step 3 of 4"
         title="Connect WhatsApp Business."
         description="Connect now to sync live templates and inbox status, or skip and finish setup from Connections later."
         icon={<ChannelBrandIcon channel="whatsapp" className="h-8 w-8" alt="" />}
@@ -562,7 +562,7 @@ export default function ChannelConnection() {
                 onClick={() => void finishOnboarding()}
                 className="flex-1"
               >
-                Skip for now
+                Skip and choose plan
               </StepCTA>
             </div>
           </FormSection>
@@ -1165,7 +1165,7 @@ export default function ChannelConnection() {
                         icon={<ArrowRight className="h-4 w-4" />}
                         className="mt-8"
                       >
-                        Proceed to Dashboard
+                        Continue to Plan Selection
                       </StepCTA>
                     </motion.div>
                   ) : null}

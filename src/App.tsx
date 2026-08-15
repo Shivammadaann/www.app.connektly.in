@@ -15,7 +15,6 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Plans from './pages/Plans';
 import OnboardingCompany from './pages/OnboardingCompany';
-import OnboardingIndustry from './pages/OnboardingIndustry';
 import OnboardingProfile from './pages/OnboardingProfile';
 import ChannelConnection from './pages/ChannelConnection';
 import InstagramAuthCallback from './pages/InstagramAuthCallback';
@@ -86,11 +85,10 @@ const GuardLoading = () => (
 );
 
 const ONBOARDING_ROUTE_ORDER = [
-  '/onboarding/plans',
-  '/onboarding',
-  '/onboarding/industry',
   '/onboarding/profile',
+  '/onboarding',
   '/onboarding/channel-connection',
+  '/onboarding/plans',
 ] as const;
 
 function getOnboardingRouteIndex(pathname: string) {
@@ -114,24 +112,20 @@ function useBillingClock() {
 function getRequiredOnboardingPath(bootstrap: ReturnType<typeof useAppData>['bootstrap']) {
   const profile = bootstrap?.profile;
 
-  if (!hasDashboardBillingAccess(profile)) {
-    return '/onboarding/plans';
-  }
-
-  if (!profile.companyName) {
-    return '/onboarding';
-  }
-
-  if (!profile.industry) {
-    return '/onboarding/industry';
-  }
-
-  if (!profile.fullName || !profile.phone || !profile.countryCode) {
+  if (!profile?.fullName || !profile.phone || !profile.countryCode) {
     return '/onboarding/profile';
+  }
+
+  if (!profile.companyName || !profile.industry) {
+    return '/onboarding';
   }
 
   if (!profile.onboardingCompleted) {
     return '/onboarding/channel-connection';
+  }
+
+  if (!hasDashboardBillingAccess(profile)) {
+    return '/onboarding/plans';
   }
 
   return null;
@@ -239,7 +233,7 @@ export default function App() {
           <Route element={<OnboardingRouteGuard />}>
             <Route path="/onboarding/plans" element={<Plans />} />
             <Route path="/onboarding" element={<OnboardingCompany />} />
-            <Route path="/onboarding/industry" element={<OnboardingIndustry />} />
+            <Route path="/onboarding/industry" element={<Navigate to="/onboarding" replace />} />
             <Route path="/onboarding/profile" element={<OnboardingProfile />} />
             <Route path="/onboarding/channel-connection" element={<ChannelConnection />} />
           </Route>

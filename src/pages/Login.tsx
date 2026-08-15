@@ -243,7 +243,7 @@ export default function Login() {
   const navigateAfterAuthenticatedLogin = async () => {
     try {
       const bootstrap = await appApi.getBootstrap();
-      navigate(bootstrap.profile?.onboardingCompleted ? '/dashboard/home' : '/onboarding/plans');
+      navigate(bootstrap.profile?.onboardingCompleted ? '/dashboard/home' : '/onboarding/profile');
     } catch {
       navigate('/dashboard/home');
     }
