@@ -263,6 +263,11 @@ export default function ProfilePhotoEditor({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18, ease: MOTION_EASE }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isSaving) {
+              onCancel();
+            }
+          }}
           className="fixed inset-0 z-[160] flex items-center justify-center bg-black/65 p-4"
         >
           <motion.div

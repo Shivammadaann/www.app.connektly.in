@@ -609,7 +609,12 @@ function TriggerEditorModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[130] overflow-y-auto">
-      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" />
+      <button
+        type="button"
+        aria-label="Close trigger editor"
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+      />
       <div className="relative flex min-h-full items-center justify-center px-4 py-6">
         <div
           role="dialog"

@@ -2099,7 +2099,14 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       />
 
       {instagramSelection ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm">
+        <div
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isSavingInstagramSelection) {
+              setInstagramSelection(null);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm"
+        >
           <div className="w-full max-w-2xl rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -2151,7 +2158,14 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       ) : null}
 
       {messengerSelection ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm">
+        <div
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isSavingMessengerSelection) {
+              setMessengerSelection(null);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm"
+        >
           <div className="w-full max-w-2xl rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>

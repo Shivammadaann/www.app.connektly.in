@@ -491,6 +491,11 @@ function ProfileDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isBusy) {
+              onClose();
+            }
+          }}
           className="fixed inset-0 z-[170] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
           role="presentation"
         >

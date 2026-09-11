@@ -588,7 +588,14 @@ function SettingsModal({
   useEscapeKey(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+    <div
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+    >
       <div className={`w-full ${size === 'wide' ? 'max-w-4xl' : 'max-w-xl'} max-h-[calc(100vh-2rem)] overflow-hidden rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl`}>
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -651,7 +658,14 @@ function TeamInviteModal({
   useEscapeKey(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+    <div
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+    >
       <div className="w-full max-w-xl rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
