@@ -145,6 +145,7 @@ export default function DashboardLayout() {
   const hasInitializedNotificationSoundRef = useRef(false);
   const apiErrorNoticeTimerRef = useRef<number | null>(null);
   const showFinishOnboardingCta = Boolean(bootstrap?.profile?.onboardingCompleted && !bootstrap?.channel);
+  const isInboxPage = location.pathname.startsWith('/dashboard/inbox');
   const displayName = bootstrap?.profile?.fullName || getAuthUserDisplayName(user) || 'User';
   const displaySecondaryText = user?.email || bootstrap?.profile?.companyName || 'Workspace';
   const wabaConnectionStatus = bootstrap?.channel?.status || 'disconnected';
@@ -1121,16 +1122,30 @@ export default function DashboardLayout() {
         </header>
 
         {/* Main Content Scrollable Area */}
-        <main className="dashboard-main relative min-h-0 flex-1 overflow-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-6">
+        <main
+          className={`dashboard-main relative min-h-0 flex-1 ${
+            isInboxPage
+              ? 'overflow-hidden'
+              : 'overflow-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-6'
+          }`}
+        >
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -left-16 top-0 h-72 w-72 rounded-full bg-[#dbe8ff]/75 blur-3xl" />
             <div className="absolute right-[-4rem] top-20 h-96 w-96 rounded-full bg-[#d7f5ec]/65 blur-3xl" />
             <div className="absolute inset-x-0 top-0 h-44 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
           </div>
 
-          <div className="dashboard-page-stack relative z-10">
+          <div
+            className={`dashboard-page-stack relative z-10 ${
+              isInboxPage ? 'flex h-full min-h-0 flex-col' : ''
+            }`}
+          >
             {showFinishOnboardingCta ? (
-              <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div
+                className={`mb-6 flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between ${
+                  isInboxPage ? 'mx-3 mt-3 shrink-0 sm:mx-6 sm:mt-6' : ''
+                }`}
+              >
                 <div>
                   <p className="text-sm font-semibold">WhatsApp is still disconnected.</p>
                   <p className="text-sm text-amber-800">

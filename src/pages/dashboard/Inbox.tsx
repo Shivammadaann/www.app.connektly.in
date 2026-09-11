@@ -4001,7 +4001,7 @@ export default function Inbox() {
       initial={shouldReduceMotion ? false : 'hidden'}
       animate="visible"
       variants={layoutStaggerVariants}
-      className="flex h-[calc(100dvh-8rem)] min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)] lg:flex-row"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white lg:flex-row"
     >
       <motion.div
         variants={panelRiseVariants}
