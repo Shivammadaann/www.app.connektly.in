@@ -16,6 +16,7 @@ import {
   Building2,
   Camera,
   CheckCircle2,
+  ExternalLink,
   Eye,
   FolderOpen,
   Globe,
@@ -322,6 +323,58 @@ function getPreviewName(
     bootstrap.channel?.verifiedName ||
     bootstrap.profile?.companyName ||
     'Business Profile'
+  );
+}
+
+function getFirstMetadataIdentifier(value: unknown) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const identifier = value.find(
+    (entry) => typeof entry === 'string' && entry.trim().length > 0,
+  );
+
+  return typeof identifier === 'string' ? identifier.trim() : null;
+}
+
+function getWhatsAppManagerProfileUrl(channel: DashboardBootstrap['channel']) {
+  const url = new URL('https://business.facebook.com/latest/whatsapp_manager/phone_numbers/');
+
+  if (!channel) {
+    return url.toString();
+  }
+
+  const reusableMetaSetup = channel.metadata.reusableMetaSetup;
+  const identifiers =
+    reusableMetaSetup && typeof reusableMetaSetup === 'object' && !Array.isArray(reusableMetaSetup)
+      ? (reusableMetaSetup as Record<string, unknown>).identifiers
+      : null;
+  const businessId =
+    identifiers && typeof identifiers === 'object' && !Array.isArray(identifiers)
+      ? getFirstMetadataIdentifier((identifiers as Record<string, unknown>).businessIds)
+      : null;
+
+  if (businessId) {
+    url.searchParams.set('business_id', businessId);
+  }
+
+  url.searchParams.set('asset_id', channel.wabaId);
+  url.searchParams.set('waba_id', channel.wabaId);
+  url.searchParams.set('nav_ref', 'whatsapp_manager');
+  url.searchParams.set('tab', 'phone-numbers');
+
+  return url.toString();
+}
+
+function FacebookProfileIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-7 w-7 items-end justify-center overflow-hidden rounded-full bg-[#1877F2] text-[25px] font-bold leading-[25px] text-white"
+    >
+      f
+    </span>
   );
 }
 
@@ -1006,6 +1059,7 @@ export default function BusinessProfile() {
   const previewAddress = form.address.trim();
   const previewWebsites = [form.website1, form.website2].map((value) => value.trim()).filter(Boolean);
   const previewAvatarUrl = isPhotoRemoved ? null : avatarPreviewUrl || businessProfile?.profilePictureUrl;
+  const whatsappManagerProfileUrl = getWhatsAppManagerProfileUrl(bootstrap.channel);
   const activeBusinessProfileError =
     businessProfileError && businessProfileError !== dismissedBusinessProfileError ? businessProfileError : null;
   const activeError = error || activeBusinessProfileError;
@@ -1344,32 +1398,41 @@ export default function BusinessProfile() {
                 </ProfileSection>
 
                 <ProfileSection
-                  title="Social accounts"
-                  description="Connect your Facebook Page or Instagram account to enable click-to-WhatsApp ads, a unified inbox, and profile synchronization."
+                  title="Social profiles"
+                  description="Connect the Facebook Page and Instagram profile customers can see on your public WhatsApp Business profile."
                   icon={Share2}
                   shouldReduceMotion={shouldReduceMotion}
                 >
-                  <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-gray-50/70 px-4">
+                  <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3">
+                    <p className="text-sm font-medium text-blue-900">Public WhatsApp profile links</p>
+                    <p className="mt-1 text-xs leading-5 text-blue-700">
+                      These are separate from the Facebook Messenger and Instagram accounts connected to Connektly Inbox.
+                      Meta manages which social profiles are displayed to WhatsApp customers.
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white px-4">
                     <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white">
-                          <ChannelBrandIcon channel="messenger" className="h-6 w-6" alt="Facebook" />
+                          <FacebookProfileIcon />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900">Facebook</p>
-                          <p className="mt-0.5 truncate text-xs text-gray-500">
-                            {bootstrap.messengerChannel
-                              ? `1 Page connected${bootstrap.messengerChannel.pageName ? ` · ${bootstrap.messengerChannel.pageName}` : ''}`
-                              : 'No Page connected'}
+                          <p className="text-sm font-semibold text-gray-900">Facebook Page</p>
+                          <p className="mt-0.5 text-xs leading-5 text-gray-500">
+                            Connect or change the Page shown on your WhatsApp profile.
                           </p>
                         </div>
                       </div>
-                      <Link
-                        to="/dashboard/connections?channel=messenger"
-                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                      <a
+                        href={whatsappManagerProfileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                       >
-                        {bootstrap.messengerChannel ? 'Manage' : 'Connect Facebook'}
-                      </Link>
+                        Connect or manage
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
                     </div>
 
                     <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1378,22 +1441,30 @@ export default function BusinessProfile() {
                           <ChannelBrandIcon channel="instagram" className="h-6 w-6" />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900">Instagram</p>
-                          <p className="mt-0.5 truncate text-xs text-gray-500">
-                            {bootstrap.instagramChannel
-                              ? `${bootstrap.instagramChannel.instagramUsername ? `@${bootstrap.instagramChannel.instagramUsername}` : 'Instagram account'} connected`
-                              : 'No Instagram account connected'}
+                          <p className="text-sm font-semibold text-gray-900">Instagram profile</p>
+                          <p className="mt-0.5 text-xs leading-5 text-gray-500">
+                            Connect or change the professional profile shown on WhatsApp.
                           </p>
                         </div>
                       </div>
-                      <Link
-                        to="/dashboard/connections?channel=instagram"
-                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                      <a
+                        href={whatsappManagerProfileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                       >
-                        {bootstrap.instagramChannel ? 'Manage' : 'Connect Instagram'}
-                      </Link>
+                        Connect or manage
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
                     </div>
                   </div>
+
+                  <p className="mt-3 text-xs leading-5 text-gray-500">
+                    In WhatsApp Manager, select this phone number, open{' '}
+                    <strong className="font-semibold text-gray-700">Profile</strong>, then use{' '}
+                    <strong className="font-semibold text-gray-700">Social accounts</strong>. Enable profile visibility
+                    after linking.
+                  </p>
                 </ProfileSection>
 
                 <motion.div
