@@ -145,7 +145,8 @@ export default function DashboardLayout() {
   const hasInitializedNotificationSoundRef = useRef(false);
   const apiErrorNoticeTimerRef = useRef<number | null>(null);
   const showFinishOnboardingCta = Boolean(bootstrap?.profile?.onboardingCompleted && !bootstrap?.channel);
-  const isInboxPage = location.pathname.startsWith('/dashboard/inbox');
+  const isFullBleedWorkspacePage =
+    location.pathname.startsWith('/dashboard/inbox') || location.pathname.startsWith('/dashboard/templates');
   const displayName = bootstrap?.profile?.fullName || getAuthUserDisplayName(user) || 'User';
   const displaySecondaryText = user?.email || bootstrap?.profile?.companyName || 'Workspace';
   const wabaConnectionStatus = bootstrap?.channel?.status || 'disconnected';
@@ -1124,7 +1125,7 @@ export default function DashboardLayout() {
         {/* Main Content Scrollable Area */}
         <main
           className={`dashboard-main relative min-h-0 flex-1 ${
-            isInboxPage
+            isFullBleedWorkspacePage
               ? 'overflow-hidden'
               : 'overflow-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-6'
           }`}
@@ -1137,13 +1138,13 @@ export default function DashboardLayout() {
 
           <div
             className={`dashboard-page-stack relative z-10 ${
-              isInboxPage ? 'flex h-full min-h-0 flex-col' : ''
+              isFullBleedWorkspacePage ? 'flex h-full min-h-0 flex-col' : ''
             }`}
           >
             {showFinishOnboardingCta ? (
               <div
                 className={`mb-6 flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between ${
-                  isInboxPage ? 'mx-3 mt-3 shrink-0 sm:mx-6 sm:mt-6' : ''
+                  isFullBleedWorkspacePage ? 'mx-3 mt-3 shrink-0 sm:mx-6 sm:mt-6' : ''
                 }`}
               >
                 <div>

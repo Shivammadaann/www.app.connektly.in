@@ -876,47 +876,53 @@ export default function Templates() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">WhatsApp Templates</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Templates are loaded from your connected WhatsApp Business Account and can be managed from here.
-          </p>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 space-y-6 px-3 py-3 sm:px-6 sm:py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">WhatsApp Templates</h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Templates are loaded from your connected WhatsApp Business Account and can be managed from here.
+            </p>
+          </div>
+        </div>
+
+        <FeedbackPopupStack
+          items={
+            pageError
+              ? [{ id: 'templates-error', tone: 'error' as const, message: pageError, onDismiss: () => setPageError(null) }]
+              : []
+          }
+        />
+
+        <div className="flex flex-col lg:flex-row justify-between gap-4">
+          <div className="relative w-full lg:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search templates by name, category, or language"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#1381FF] focus:border-[#1381FF] outline-none text-sm shadow-sm"
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={openCreateModal}
+              className="px-4 py-2.5 bg-[#1381FF] hover:bg-[#4a35e8] text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-[#1381FF]/30 flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Create Template
+            </button>
+          </div>
         </div>
       </div>
 
-      <FeedbackPopupStack
-        items={
-          pageError
-            ? [{ id: 'templates-error', tone: 'error' as const, message: pageError, onDismiss: () => setPageError(null) }]
-            : []
-        }
-      />
-
-      <div className="flex flex-col lg:flex-row justify-between gap-4">
-        <div className="relative w-full lg:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search templates by name, category, or language"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#1381FF] focus:border-[#1381FF] outline-none text-sm shadow-sm"
-          />
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2.5 bg-[#1381FF] hover:bg-[#4a35e8] text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-[#1381FF]/30 flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> Create Template
-          </button>
-        </div>
-      </div>
-
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="min-h-0 flex-1 overflow-auto border-t border-slate-200 bg-white"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
