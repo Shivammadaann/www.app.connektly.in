@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Check, Loader2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from './ui/ModalPortal';
 
 const CROP_RATIO = 0.82;
 const DEFAULT_ZOOM = 1;
@@ -256,6 +257,7 @@ export default function ProfilePhotoEditor({
   const imageAspectRatio = (imageSize?.width || 1) / (imageSize?.height || 1);
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {sourceUrl ? (
         <motion.div
@@ -268,7 +270,7 @@ export default function ProfilePhotoEditor({
               onCancel();
             }
           }}
-          className="fixed inset-0 z-[160] flex items-center justify-center bg-black/65 p-4"
+          className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center bg-black/65 p-4`}
         >
           <motion.div
             initial={shouldReduceMotion ? false : { y: 16, scale: 0.98 }}
@@ -360,5 +362,6 @@ export default function ProfilePhotoEditor({
         </motion.div>
       ) : null}
     </AnimatePresence>
+    </ModalPortal>
   );
 }

@@ -1,5 +1,6 @@
 import { useRef, type ChangeEvent } from 'react';
 import { Download, FileUp, Loader2, X } from 'lucide-react';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from './ui/ModalPortal';
 
 type CsvImportModalProps = {
   title: string;
@@ -35,7 +36,8 @@ export default function CsvImportModal({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
+    <ModalPortal>
+    <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm`}>
       <button
         type="button"
         aria-label="Close CSV import"
@@ -92,5 +94,6 @@ export default function CsvImportModal({
         />
       </div>
     </div>
+    </ModalPortal>
   );
 }

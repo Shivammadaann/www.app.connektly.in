@@ -13,6 +13,7 @@ import {
 import { appApi } from '../lib/api';
 import TurnstileWidget from '../components/TurnstileWidget';
 import { clientConfig, hasTurnstileSiteKey } from '../lib/config';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../components/ui/ModalPortal';
 import {
   AuthAlert,
   AuthForm,
@@ -113,13 +114,14 @@ function AuthModal({
   children: ReactNode;
 }) {
   return (
+    <ModalPortal>
     <div
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm sm:items-center"
+      className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-start justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm sm:items-center`}
     >
       <motion.div
         initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -144,6 +146,7 @@ function AuthModal({
         <div className="mt-6">{children}</div>
       </motion.div>
     </div>
+    </ModalPortal>
   );
 }
 

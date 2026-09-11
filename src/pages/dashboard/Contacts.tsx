@@ -35,6 +35,7 @@ import defaultProfilePictureUrl from '../../assets/profile.png';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import CsvImportModal from '../../components/CsvImportModal';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../../components/ui/ModalPortal';
 import {
   getConversationThreadStatusClassName,
   LEAD_STATUS_OPTIONS,
@@ -374,7 +375,8 @@ function ContactModalShell({
   useEscapeKey(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4">
+    <ModalPortal>
+    <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} overflow-y-auto p-2 sm:p-4`}>
       <div className="flex min-h-full items-start justify-center py-2 sm:py-4">
         <motion.div
           initial={{ opacity: 0 }}
@@ -411,6 +413,7 @@ function ContactModalShell({
         </motion.div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

@@ -25,6 +25,7 @@ import { normalizeContactIdentity } from '../../lib/phone';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../../components/ui/ModalPortal';
 import type {
   ConversationThread,
   WhatsAppCallHolidaySchedule,
@@ -808,7 +809,8 @@ export default function Calls() {
 
       <AnimatePresence>
         {isNewCallModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <ModalPortal>
+          <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center p-4 sm:p-6`}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -930,12 +932,14 @@ export default function Calls() {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         ) : null}
       </AnimatePresence>
 
       <AnimatePresence>
         {isCallSettingsModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <ModalPortal>
+          <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center p-4 sm:p-6`}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1263,6 +1267,7 @@ export default function Calls() {
               )}
             </motion.div>
           </div>
+          </ModalPortal>
         ) : null}
       </AnimatePresence>
     </div>

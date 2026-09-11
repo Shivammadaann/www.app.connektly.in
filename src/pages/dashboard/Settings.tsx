@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../../components/ui/ModalPortal';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Bell,
@@ -588,13 +589,14 @@ function SettingsModal({
   useEscapeKey(true, onClose);
 
   return (
+    <ModalPortal>
     <div
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+      className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm`}
     >
       <div className={`w-full ${size === 'wide' ? 'max-w-4xl' : 'max-w-xl'} max-h-[calc(100vh-2rem)] overflow-hidden rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl`}>
         <div className="flex items-start justify-between gap-4">
@@ -613,6 +615,7 @@ function SettingsModal({
         <div className="mt-6 max-h-[calc(100vh-10rem)] overflow-y-auto pr-1">{children}</div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
@@ -658,13 +661,14 @@ function TeamInviteModal({
   useEscapeKey(true, onClose);
 
   return (
+    <ModalPortal>
     <div
       onClick={(event) => {
         if (event.target === event.currentTarget && !isSubmitting) {
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+      className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm`}
     >
       <div className="w-full max-w-xl rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
@@ -744,6 +748,7 @@ function TeamInviteModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../components/ui/ModalPortal';
 import {
   AlertTriangle,
   ArrowRight,
@@ -597,7 +598,8 @@ export default function ChannelConnection() {
 
       <AnimatePresence>
         {isModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <ModalPortal>
+          <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center p-4 sm:p-6`}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1173,6 +1175,7 @@ export default function ChannelConnection() {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         ) : null}
       </AnimatePresence>
     </div>

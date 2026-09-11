@@ -9,6 +9,7 @@ import BrandMark from '../components/BrandMark';
 import DashboardCallPopup from '../components/DashboardCallPopup';
 import NotificationFeed from '../components/NotificationFeed';
 import WalletDropdown from '../components/dashboard/WalletDropdown';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../components/ui/ModalPortal';
 import { CallManagerProvider } from '../context/CallManagerContext';
 import {
   appApi,
@@ -1354,7 +1355,8 @@ export default function DashboardLayout() {
       {/* Sign Out Confirmation Modal */}
       <AnimatePresence>
         {isSignOutModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <ModalPortal>
+          <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center p-4 sm:p-6`}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1394,6 +1396,7 @@ export default function DashboardLayout() {
               </div>
             </motion.div>
           </div>
+          </ModalPortal>
         )}
       </AnimatePresence>
       <AnimatePresence>

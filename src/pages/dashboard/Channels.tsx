@@ -16,6 +16,7 @@ import { beginInstagramBusinessLogin, beginMessengerPageLogin } from '../../lib/
 import { hasInstagramBusinessLoginConfig, hasMessengerLoginConfig } from '../../lib/config';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import ChannelBrandIcon from '../../components/ChannelBrandIcon';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../../components/ui/ModalPortal';
 import MetaVerifiedIcon from '../../components/MetaVerifiedIcon';
 import type { ChannelBrand } from '../../components/ChannelBrandIcon';
 import type {
@@ -417,9 +418,10 @@ function PinDialog({
   useEscapeKey(isOpen && !isSubmitting, onClose);
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-6">
+        <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center px-4 py-6`}>
           <motion.button
             type="button"
             aria-hidden="true"
@@ -496,6 +498,7 @@ function PinDialog({
         </div>
       ) : null}
     </AnimatePresence>
+    </ModalPortal>
   );
 }
 
@@ -523,9 +526,10 @@ function VerificationCodeDialog({
   }
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-6">
+        <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center px-4 py-6`}>
           <motion.button
             type="button"
             aria-hidden="true"
@@ -603,6 +607,7 @@ function VerificationCodeDialog({
         </div>
       ) : null}
     </AnimatePresence>
+    </ModalPortal>
   );
 }
 
@@ -624,9 +629,10 @@ function VerifyCodeDialog({
   useEscapeKey(isOpen && !isSubmitting, onClose);
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-6">
+        <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center px-4 py-6`}>
           <motion.button
             type="button"
             aria-hidden="true"
@@ -704,6 +710,7 @@ function VerifyCodeDialog({
         </div>
       ) : null}
     </AnimatePresence>
+    </ModalPortal>
   );
 }
 
@@ -2099,13 +2106,14 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       />
 
       {instagramSelection ? (
+        <ModalPortal>
         <div
           onClick={(event) => {
             if (event.target === event.currentTarget && !isSavingInstagramSelection) {
               setInstagramSelection(null);
             }
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm"
+          className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm`}
         >
           <div className="w-full max-w-2xl rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
@@ -2155,16 +2163,18 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
             </div>
           </div>
         </div>
+        </ModalPortal>
       ) : null}
 
       {messengerSelection ? (
+        <ModalPortal>
         <div
           onClick={(event) => {
             if (event.target === event.currentTarget && !isSavingMessengerSelection) {
               setMessengerSelection(null);
             }
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm"
+          className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center bg-gray-950/30 px-4 backdrop-blur-sm`}
         >
           <div className="w-full max-w-2xl rounded-[2rem] border border-gray-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
@@ -2217,6 +2227,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
             </div>
           </div>
         </div>
+        </ModalPortal>
       ) : null}
 
       <ConfirmationDialog

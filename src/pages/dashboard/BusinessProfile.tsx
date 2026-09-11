@@ -41,6 +41,7 @@ import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import ChannelBrandIcon from '../../components/ChannelBrandIcon';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import ProfilePhotoEditor from '../../components/ProfilePhotoEditor';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../../components/ui/ModalPortal';
 import defaultProfilePictureUrl from '../../assets/profile.png';
 import type {
   DashboardBootstrap,
@@ -538,6 +539,7 @@ function ProfileDialog({
   footer: ReactNode;
 }) {
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen ? (
         <motion.div
@@ -549,7 +551,7 @@ function ProfileDialog({
               onClose();
             }
           }}
-          className="fixed inset-0 z-[170] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
+          className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]`}
           role="presentation"
         >
           <motion.div
@@ -583,6 +585,7 @@ function ProfileDialog({
         </motion.div>
       ) : null}
     </AnimatePresence>
+    </ModalPortal>
   );
 }
 

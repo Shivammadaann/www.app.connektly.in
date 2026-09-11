@@ -16,6 +16,7 @@ import {
 import { useAppData } from '../../context/AppDataContext';
 import { appApi } from '../../lib/api';
 import { hasMetaCatalogLoginConfig } from '../../lib/config';
+import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../../components/ui/ModalPortal';
 import { beginMetaCatalogLogin } from '../../lib/meta-sdk';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import type {
@@ -150,7 +151,8 @@ function CatalogModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-6">
+    <ModalPortal>
+    <div className={`fixed inset-0 ${APP_MODAL_LAYER_CLASS} overflow-y-auto px-4 py-6`}>
       <div className="flex min-h-full items-start justify-center py-4">
         <button
           type="button"
@@ -177,6 +179,7 @@ function CatalogModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
