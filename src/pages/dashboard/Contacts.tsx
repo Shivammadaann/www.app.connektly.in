@@ -6,6 +6,7 @@ import {
   Download,
   Eye,
   FileUp,
+  Filter,
   Loader2,
   Pencil,
   Search,
@@ -60,6 +61,46 @@ interface ContactFormState {
   priority: ConversationThread['priority'];
   labels: string;
   marketingOptedOut: boolean;
+}
+
+type ContactSortOption = 'name-asc' | 'created-desc' | 'updated-desc';
+type ContactChannelFilter = 'all' | 'whatsapp' | 'instagram' | 'messenger';
+type ContactMarketingFilter = 'all' | 'opted-in' | 'opted-out';
+type ContactAttributeFilter = 'all' | 'has-attributes' | 'no-attributes';
+
+interface ContactFilterState {
+  status: 'all' | ConversationThread['status'];
+  priority: 'all' | ConversationThread['priority'];
+  ownerName: string;
+  source: string;
+  label: string;
+  channel: ContactChannelFilter;
+  marketing: ContactMarketingFilter;
+  attributePresence: ContactAttributeFilter;
+  dateField: 'createdAt' | 'updatedAt';
+  dateFrom: string;
+  dateTo: string;
+}
+
+function buildDefaultContactFilters(): ContactFilterState {
+  return {
+    status: 'all',
+    priority: 'all',
+    ownerName: '',
+    source: '',
+    label: '',
+    channel: 'all',
+    marketing: 'all',
+    attributePresence: 'all',
+    dateField: 'createdAt',
+    dateFrom: '',
+    dateTo: '',
+  };
+}
+
+function getContactDateTimestamp(value: string | null | undefined) {
+  const timestamp = value ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function labelsToString(labels: string[]) {
@@ -526,6 +567,11 @@ export default function Contacts() {
   const preferredCountryCode = bootstrap?.profile?.countryCode || null;
   const [searchQuery, setSearchQuery] = useState('');
   const deferredQuery = useDeferredValue(searchQuery);
+  const [sortOption, setSortOption] = useState<ContactSortOption>('updated-desc');
+  const [filters, setFilters] = useState<ContactFilterState>(buildDefaultContactFilters);
+  const [draftFilters, setDraftFilters] = useState<ContactFilterState>(buildDefaultContactFilters);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -566,30 +612,157 @@ export default function Contacts() {
 
   const filteredContacts = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
+    const rangeStart = filters.dateFrom
+      ? new Date(`${filters.dateFrom}T00:00:00`).getTime()
+      : null;
+    const rangeEnd = filters.dateTo
+      ? new Date(`${filters.dateTo}T23:59:59.999`).getTime()
+      : null;
 
-    if (!normalizedQuery) {
-      return contacts;
-    }
+    const matchingContacts = contacts.filter((contact) => {
+      if (normalizedQuery) {
+        const haystack = [
+          contact.contactName,
+          contact.username,
+          contact.displayPhone,
+          contact.contactWaId,
+          contact.ownerName,
+          contact.email,
+          contact.source,
+          contact.remark,
+          contact.labels.join(' '),
+          contact.marketingOptedOut ? 'marketing opted out whatsapp opt out' : 'marketing opted in whatsapp opt in',
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
 
-    return contacts.filter((contact) => {
-      const haystack = [
-        contact.contactName,
-        contact.displayPhone,
-        contact.contactWaId,
-        contact.ownerName,
-        contact.email,
-        contact.source,
-        contact.remark,
-        contact.labels.join(' '),
-        contact.marketingOptedOut ? 'marketing opted out whatsapp opt out' : 'marketing opted in whatsapp opt in',
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+        if (!haystack.includes(normalizedQuery)) {
+          return false;
+        }
+      }
 
-      return haystack.includes(normalizedQuery);
+      if (filters.status !== 'all' && contact.status !== filters.status) {
+        return false;
+      }
+
+      if (filters.priority !== 'all' && contact.priority !== filters.priority) {
+        return false;
+      }
+
+      if (filters.ownerName && contact.ownerName !== filters.ownerName) {
+        return false;
+      }
+
+      if (filters.source && contact.source !== filters.source) {
+        return false;
+      }
+
+      if (filters.label && !contact.labels.includes(filters.label)) {
+        return false;
+      }
+
+      if (filters.channel !== 'all' && getConversationDisplayChannel(contact) !== filters.channel) {
+        return false;
+      }
+
+      if (filters.marketing === 'opted-in' && contact.marketingOptedOut) {
+        return false;
+      }
+
+      if (filters.marketing === 'opted-out' && !contact.marketingOptedOut) {
+        return false;
+      }
+
+      const hasCustomAttributes = Object.keys(contact.attributes || {}).length > 0;
+      if (filters.attributePresence === 'has-attributes' && !hasCustomAttributes) {
+        return false;
+      }
+
+      if (filters.attributePresence === 'no-attributes' && hasCustomAttributes) {
+        return false;
+      }
+
+      if (rangeStart !== null || rangeEnd !== null) {
+        const contactTimestamp = getContactDateTimestamp(contact[filters.dateField]);
+
+        if (!contactTimestamp) {
+          return false;
+        }
+
+        if (rangeStart !== null && contactTimestamp < rangeStart) {
+          return false;
+        }
+
+        if (rangeEnd !== null && contactTimestamp > rangeEnd) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [contacts, deferredQuery]);
+
+    return [...matchingContacts].sort((left, right) => {
+      if (sortOption === 'name-asc') {
+        return getContactName(left).localeCompare(getContactName(right), undefined, {
+          sensitivity: 'base',
+        });
+      }
+
+      const dateField = sortOption === 'created-desc' ? 'createdAt' : 'updatedAt';
+      const dateDifference =
+        getContactDateTimestamp(right[dateField]) - getContactDateTimestamp(left[dateField]);
+
+      return dateDifference || getContactName(left).localeCompare(getContactName(right));
+    });
+  }, [contacts, deferredQuery, filters, sortOption]);
+
+  const filterOwnerOptions = useMemo(
+    () =>
+      Array.from(
+        new Set<string>(
+          contacts.flatMap((contact) => {
+            const ownerName = contact.ownerName?.trim();
+            return ownerName ? [ownerName] : [];
+          }),
+        ),
+      ).sort((left, right) => left.localeCompare(right)),
+    [contacts],
+  );
+  const filterSourceOptions = useMemo(
+    () =>
+      Array.from(
+        new Set<string>(
+          contacts.flatMap((contact) => {
+            const source = contact.source?.trim();
+            return source ? [source] : [];
+          }),
+        ),
+      ).sort((left, right) => left.localeCompare(right)),
+    [contacts],
+  );
+  const filterLabelOptions = useMemo(
+    () =>
+      Array.from(new Set<string>(contacts.flatMap((contact) => contact.labels))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    [contacts],
+  );
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+
+    if (filters.status !== 'all') count += 1;
+    if (filters.priority !== 'all') count += 1;
+    if (filters.ownerName) count += 1;
+    if (filters.source) count += 1;
+    if (filters.label) count += 1;
+    if (filters.channel !== 'all') count += 1;
+    if (filters.marketing !== 'all') count += 1;
+    if (filters.attributePresence !== 'all') count += 1;
+    if (filters.dateFrom || filters.dateTo) count += 1;
+
+    return count;
+  }, [filters]);
 
   const viewContact = contacts.find((contact) => contact.id === viewContactId) || null;
   const editContact = contacts.find((contact) => contact.id === editContactId) || null;
@@ -630,6 +803,43 @@ export default function Contacts() {
   const resetMessages = () => {
     setError(null);
     setNotice(null);
+  };
+
+  const updateDraftFilter = <K extends keyof ContactFilterState>(
+    field: K,
+    value: ContactFilterState[K],
+  ) => {
+    setDraftFilters((current) => ({ ...current, [field]: value }));
+    setFilterError(null);
+  };
+
+  const openFilterModal = () => {
+    setDraftFilters(filters);
+    setFilterError(null);
+    setIsFilterOpen(true);
+  };
+
+  const closeFilterModal = () => {
+    setFilterError(null);
+    setIsFilterOpen(false);
+  };
+
+  const applyContactFilters = () => {
+    if (draftFilters.dateFrom && draftFilters.dateTo && draftFilters.dateFrom > draftFilters.dateTo) {
+      setFilterError('The start date must be before the end date.');
+      return;
+    }
+
+    setFilters(draftFilters);
+    setFilterError(null);
+    setIsFilterOpen(false);
+  };
+
+  const clearContactFilters = () => {
+    const nextFilters = buildDefaultContactFilters();
+    setFilters(nextFilters);
+    setDraftFilters(nextFilters);
+    setFilterError(null);
   };
 
   const openCreateModal = () => {
@@ -818,53 +1028,311 @@ export default function Contacts() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Search, import, export, and manage your contact list from one compact table.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Contacts <span className="font-semibold text-gray-400">({contacts.length.toLocaleString()})</span>
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Search, filter, import, export, and manage your contact list.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/20 transition hover:-translate-y-px hover:bg-[#4a35e8]"
+        >
+          <CirclePlus className="h-4 w-4" />
+          Add New Contact
+        </button>
       </div>
 
       <div className="space-y-4 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search by name, phone, owner, label, source, or remark"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by name, phone, owner, label, source, or remark"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
+            />
+          </div>
+
+          <DropdownSelect
+            value={sortOption}
+            onChange={(nextSortOption) => setSortOption(nextSortOption as ContactSortOption)}
+            options={[
+              { value: 'name-asc', label: 'Name A–Z' },
+              { value: 'created-desc', label: 'Date Created' },
+              { value: 'updated-desc', label: 'Last Updated' },
+            ]}
+            ariaLabel="Sort contacts"
+            className="w-full lg:w-52"
+            buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+            menuClassName="right-0"
           />
+
+          <button
+            type="button"
+            onClick={openFilterModal}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+              activeFilterCount > 0
+                ? 'border-blue-200 bg-blue-50 text-[#2364ff] hover:bg-blue-100'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 ? (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#2364ff] px-1.5 text-[11px] font-bold text-white">
+                {activeFilterCount}
+              </span>
+            ) : null}
+          </button>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsCsvImportOpen(true)}
-            disabled={isImporting}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
-          >
-            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
-            Import CSV
-          </button>
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#1381FF]/20 transition hover:bg-[#4a35e8]"
-          >
-            <CirclePlus className="h-4 w-4" />
-            Add New Contact
-          </button>
+        <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+            <span>
+              Showing <strong className="font-semibold text-gray-900">{filteredContacts.length.toLocaleString()}</strong> of{' '}
+              <strong className="font-semibold text-gray-900">{contacts.length.toLocaleString()}</strong> contacts
+            </span>
+            {activeFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={clearContactFilters}
+                className="font-semibold text-[#2364ff] transition hover:text-[#1d54d9]"
+              >
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setIsCsvImportOpen(true)}
+              disabled={isImporting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+            >
+              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+              Import CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </button>
+          </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isFilterOpen ? (
+          <ContactModalShell
+            title="Filter Contacts"
+            subtitle="Narrow the contact list using attributes, ownership, channel, and date range."
+            onClose={closeFilterModal}
+            footer={
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraftFilters(buildDefaultContactFilters());
+                    setFilterError(null);
+                  }}
+                  className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={closeFilterModal}
+                  className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={applyContactFilters}
+                  className="flex-1 rounded-xl bg-[#1381FF] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4a35e8]"
+                >
+                  Apply Filters
+                </button>
+              </>
+            }
+          >
+            <div className="space-y-6">
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Status</label>
+                  <DropdownSelect
+                    value={draftFilters.status}
+                    onChange={(value) => updateDraftFilter('status', value as ContactFilterState['status'])}
+                    options={[
+                      { value: 'all', label: 'All statuses' },
+                      ...STATUS_OPTIONS.map((status) => ({ value: status, label: status })),
+                    ]}
+                    ariaLabel="Filter contacts by status"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Priority</label>
+                  <DropdownSelect
+                    value={draftFilters.priority}
+                    onChange={(value) => updateDraftFilter('priority', value as ContactFilterState['priority'])}
+                    options={[
+                      { value: 'all', label: 'All priorities' },
+                      ...PRIORITY_OPTIONS.map((priority) => ({ value: priority, label: priority })),
+                    ]}
+                    ariaLabel="Filter contacts by priority"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Owner</label>
+                  <DropdownSelect
+                    value={draftFilters.ownerName}
+                    onChange={(value) => updateDraftFilter('ownerName', value)}
+                    options={[
+                      { value: '', label: 'All owners' },
+                      ...filterOwnerOptions.map((ownerName) => ({ value: ownerName, label: ownerName })),
+                    ]}
+                    ariaLabel="Filter contacts by owner"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Source</label>
+                  <DropdownSelect
+                    value={draftFilters.source}
+                    onChange={(value) => updateDraftFilter('source', value)}
+                    options={[
+                      { value: '', label: 'All sources' },
+                      ...filterSourceOptions.map((source) => ({ value: source, label: source })),
+                    ]}
+                    ariaLabel="Filter contacts by source"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Label</label>
+                  <DropdownSelect
+                    value={draftFilters.label}
+                    onChange={(value) => updateDraftFilter('label', value)}
+                    options={[
+                      { value: '', label: 'All labels' },
+                      ...filterLabelOptions.map((label) => ({ value: label, label })),
+                    ]}
+                    ariaLabel="Filter contacts by label"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Channel</label>
+                  <DropdownSelect
+                    value={draftFilters.channel}
+                    onChange={(value) => updateDraftFilter('channel', value as ContactChannelFilter)}
+                    options={[
+                      { value: 'all', label: 'All channels' },
+                      { value: 'whatsapp', label: 'WhatsApp' },
+                      { value: 'instagram', label: 'Instagram' },
+                      { value: 'messenger', label: 'Messenger' },
+                    ]}
+                    ariaLabel="Filter contacts by channel"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">WhatsApp Marketing</label>
+                  <DropdownSelect
+                    value={draftFilters.marketing}
+                    onChange={(value) => updateDraftFilter('marketing', value as ContactMarketingFilter)}
+                    options={[
+                      { value: 'all', label: 'Any preference' },
+                      { value: 'opted-in', label: 'Opted in' },
+                      { value: 'opted-out', label: 'Opted out' },
+                    ]}
+                    ariaLabel="Filter contacts by marketing preference"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Custom Attributes</label>
+                  <DropdownSelect
+                    value={draftFilters.attributePresence}
+                    onChange={(value) => updateDraftFilter('attributePresence', value as ContactAttributeFilter)}
+                    options={[
+                      { value: 'all', label: 'Any attributes' },
+                      { value: 'has-attributes', label: 'Has custom attributes' },
+                      { value: 'no-attributes', label: 'No custom attributes' },
+                    ]}
+                    ariaLabel="Filter contacts by custom attributes"
+                    buttonClassName="rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Date Attribute</label>
+                    <DropdownSelect
+                      value={draftFilters.dateField}
+                      onChange={(value) => updateDraftFilter('dateField', value as ContactFilterState['dateField'])}
+                      options={[
+                        { value: 'createdAt', label: 'Date Created' },
+                        { value: 'updatedAt', label: 'Last Updated' },
+                      ]}
+                      ariaLabel="Select contact date attribute"
+                      buttonClassName="rounded-xl border-gray-200 bg-white px-4 py-2.5 focus:border-[#1381FF] focus:ring-[#1381FF]/15"
+                    />
+                  </div>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-gray-700">From</span>
+                    <input
+                      type="date"
+                      value={draftFilters.dateFrom}
+                      max={draftFilters.dateTo || undefined}
+                      onChange={(event) => updateDraftFilter('dateFrom', event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-gray-700">To</span>
+                    <input
+                      type="date"
+                      value={draftFilters.dateTo}
+                      min={draftFilters.dateFrom || undefined}
+                      onChange={(event) => updateDraftFilter('dateTo', event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {filterError ? (
+                <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {filterError}
+                </div>
+              ) : null}
+            </div>
+          </ContactModalShell>
+        ) : null}
+      </AnimatePresence>
 
       {isCsvImportOpen ? (
         <CsvImportModal
