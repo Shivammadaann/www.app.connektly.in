@@ -3,7 +3,7 @@ Generated from project analysis on 2026-05-09.
 
 Project Overview
 - Vite + React + TypeScript frontend for the Connektly web app.
-- Express API server in server.ts for Meta, Supabase, Razorpay, email, WooCommerce, notifications, and developer endpoints.
+- Express API server in server.ts for Meta, Supabase, Razorpay, email, notifications, and developer endpoints.
 - Supabase-backed persistence with row-level security for profiles, channels, templates, flows, conversations, calls, notifications, integrations, billing credits, developer credentials, and email data.
 - Production build can be served by the Express server after running the Vite build.
 
@@ -201,14 +201,6 @@ WhatsApp Payments
 - Delete payment configuration.
 - Supports providers defined in code: Razorpay, PayU, Zaakpay, and UPI VPA.
 
-WooCommerce Integration
-- WooCommerce connection verification with store URL, consumer key, and consumer secret.
-- Save and disconnect WooCommerce connection.
-- Webhook callback endpoint per user.
-- Store connection status, last verified time, last error, and masked credentials.
-- Automation settings for abandoned recovery, order confirmation, order fulfilled, purchase follow-up, and return/exchange.
-- Configurable automation delay and template key.
-
 Notifications
 - Notification center with all/unread filters.
 - Notification feed grouped by date.
@@ -239,7 +231,7 @@ Backend and Infrastructure Features
 - Authenticated API requests using Supabase bearer tokens.
 - Supabase service-role API server access for persistence and privileged operations.
 - Meta Graph API helpers for WhatsApp, Instagram, Messenger, Ads, Lead Capture, Flows, Templates, Payments, Business Profile, Business Activities, and Commerce.
-- Webhook endpoints for WhatsApp, Messenger, Instagram, Meta lead capture, and WooCommerce.
+- Webhook endpoints for WhatsApp, Messenger, Instagram, and Meta lead capture.
 - Token encryption/decryption support for external provider credentials.
 - File upload handling with multer for profile images, company logos, media, business profile photos, and template header media.
 - Static serving of template header media previews and built frontend assets.
@@ -267,7 +259,6 @@ Database and Persistence
 - workspace_team_members for invitations and roles.
 - user_notifications and user_notification_preferences for alerts.
 - developer_api_credentials and developer_webhook_endpoints for developer tooling.
-- woocommerce_connections for store credentials and automation settings.
 - Row-level security policies are enabled for user-owned data.
 
 Known Incomplete or Scaffolded Areas

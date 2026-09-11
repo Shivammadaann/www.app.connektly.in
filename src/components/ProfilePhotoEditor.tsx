@@ -9,10 +9,11 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Check, Loader2, X, ZoomIn, ZoomOut } from 'lucide-react';
 
-const MIN_ZOOM = 1;
+const CROP_RATIO = 0.82;
+const DEFAULT_ZOOM = 1;
+const MIN_ZOOM = CROP_RATIO;
 const MAX_ZOOM = 3;
 const OUTPUT_SIZE = 640;
-const CROP_RATIO = 0.82;
 const MOTION_EASE: [number, number, number, number] = [0.4, 0, 0.2, 1];
 
 interface ImageSize {
@@ -52,10 +53,12 @@ function getBoundedOffset(
   const renderedWidth = naturalWidth * coverScale * zoom;
   const renderedHeight = naturalHeight * coverScale * zoom;
   const cropSize = previewSize * CROP_RATIO;
+  const maxOffsetX = Math.max(0, (renderedWidth - cropSize) / 2);
+  const maxOffsetY = Math.max(0, (renderedHeight - cropSize) / 2);
 
   return {
-    x: clamp(offset.x, -(renderedWidth - cropSize) / 2, (renderedWidth - cropSize) / 2),
-    y: clamp(offset.y, -(renderedHeight - cropSize) / 2, (renderedHeight - cropSize) / 2),
+    x: clamp(offset.x, -maxOffsetX, maxOffsetX),
+    y: clamp(offset.y, -maxOffsetY, maxOffsetY),
   };
 }
 
@@ -130,13 +133,13 @@ export default function ProfilePhotoEditor({
 }: ProfilePhotoEditorProps) {
   const shouldReduceMotion = useReducedMotion();
   const previewRef = useRef<HTMLDivElement | null>(null);
-  const [zoom, setZoom] = useState(MIN_ZOOM);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [imageSize, setImageSize] = useState<ImageSize | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   useEffect(() => {
-    setZoom(MIN_ZOOM);
+    setZoom(DEFAULT_ZOOM);
     setOffset({ x: 0, y: 0 });
     setImageSize(null);
     setDragState(null);

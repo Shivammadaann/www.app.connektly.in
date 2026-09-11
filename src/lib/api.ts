@@ -100,11 +100,6 @@ import type {
   WorkspaceOptionInput,
   WhatsAppCommerceSettings,
   WhatsAppCommerceSettingsUpdateInput,
-  WooCommerceAutomationSetting,
-  WooCommerceConnectionInput,
-  WooCommerceConnectionVerifyInput,
-  WooCommerceConnectionVerifyResponse,
-  WooCommerceSetupResponse,
 } from './types';
 
 class ApiError extends Error {
@@ -916,37 +911,6 @@ export const appApi = {
   getMetaAdsCreationSetup() {
     return apiRequest<MetaAdsCreationSetupResponse>('/meta-ads/create/setup', {
       cache: 'no-store',
-    });
-  },
-  getWooCommerceSetup() {
-    return apiRequest<WooCommerceSetupResponse>('/integrations/woocommerce', {
-      cache: 'no-store',
-    });
-  },
-  verifyWooCommerceConnection(payload: WooCommerceConnectionVerifyInput) {
-    return apiRequest<WooCommerceConnectionVerifyResponse>('/integrations/woocommerce/verify', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-  saveWooCommerceConnection(payload: WooCommerceConnectionInput) {
-    return apiRequest<WooCommerceSetupResponse & { webhookSecret?: string }>(
-      '/integrations/woocommerce',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      },
-    );
-  },
-  updateWooCommerceAutomations(automations: WooCommerceAutomationSetting[]) {
-    return apiRequest<WooCommerceSetupResponse>('/integrations/woocommerce/automations', {
-      method: 'PATCH',
-      body: JSON.stringify({ automations }),
-    });
-  },
-  disconnectWooCommerceConnection() {
-    return apiRequest<{ ok: true }>('/integrations/woocommerce', {
-      method: 'DELETE',
     });
   },
   getWhatsAppBusinessActivities(filters: WhatsAppBusinessActivitiesFilters) {

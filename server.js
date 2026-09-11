@@ -421,14 +421,6 @@ var RAZORPAY_TRACKED_WEBHOOK_EVENTS = [
 var developerApiScopeSet = new Set(DEVELOPER_API_SCOPES);
 var developerWebhookEventSet = new Set(DEVELOPER_WEBHOOK_EVENTS);
 var razorpayTrackedWebhookEventSet = new Set(RAZORPAY_TRACKED_WEBHOOK_EVENTS);
-var WOOCOMMERCE_AUTOMATION_IDS = [
-  "abandoned-recovery",
-  "order-confirmation",
-  "order-fulfilled",
-  "purchase-follow-up",
-  "return-exchange"
-];
-var woocommerceAutomationIdSet = new Set(WOOCOMMERCE_AUTOMATION_IDS);
 if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
   throw new Error(
     "Missing Supabase server environment. Set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY."
@@ -2298,9 +2290,6 @@ function getMessengerWebhookCallbackUrl() {
 }
 function getInstagramWebhookCallbackUrl() {
   return new URL("/api/instagram/webhook", frontendOrigin).toString();
-}
-function getWooCommerceCallbackUrl(req, userId) {
-  return new URL(`/api/integrations/woocommerce/webhook/${encodeURIComponent(userId)}`, getRequestOrigin(req)).toString();
 }
 function normalizePhoneLike(value) {
   if (typeof value !== "string") {
@@ -9327,170 +9316,6 @@ async function deleteDeveloperWebhook(userId, webhookId) {
   }
   return { ok: true };
 }
-function normalizeWooCommerceStoreUrl(value) {
-  const rawUrl = normalizeOptionalString(value);
-  if (!rawUrl) {
-    throw new Error("WooCommerce store URL is required.");
-  }
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(rawUrl);
-  } catch {
-    throw new Error("Enter a valid WooCommerce store URL.");
-  }
-  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-    throw new Error("WooCommerce store URL must use HTTP or HTTPS.");
-  }
-  parsedUrl.hash = "";
-  parsedUrl.search = "";
-  parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/, "");
-  return parsedUrl.toString().replace(/\/$/, "");
-}
-function normalizeWooCommerceAutomationSettings(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const settingsById = /* @__PURE__ */ new Map();
-  for (const entry of value) {
-    if (!isRecord(entry) || !woocommerceAutomationIdSet.has(String(entry.id))) {
-      continue;
-    }
-    const id = String(entry.id);
-    const sendAfterMinutes = Number(entry.sendAfterMinutes);
-    settingsById.set(id, {
-      id,
-      enabled: Boolean(entry.enabled),
-      templateKey: normalizeOptionalString(entry.templateKey) || "",
-      sendAfterMinutes: Number.isFinite(sendAfterMinutes) && sendAfterMinutes >= 0 ? Math.trunc(sendAfterMinutes) : 0
-    });
-  }
-  return WOOCOMMERCE_AUTOMATION_IDS.map(
-    (id) => settingsById.get(id) || {
-      id,
-      enabled: false,
-      templateKey: "",
-      sendAfterMinutes: id === "abandoned-recovery" ? 30 : id === "purchase-follow-up" ? 1440 : 0
-    }
-  );
-}
-function mapWooCommerceConnection(row) {
-  if (!row) {
-    return null;
-  }
-  const status = row.status === "error" || row.status === "disconnected" ? row.status : "connected";
-  return {
-    userId: String(row.user_id),
-    storeName: normalizeOptionalString(row.store_name),
-    storeUrl: String(row.store_url || ""),
-    consumerKeyLast4: String(row.consumer_key_last4 || ""),
-    consumerSecretLast4: String(row.consumer_secret_last4 || ""),
-    webhookSecretLast4: String(row.webhook_secret_last4 || ""),
-    status,
-    automations: normalizeWooCommerceAutomationSettings(row.automations),
-    lastVerifiedAt: normalizeOptionalString(row.last_verified_at),
-    lastError: normalizeOptionalString(row.last_error),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at)
-  };
-}
-function getWooCommerceBasicAuthHeader(consumerKey, consumerSecret) {
-  return `Basic ${Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64")}`;
-}
-async function verifyWooCommerceConnectionInput(input) {
-  const storeUrl = normalizeWooCommerceStoreUrl(input.storeUrl);
-  const consumerKey = normalizeOptionalString(input.consumerKey);
-  const consumerSecret = normalizeOptionalString(input.consumerSecret);
-  if (!consumerKey || !consumerSecret) {
-    throw new Error("WooCommerce consumer key and consumer secret are required.");
-  }
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12e3);
-  try {
-    const response = await fetch(`${storeUrl}/wp-json/wc/v3/system_status`, {
-      headers: {
-        Authorization: getWooCommerceBasicAuthHeader(consumerKey, consumerSecret),
-        Accept: "application/json"
-      },
-      signal: controller.signal
-    });
-    if (!response.ok) {
-      let message = `WooCommerce verification failed with status ${response.status}.`;
-      try {
-        const payload2 = await response.json();
-        if (isRecord(payload2)) {
-          message = normalizeOptionalString(payload2.message) || normalizeOptionalString(payload2.error) || message;
-        }
-      } catch {
-      }
-      throw new Error(message);
-    }
-    const payload = await response.json().catch(() => null);
-    const environment = isRecord(payload) && isRecord(payload.environment) ? payload.environment : null;
-    return {
-      ok: true,
-      storeName: normalizeOptionalString(environment?.site_title) || normalizeOptionalString(environment?.home_url) || null,
-      storeUrl
-    };
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-async function getWooCommerceConnection(userId) {
-  const { data, error } = await adminSupabase.from("woocommerce_connections").select("*").eq("user_id", userId).maybeSingle();
-  if (error && !isMissingSchemaError(error)) {
-    throw error;
-  }
-  return mapWooCommerceConnection(data || null);
-}
-async function saveWooCommerceConnection(userId, input) {
-  const verification = await verifyWooCommerceConnectionInput(input);
-  const consumerKey = normalizeOptionalString(input.consumerKey);
-  const consumerSecret = normalizeOptionalString(input.consumerSecret);
-  if (!consumerKey || !consumerSecret) {
-    throw new Error("WooCommerce consumer key and consumer secret are required.");
-  }
-  const currentResult = await adminSupabase.from("woocommerce_connections").select("*").eq("user_id", userId).maybeSingle();
-  if (currentResult.error && !isMissingSchemaError(currentResult.error)) {
-    throw currentResult.error;
-  }
-  const existingWebhookSecret = normalizeOptionalString(currentResult.data?.webhook_secret_ciphertext) ? decryptSecretValue(String(currentResult.data?.webhook_secret_ciphertext)) : null;
-  const webhookSecret = existingWebhookSecret || generateDeveloperToken("woo_whsec", 24);
-  const payload = {
-    user_id: userId,
-    store_name: verification.storeName,
-    store_url: verification.storeUrl,
-    consumer_key_ciphertext: encryptSecretValue(consumerKey),
-    consumer_key_last4: last4(consumerKey),
-    consumer_secret_ciphertext: encryptSecretValue(consumerSecret),
-    consumer_secret_last4: last4(consumerSecret),
-    webhook_secret_ciphertext: encryptSecretValue(webhookSecret),
-    webhook_secret_last4: last4(webhookSecret),
-    status: "connected",
-    automations: normalizeWooCommerceAutomationSettings(input.automations),
-    last_verified_at: (/* @__PURE__ */ new Date()).toISOString(),
-    last_error: null
-  };
-  const { data, error } = await adminSupabase.from("woocommerce_connections").upsert(payload, { onConflict: "user_id" }).select("*").single();
-  if (error) {
-    throw error;
-  }
-  return {
-    connection: mapWooCommerceConnection(data),
-    webhookSecret: existingWebhookSecret ? void 0 : webhookSecret
-  };
-}
-async function updateWooCommerceAutomations(userId, automations) {
-  const { data, error } = await adminSupabase.from("woocommerce_connections").update({
-    automations: normalizeWooCommerceAutomationSettings(automations)
-  }).eq("user_id", userId).select("*").maybeSingle();
-  if (error) {
-    throw error;
-  }
-  if (!data) {
-    throw new Error("Connect WooCommerce before saving automated messages.");
-  }
-  return mapWooCommerceConnection(data);
-}
 async function createUserNotification(args) {
   const preferences = await getNotificationPreferencesForUser(args.userId);
   if (!shouldCreateNotification(preferences, args.type)) {
@@ -14032,50 +13857,6 @@ app.post(["/api/razorpay/webhook", "/api/integrations/razorpay/webhook"], async 
     sendError(res, 400, error);
   }
 });
-app.post("/api/integrations/woocommerce/webhook/:userId", async (req, res) => {
-  try {
-    const userId = normalizeOptionalIdentifier(req.params.userId);
-    if (!userId) {
-      throw new Error("WooCommerce webhook user ID is required.");
-    }
-    const { data, error } = await adminSupabase.from("woocommerce_connections").select("*").eq("user_id", userId).maybeSingle();
-    if (error) {
-      throw error;
-    }
-    if (!data) {
-      throw new Error("WooCommerce connection was not found.");
-    }
-    const signature = normalizeOptionalString(req.header("x-wc-webhook-signature"));
-    const webhookSecretCiphertext = normalizeOptionalString(data.webhook_secret_ciphertext);
-    if (!signature || !webhookSecretCiphertext || !req.rawBody) {
-      throw new Error("WooCommerce webhook signature is missing.");
-    }
-    const expectedSignature = crypto.createHmac("sha256", decryptSecretValue(webhookSecretCiphertext)).update(req.rawBody).digest("base64");
-    const expectedBuffer = Buffer.from(expectedSignature);
-    const signatureBuffer = Buffer.from(signature);
-    if (expectedBuffer.length !== signatureBuffer.length || !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)) {
-      throw new Error("WooCommerce webhook signature is invalid.");
-    }
-    await adminSupabase.from("woocommerce_connections").update({
-      status: "connected",
-      last_verified_at: (/* @__PURE__ */ new Date()).toISOString(),
-      last_error: null
-    }).eq("user_id", userId);
-    res.status(200).json({ ok: true });
-  } catch (error) {
-    const userId = normalizeOptionalIdentifier(req.params.userId);
-    if (userId) {
-      const updateResult = await adminSupabase.from("woocommerce_connections").update({
-        status: "error",
-        last_error: mapDbError(error)
-      }).eq("user_id", userId);
-      if (updateResult.error) {
-        console.error("Failed to update WooCommerce webhook error state:", updateResult.error);
-      }
-    }
-    sendError(res, 400, error);
-  }
-});
 app.post("/api/auth/password-reset", async (req, res) => {
   try {
     const email = normalizeEmailAddress(req.body?.email);
@@ -14315,63 +14096,6 @@ app.get("/api/meta-ads/media", async (req, res) => {
 app.get("/api/meta-ads/create/setup", async (req, res) => {
   try {
     res.json(await getMetaAdsCreationSetup(req.authedUser.id));
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.get("/api/integrations/woocommerce", async (req, res) => {
-  try {
-    const connection = await getWooCommerceConnection(req.authedUser.id);
-    res.json({
-      connection,
-      callbackUrl: getWooCommerceCallbackUrl(req, req.authedUser.id)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/integrations/woocommerce/verify", async (req, res) => {
-  try {
-    res.json(await verifyWooCommerceConnectionInput(req.body));
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.post("/api/integrations/woocommerce", async (req, res) => {
-  try {
-    const response = await saveWooCommerceConnection(
-      req.authedUser.id,
-      req.body
-    );
-    res.json({
-      ...response,
-      callbackUrl: getWooCommerceCallbackUrl(req, req.authedUser.id)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.patch("/api/integrations/woocommerce/automations", async (req, res) => {
-  try {
-    const connection = await updateWooCommerceAutomations(
-      req.authedUser.id,
-      Array.isArray(req.body?.automations) ? req.body.automations : []
-    );
-    res.json({
-      connection,
-      callbackUrl: getWooCommerceCallbackUrl(req, req.authedUser.id)
-    });
-  } catch (error) {
-    sendError(res, 400, error);
-  }
-});
-app.delete("/api/integrations/woocommerce", async (req, res) => {
-  try {
-    const { error } = await adminSupabase.from("woocommerce_connections").delete().eq("user_id", req.authedUser.id);
-    if (error) {
-      throw error;
-    }
-    res.json({ ok: true });
   } catch (error) {
     sendError(res, 400, error);
   }

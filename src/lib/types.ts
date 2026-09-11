@@ -810,59 +810,6 @@ export interface DeveloperWebhookUpdateInput {
   status?: DeveloperWebhookEndpoint['status'];
 }
 
-export type WooCommerceAutomationId =
-  | 'abandoned-recovery'
-  | 'order-confirmation'
-  | 'order-fulfilled'
-  | 'purchase-follow-up'
-  | 'return-exchange';
-
-export interface WooCommerceAutomationSetting {
-  id: WooCommerceAutomationId;
-  enabled: boolean;
-  templateKey: string;
-  sendAfterMinutes: number;
-}
-
-export interface WooCommerceConnection {
-  userId: string;
-  storeName: string | null;
-  storeUrl: string;
-  consumerKeyLast4: string;
-  consumerSecretLast4: string;
-  webhookSecretLast4: string;
-  status: 'connected' | 'error' | 'disconnected';
-  automations: WooCommerceAutomationSetting[];
-  lastVerifiedAt: string | null;
-  lastError: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface WooCommerceConnectionInput {
-  storeUrl: string;
-  consumerKey: string;
-  consumerSecret: string;
-  automations?: WooCommerceAutomationSetting[];
-}
-
-export interface WooCommerceConnectionVerifyInput {
-  storeUrl: string;
-  consumerKey: string;
-  consumerSecret: string;
-}
-
-export interface WooCommerceConnectionVerifyResponse {
-  ok: boolean;
-  storeName: string | null;
-  storeUrl: string;
-}
-
-export interface WooCommerceSetupResponse {
-  connection: WooCommerceConnection | null;
-  callbackUrl: string;
-}
-
 export interface ContactUpsertInput {
   contactWaId: string;
   contactName?: string;

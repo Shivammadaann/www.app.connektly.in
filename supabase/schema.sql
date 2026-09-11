@@ -677,24 +677,6 @@ create table if not exists public.developer_webhook_endpoints (
 create index if not exists developer_webhook_endpoints_user_created_idx
   on public.developer_webhook_endpoints (user_id, created_at desc);
 
-create table if not exists public.woocommerce_connections (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  store_name text,
-  store_url text not null,
-  consumer_key_ciphertext text not null,
-  consumer_key_last4 text not null,
-  consumer_secret_ciphertext text not null,
-  consumer_secret_last4 text not null,
-  webhook_secret_ciphertext text not null,
-  webhook_secret_last4 text not null,
-  status text not null default 'connected' check (status in ('connected', 'error', 'disconnected')),
-  automations jsonb not null default '[]'::jsonb,
-  last_verified_at timestamptz,
-  last_error text,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
-);
-
 drop trigger if exists app_profiles_set_updated_at on public.app_profiles;
 create trigger app_profiles_set_updated_at
 before update on public.app_profiles
@@ -805,11 +787,6 @@ create trigger developer_webhook_endpoints_set_updated_at
 before update on public.developer_webhook_endpoints
 for each row execute function public.set_updated_at();
 
-drop trigger if exists woocommerce_connections_set_updated_at on public.woocommerce_connections;
-create trigger woocommerce_connections_set_updated_at
-before update on public.woocommerce_connections
-for each row execute function public.set_updated_at();
-
 alter table public.app_profiles enable row level security;
 alter table public.meta_channels enable row level security;
 alter table public.instagram_channels enable row level security;
@@ -836,7 +813,6 @@ alter table public.user_notifications enable row level security;
 alter table public.user_notification_preferences enable row level security;
 alter table public.developer_api_credentials enable row level security;
 alter table public.developer_webhook_endpoints enable row level security;
-alter table public.woocommerce_connections enable row level security;
 
 drop policy if exists app_profiles_self_access on public.app_profiles;
 create policy app_profiles_self_access
@@ -1073,13 +1049,6 @@ with check (auth.uid() = user_id);
 drop policy if exists developer_webhook_endpoints_self_access on public.developer_webhook_endpoints;
 create policy developer_webhook_endpoints_self_access
 on public.developer_webhook_endpoints
-for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists woocommerce_connections_self_access on public.woocommerce_connections;
-create policy woocommerce_connections_self_access
-on public.woocommerce_connections
 for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);

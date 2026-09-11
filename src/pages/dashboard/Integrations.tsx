@@ -3,9 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CheckCircle2,
-  Copy,
   Loader2,
-  RefreshCcw,
   Trash2,
   Webhook,
   X,
@@ -15,7 +13,6 @@ import IntegrationBrandIcon from '../../components/IntegrationBrandIcon';
 import MetaVerifiedIcon from '../../components/MetaVerifiedIcon';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import facebookIconUrl from '../../assets/Facebook.svg';
-import wooIconUrl from '../../assets/woo.svg';
 import { hasMetaAdsLoginConfig, hasMetaLeadCaptureLoginConfig } from '../../lib/config';
 import { beginMetaAdsLogin, beginMetaLeadCaptureLogin } from '../../lib/meta-sdk';
 import { useAppData } from '../../context/AppDataContext';
@@ -32,8 +29,8 @@ interface MetaAdsFormState {
   adAccountId: string;
 }
 
-type ConnectionId = 'meta-lead-capture' | 'meta-ads-manager' | 'woocommerce' | 'advanced';
-type ConnectionIcon = 'lead-capture' | 'ads' | 'woocommerce' | 'advanced';
+type ConnectionId = 'meta-lead-capture' | 'meta-ads-manager' | 'advanced';
+type ConnectionIcon = 'lead-capture' | 'ads' | 'advanced';
 
 interface ConnectionListItem {
   id: ConnectionId;
@@ -50,137 +47,6 @@ interface ConnectionStatusRow {
   detail: string;
   statusText: string;
   statusTone: string;
-}
-
-type WooCommerceAutomationId =
-  | 'abandoned-recovery'
-  | 'order-confirmation'
-  | 'order-fulfilled'
-  | 'purchase-follow-up'
-  | 'return-exchange';
-
-interface WooCommerceAutomationDefinition {
-  id: WooCommerceAutomationId;
-  title: string;
-  description: string;
-  triggerLabel: string;
-  hasDelay: boolean;
-  defaultDelayMinutes?: number;
-}
-
-interface WooCommerceAutomationState {
-  enabled: boolean;
-  templateKey: string;
-  sendAfterMinutes: number;
-}
-
-type WooCommerceAutomationSettings = Record<WooCommerceAutomationId, WooCommerceAutomationState>;
-
-interface WooCommerceConnectionFormState {
-  storeUrl: string;
-  consumerKey: string;
-  consumerSecret: string;
-}
-
-const WOOCOMMERCE_DELAY_OPTIONS = [5, 10, 15, 30, 45, 60, 120, 360, 720, 1440, 2880, 10080];
-
-const WOOCOMMERCE_AUTOMATIONS: WooCommerceAutomationDefinition[] = [
-  {
-    id: 'abandoned-recovery',
-    title: 'Abandoned Recovery Message',
-    description:
-      'Recover abandoned carts by reaching customers on WhatsApp after a cart is left behind.',
-    triggerLabel: 'Cart abandoned',
-    hasDelay: true,
-    defaultDelayMinutes: 30,
-  },
-  {
-    id: 'order-confirmation',
-    title: 'Order completed/confirmation',
-    description:
-      'Send an order confirmation as soon as a customer places an order. The selected template can include a coupon code for the next order.',
-    triggerLabel: 'Order placed',
-    hasDelay: false,
-  },
-  {
-    id: 'order-fulfilled',
-    title: 'Order fulfilled',
-    description:
-      'Send a shipment update when the order is fulfilled in the WooCommerce admin.',
-    triggerLabel: 'Order fulfilled',
-    hasDelay: false,
-  },
-  {
-    id: 'purchase-follow-up',
-    title: 'Follow up after Purchase',
-    description:
-      'Send a follow-up WhatsApp message after the purchase date using the selected delay.',
-    triggerLabel: 'Purchase completed',
-    hasDelay: true,
-    defaultDelayMinutes: 1440,
-  },
-  {
-    id: 'return-exchange',
-    title: 'Return and exchange request',
-    description:
-      'Send a WhatsApp update when a refund, return, or exchange request is created.',
-    triggerLabel: 'Refund requested',
-    hasDelay: false,
-  },
-];
-
-function buildWooCommerceAutomationSettings(): WooCommerceAutomationSettings {
-  return Object.fromEntries(
-    WOOCOMMERCE_AUTOMATIONS.map((automation) => [
-      automation.id,
-      {
-        enabled: false,
-        templateKey: '',
-        sendAfterMinutes: automation.defaultDelayMinutes || 0,
-      },
-    ]),
-  ) as WooCommerceAutomationSettings;
-}
-
-function buildWooCommerceAutomationSettingsFromList(
-  settings: Array<{ id: string; enabled: boolean; templateKey: string; sendAfterMinutes: number }> | null | undefined,
-): WooCommerceAutomationSettings {
-  const defaults = buildWooCommerceAutomationSettings();
-
-  for (const setting of settings || []) {
-    if (setting.id in defaults) {
-      defaults[setting.id as WooCommerceAutomationId] = {
-        enabled: setting.enabled,
-        templateKey: setting.templateKey,
-        sendAfterMinutes: setting.sendAfterMinutes,
-      };
-    }
-  }
-
-  return defaults;
-}
-
-function buildWooCommerceAutomationPayload(settings: WooCommerceAutomationSettings) {
-  return WOOCOMMERCE_AUTOMATIONS.map((automation) => ({
-    id: automation.id,
-    enabled: settings[automation.id].enabled,
-    templateKey: settings[automation.id].templateKey,
-    sendAfterMinutes: settings[automation.id].sendAfterMinutes,
-  }));
-}
-
-function formatWooCommerceDelayOption(minutes: number) {
-  if (minutes >= 1440 && minutes % 1440 === 0) {
-    const days = minutes / 1440;
-    return `${minutes} minutes (${days} ${days === 1 ? 'day' : 'days'})`;
-  }
-
-  if (minutes >= 60 && minutes % 60 === 0) {
-    const hours = minutes / 60;
-    return `${minutes} minutes (${hours} ${hours === 1 ? 'hour' : 'hours'})`;
-  }
-
-  return `${minutes} minutes`;
 }
 
 function buildMetaAdsForm(setup: MetaAdsIntegrationSetupResponse | null) {
@@ -250,10 +116,6 @@ function ConnectionListIcon({ icon, className = 'h-11 w-11' }: { icon: Connectio
 
   if (icon === 'ads') {
     return <IntegrationBrandIcon brand="ads" className={className} />;
-  }
-
-  if (icon === 'woocommerce') {
-    return <img src={wooIconUrl} alt="" className={`object-contain ${className}`} draggable={false} />;
   }
 
   return (
@@ -334,46 +196,29 @@ export default function Integrations() {
   const sectionParam = searchParams.get('section');
   const hasIntegrationContext =
     Boolean(searchParams.get('integration')) ||
-    ['meta', 'meta-lead-capture', 'meta-ads', 'meta-ads-manager', 'woocommerce', 'advanced'].includes(
+    ['meta', 'meta-lead-capture', 'meta-ads', 'meta-ads-manager', 'advanced'].includes(
       connectionSlug,
     );
   const activeConnectionsSection =
     sectionParam === 'integrations' || (sectionParam !== 'channels' && hasIntegrationContext)
       ? 'integrations'
       : 'channels';
-  const { bootstrap, refresh } = useAppData();
+  const { refresh } = useAppData();
   const [metaSetup, setMetaSetup] = useState<MetaLeadCaptureSetupResponse | null>(null);
   const [metaAdsSetup, setMetaAdsSetup] = useState<MetaAdsIntegrationSetupResponse | null>(null);
-  const [wooCommerceSetup, setWooCommerceSetup] =
-    useState<Awaited<ReturnType<typeof appApi.getWooCommerceSetup>> | null>(null);
   const [isMetaSetupLoading, setIsMetaSetupLoading] = useState(true);
   const [isMetaAdsSetupLoading, setIsMetaAdsSetupLoading] = useState(true);
-  const [isWooCommerceSetupLoading, setIsWooCommerceSetupLoading] = useState(true);
   const [isMetaModalOpen, setIsMetaModalOpen] = useState(false);
   const [isMetaAdsModalOpen, setIsMetaAdsModalOpen] = useState(false);
-  const [isWooCommerceModalOpen, setIsWooCommerceModalOpen] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<ConnectionId>('meta-lead-capture');
   const [metaAdsForm, setMetaAdsForm] = useState<MetaAdsFormState>(() => buildMetaAdsForm(null));
   const [metaAdsAccessToken, setMetaAdsAccessToken] = useState('');
   const [metaAdsOauthState, setMetaAdsOauthState] = useState('');
-  const [wooCommerceForm, setWooCommerceForm] = useState<WooCommerceConnectionFormState>({
-    storeUrl: '',
-    consumerKey: '',
-    consumerSecret: '',
-  });
-  const [wooCommerceAutomations, setWooCommerceAutomations] =
-    useState<WooCommerceAutomationSettings>(() => buildWooCommerceAutomationSettings());
-  const [wooCommerceWebhookSecret, setWooCommerceWebhookSecret] = useState<string | null>(null);
   const [isConnectingFacebook, setIsConnectingFacebook] = useState(false);
   const [isConnectingAds, setIsConnectingAds] = useState(false);
   const [isSavingAds, setIsSavingAds] = useState(false);
-  const [isVerifyingWooCommerce, setIsVerifyingWooCommerce] = useState(false);
-  const [isSavingWooCommerce, setIsSavingWooCommerce] = useState(false);
-  const [isDisconnectingWooCommerce, setIsDisconnectingWooCommerce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [copiedField, setCopiedField] =
-    useState<'woo-callback' | 'woo-secret' | null>(null);
 
   const loadMetaSetup = async () => {
     try {
@@ -408,28 +253,6 @@ export default function Integrations() {
     void loadMetaAdsSetup();
   }, []);
 
-  const loadWooCommerceSetup = async () => {
-    try {
-      setIsWooCommerceSetupLoading(true);
-      const response = await appApi.getWooCommerceSetup();
-      setWooCommerceSetup(response);
-      setWooCommerceAutomations(buildWooCommerceAutomationSettingsFromList(response.connection?.automations));
-      setWooCommerceForm((current) => ({
-        storeUrl: response.connection?.storeUrl || current.storeUrl,
-        consumerKey: '',
-        consumerSecret: '',
-      }));
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Failed to load WooCommerce connection.');
-    } finally {
-      setIsWooCommerceSetupLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadWooCommerceSetup();
-  }, []);
-
   useEffect(() => {
     const integration = searchParams.get('integration');
     if (integration === 'meta-lead-capture') {
@@ -444,9 +267,6 @@ export default function Integrations() {
       return;
     }
 
-    if (integration === 'woocommerce') {
-      setIsWooCommerceModalOpen(true);
-    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -457,11 +277,6 @@ export default function Integrations() {
 
     if (connectionSlug === 'meta-ads' || connectionSlug === 'meta-ads-manager') {
       setSelectedConnectionId('meta-ads-manager');
-      return;
-    }
-
-    if (connectionSlug === 'woocommerce') {
-      setSelectedConnectionId('woocommerce');
       return;
     }
 
@@ -500,21 +315,6 @@ export default function Integrations() {
     [metaAdsSetup],
   );
 
-  const wooCommerceConnected = wooCommerceSetup?.connection?.status === 'connected';
-  const enabledWooCommerceAutomationCount = WOOCOMMERCE_AUTOMATIONS.filter(
-    (automation) => wooCommerceAutomations[automation.id].enabled,
-  ).length;
-  const approvedTemplateOptions = useMemo(
-    () =>
-      (bootstrap?.templates || [])
-        .filter((template) => (template.status || '').toUpperCase() === 'APPROVED')
-        .map((template) => ({
-          key: `${template.name}:${template.language}`,
-          label: `${template.name} (${template.language})`,
-        })),
-    [bootstrap?.templates],
-  );
-
   const closeMetaModal = () => {
     setIsMetaModalOpen(false);
     setError(null);
@@ -530,17 +330,6 @@ export default function Integrations() {
     setIsMetaAdsModalOpen(false);
     setMetaAdsAccessToken('');
     setMetaAdsOauthState('');
-    setError(null);
-    setSuccess(null);
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete('integration');
-      return next;
-    });
-  };
-
-  const closeWooCommerceModal = () => {
-    setIsWooCommerceModalOpen(false);
     setError(null);
     setSuccess(null);
     setSearchParams((current) => {
@@ -570,153 +359,6 @@ export default function Integrations() {
       next.set('integration', 'meta-ads');
       return next;
     });
-  };
-
-  const openWooCommerceModal = () => {
-    setIsWooCommerceModalOpen(true);
-    setError(null);
-    setSuccess(null);
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('integration', 'woocommerce');
-      return next;
-    });
-  };
-
-  const updateWooCommerceAutomation = (
-    automationId: WooCommerceAutomationId,
-    nextValues: Partial<WooCommerceAutomationState>,
-  ) => {
-    setWooCommerceAutomations((current) => ({
-      ...current,
-      [automationId]: {
-        ...current[automationId],
-        ...nextValues,
-      },
-    }));
-  };
-
-  const handleSaveWooCommerceAutomations = () => {
-    if (!wooCommerceSetup?.connection) {
-      setError('Connect WooCommerce before saving automated messages.');
-      setSuccess(null);
-      return;
-    }
-
-    const enabledAutomations = WOOCOMMERCE_AUTOMATIONS.filter(
-      (automation) => wooCommerceAutomations[automation.id].enabled,
-    );
-    const missingTemplate = enabledAutomations.find(
-      (automation) => !wooCommerceAutomations[automation.id].templateKey,
-    );
-
-    if (missingTemplate) {
-      setError(`Select a WhatsApp template for ${missingTemplate.title}.`);
-      setSuccess(null);
-      return;
-    }
-
-    const saveAutomations = async () => {
-      try {
-        setIsSavingWooCommerce(true);
-        setError(null);
-        setSuccess(null);
-        const response = await appApi.updateWooCommerceAutomations(
-          buildWooCommerceAutomationPayload(wooCommerceAutomations),
-        );
-        setWooCommerceSetup(response);
-        setWooCommerceAutomations(buildWooCommerceAutomationSettingsFromList(response.connection?.automations));
-        setSuccess('WooCommerce automated message settings saved.');
-      } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : 'Failed to save WooCommerce automated messages.');
-      } finally {
-        setIsSavingWooCommerce(false);
-      }
-    };
-
-    void saveAutomations();
-  };
-
-  const handleVerifyWooCommerceConnection = async () => {
-    try {
-      setIsVerifyingWooCommerce(true);
-      setError(null);
-      setSuccess(null);
-      const response = await appApi.verifyWooCommerceConnection(wooCommerceForm);
-      setWooCommerceForm((current) => ({ ...current, storeUrl: response.storeUrl }));
-      setSuccess(response.storeName ? `Verified ${response.storeName}.` : 'WooCommerce connection verified.');
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Failed to verify WooCommerce connection.');
-    } finally {
-      setIsVerifyingWooCommerce(false);
-    }
-  };
-
-  const handleSaveWooCommerceConnection = async () => {
-    const enabledAutomations = WOOCOMMERCE_AUTOMATIONS.filter(
-      (automation) => wooCommerceAutomations[automation.id].enabled,
-    );
-    const missingTemplate = enabledAutomations.find(
-      (automation) => !wooCommerceAutomations[automation.id].templateKey,
-    );
-
-    if (missingTemplate) {
-      setError(`Select a WhatsApp template for ${missingTemplate.title}.`);
-      setSuccess(null);
-      return;
-    }
-
-    try {
-      setIsSavingWooCommerce(true);
-      setError(null);
-      setSuccess(null);
-      const response = await appApi.saveWooCommerceConnection({
-        ...wooCommerceForm,
-        automations: buildWooCommerceAutomationPayload(wooCommerceAutomations),
-      });
-      setWooCommerceSetup(response);
-      setWooCommerceWebhookSecret(response.webhookSecret || null);
-      setWooCommerceAutomations(buildWooCommerceAutomationSettingsFromList(response.connection?.automations));
-      setWooCommerceForm({
-        storeUrl: response.connection?.storeUrl || wooCommerceForm.storeUrl,
-        consumerKey: '',
-        consumerSecret: '',
-      });
-      setSuccess('WooCommerce connected to Connektly.');
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Failed to connect WooCommerce.');
-    } finally {
-      setIsSavingWooCommerce(false);
-    }
-  };
-
-  const handleDisconnectWooCommerce = async () => {
-    try {
-      setIsDisconnectingWooCommerce(true);
-      setError(null);
-      setSuccess(null);
-      await appApi.disconnectWooCommerceConnection();
-      const response = await appApi.getWooCommerceSetup();
-      setWooCommerceSetup(response);
-      setWooCommerceAutomations(buildWooCommerceAutomationSettings());
-      setWooCommerceForm({ storeUrl: '', consumerKey: '', consumerSecret: '' });
-      setWooCommerceWebhookSecret(null);
-      setSuccess('WooCommerce disconnected.');
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Failed to disconnect WooCommerce.');
-    } finally {
-      setIsDisconnectingWooCommerce(false);
-    }
-  };
-
-  const copyText = async (value: string, field: 'woo-callback' | 'woo-secret') => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(field);
-      window.setTimeout(() => setCopiedField((current) => (current === field ? null : current)), 1600);
-    } catch {
-      return;
-    }
   };
 
   const handleFacebookConnect = async () => {
@@ -848,15 +490,6 @@ export default function Integrations() {
         'Connect a Facebook Page and ad account for Meta campaign setup and ad management.',
     },
     {
-      id: 'woocommerce',
-      name: 'WooCommerce',
-      shortStatus: wooCommerceSetup?.connection?.storeName || (wooCommerceConnected ? 'Connected' : 'Not connected'),
-      connected: wooCommerceConnected,
-      icon: 'woocommerce',
-      description:
-        'Configure automated WhatsApp messages for WooCommerce abandoned carts, orders, fulfilment, follow-ups, and return requests.',
-    },
-    {
       id: 'advanced',
       name: 'Advanced',
       shortStatus: 'Available',
@@ -985,27 +618,6 @@ export default function Integrations() {
     },
   ];
 
-  const wooCommerceRows: ConnectionStatusRow[] = [
-    {
-      label: 'Store',
-      account: wooCommerceSetup?.connection?.storeName || wooCommerceSetup?.connection?.storeUrl || 'No store connected',
-      detail: wooCommerceSetup?.connection?.storeUrl || 'Connect WooCommerce REST API credentials to enable automations.',
-      statusText: wooCommerceConnected ? 'Connected' : 'Not connected',
-      statusTone: wooCommerceConnected
-        ? 'text-green-700 bg-green-50 border-green-200'
-        : 'text-gray-700 bg-gray-50 border-gray-200',
-    },
-    {
-      label: 'Automations',
-      account: `${enabledWooCommerceAutomationCount} automation${enabledWooCommerceAutomationCount === 1 ? '' : 's'} enabled`,
-      detail: 'Cart recovery, order updates, fulfilment, follow-up, and return-request messages are managed here.',
-      statusText: wooCommerceConnected ? 'Configurable' : 'Connect store first',
-      statusTone: wooCommerceConnected
-        ? 'text-[#7f54b3] bg-[#f5f0ff] border-[#eadcf8]'
-        : 'text-yellow-700 bg-yellow-50 border-yellow-200',
-    },
-  ];
-
   const advancedRows: ConnectionStatusRow[] = [
     {
       label: 'Developer Tools',
@@ -1021,9 +633,7 @@ export default function Integrations() {
       ? leadCaptureRows
       : selectedConnection.id === 'meta-ads-manager'
         ? metaAdsRows
-        : selectedConnection.id === 'woocommerce'
-          ? wooCommerceRows
-          : advancedRows;
+        : advancedRows;
 
   const renderPrimaryAction = () => {
     if (selectedConnection.id === 'meta-lead-capture') {
@@ -1048,19 +658,6 @@ export default function Integrations() {
         >
           <CheckCircle2 className="h-4 w-4" />
           {metaAdsConnected ? 'Manage Ads Manager' : 'Connect Ads Manager'}
-        </button>
-      );
-    }
-
-    if (selectedConnection.id === 'woocommerce') {
-      return (
-        <button
-          type="button"
-          onClick={openWooCommerceModal}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2364ff] px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-[#2364ff]/20 transition duration-200 hover:-translate-y-px hover:bg-[#1d54d9] active:scale-[0.97]"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          {wooCommerceConnected ? 'Manage store' : 'Connect store'}
         </button>
       );
     }
@@ -1092,7 +689,7 @@ export default function Integrations() {
       {renderConnectionsHeader()}
       {renderSectionToggle()}
 
-      {error && !isMetaModalOpen && !isMetaAdsModalOpen && !isWooCommerceModalOpen ? (
+      {error && !isMetaModalOpen && !isMetaAdsModalOpen ? (
         <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
       ) : null}
 
@@ -1300,311 +897,6 @@ export default function Integrations() {
                 </div>
               </>
             )}
-          </div>
-        </ModalShell>
-      ) : null}
-
-      {isWooCommerceModalOpen ? (
-        <ModalShell
-          title="WooCommerce Connection"
-          subtitle="Connect WooCommerce to Connektly and configure WhatsApp automation triggers."
-          onClose={closeWooCommerceModal}
-        >
-          <div className="space-y-6">
-            {error ? (
-              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
-            ) : null}
-            {success ? (
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>
-            ) : null}
-
-            <div className="rounded-[28px] border border-[#eadcf8] bg-[#fbf8ff] p-6">
-              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-[#eadcf8]">
-                    <img src={wooIconUrl} alt="" className="h-11 w-11 object-contain" draggable={false} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#7f54b3]">Connection Name</p>
-                    <h3 className="mt-2 text-2xl font-bold text-gray-900">WooCommerce</h3>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-                      WooCommerce Automated Messages send approved WhatsApp templates for cart recovery, order updates, purchase follow-ups, and refund requests.
-                    </p>
-                  </div>
-                </div>
-                <span className="inline-flex items-center justify-center rounded-full border border-[#dbc4ef] bg-white px-3 py-1.5 text-xs font-semibold text-[#7f54b3]">
-                  {wooCommerceConnected ? 'Connected' : 'Not connected'}
-                </span>
-              </div>
-            </div>
-
-            {isWooCommerceSetupLoading ? (
-              <div className="flex min-h-52 items-center justify-center rounded-[28px] border border-gray-200 bg-[#fcfcfd]">
-                <Loader2 className="h-6 w-6 animate-spin text-[#1381FF]" />
-              </div>
-            ) : (
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-400">Step 1</p>
-                  <h3 className="mt-2 text-xl font-bold text-gray-900">Connect your WooCommerce store</h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">
-                    Create WooCommerce REST API keys with read/write permissions, then paste the store URL and credentials here.
-                  </p>
-
-                  <div className="mt-5 space-y-4">
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-medium text-gray-700">Store URL</span>
-                      <input
-                        type="url"
-                        value={wooCommerceForm.storeUrl}
-                        onChange={(event) => setWooCommerceForm((current) => ({ ...current, storeUrl: event.target.value }))}
-                        placeholder="https://store.example.com"
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
-                      />
-                    </label>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-gray-700">Consumer key</span>
-                        <input
-                          type="password"
-                          value={wooCommerceForm.consumerKey}
-                          onChange={(event) => setWooCommerceForm((current) => ({ ...current, consumerKey: event.target.value }))}
-                          placeholder={wooCommerceSetup?.connection?.consumerKeyLast4 ? `Saved key ending ${wooCommerceSetup.connection.consumerKeyLast4}` : 'ck_...'}
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-gray-700">Consumer secret</span>
-                        <input
-                          type="password"
-                          value={wooCommerceForm.consumerSecret}
-                          onChange={(event) => setWooCommerceForm((current) => ({ ...current, consumerSecret: event.target.value }))}
-                          placeholder={wooCommerceSetup?.connection?.consumerSecretLast4 ? `Saved secret ending ${wooCommerceSetup.connection.consumerSecretLast4}` : 'cs_...'}
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-[#1381FF] focus:ring-1 focus:ring-[#1381FF]"
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => void handleVerifyWooCommerceConnection()}
-                      disabled={isVerifyingWooCommerce || !wooCommerceForm.storeUrl || !wooCommerceForm.consumerKey || !wooCommerceForm.consumerSecret}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isVerifyingWooCommerce ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                      Verify
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveWooCommerceConnection()}
-                      disabled={isSavingWooCommerce || !wooCommerceForm.storeUrl || !wooCommerceForm.consumerKey || !wooCommerceForm.consumerSecret}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isSavingWooCommerce ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                      {wooCommerceSetup?.connection ? 'Update connection' : 'Connect WooCommerce'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-400">Step 2</p>
-                  <h3 className="mt-2 text-xl font-bold text-gray-900">Webhook callback</h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">
-                    Add this callback URL in WooCommerce webhooks for order and refund events. Use the signing secret shown after first connect.
-                  </p>
-
-                  <div className="mt-5 space-y-3">
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Delivery URL</p>
-                      <p className="mt-2 break-all text-sm font-semibold text-gray-900">{wooCommerceSetup?.callbackUrl || 'Available after setup loads'}</p>
-                      {wooCommerceSetup?.callbackUrl ? (
-                        <button
-                          type="button"
-                          onClick={() => void copyText(wooCommerceSetup.callbackUrl, 'woo-callback')}
-                          className="mt-3 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                          {copiedField === 'woo-callback' ? 'Copied' : 'Copy URL'}
-                        </button>
-                      ) : null}
-                    </div>
-
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Signing secret</p>
-                      {wooCommerceWebhookSecret ? (
-                        <>
-                          <p className="mt-2 break-all text-sm font-semibold text-gray-900">{wooCommerceWebhookSecret}</p>
-                          <button
-                            type="button"
-                            onClick={() => void copyText(wooCommerceWebhookSecret, 'woo-secret')}
-                            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            {copiedField === 'woo-secret' ? 'Copied' : 'Copy secret'}
-                          </button>
-                        </>
-                      ) : (
-                        <p className="mt-2 text-sm text-gray-600">
-                          {wooCommerceSetup?.connection?.webhookSecretLast4
-                            ? `Saved secret ending ${wooCommerceSetup.connection.webhookSecretLast4}. Reconnect if you need to generate a new one.`
-                            : 'Shown once after the store is connected.'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {wooCommerceSetup?.connection ? (
-                    <div className="mt-5 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl bg-[#fcfcfd] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Store</p>
-                        <p className="mt-2 break-all text-sm font-semibold text-gray-900">
-                          {wooCommerceSetup.connection.storeName || wooCommerceSetup.connection.storeUrl}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-[#fcfcfd] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Last verified</p>
-                        <p className="mt-2 text-sm font-semibold text-gray-900">
-                          {wooCommerceSetup.connection.lastVerifiedAt ? new Date(wooCommerceSetup.connection.lastVerifiedAt).toLocaleString() : 'Not verified yet'}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {wooCommerceSetup?.connection ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleDisconnectWooCommerce()}
-                      disabled={isDisconnectingWooCommerce}
-                      className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
-                    >
-                      {isDisconnectingWooCommerce ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                      Disconnect WooCommerce
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-[28px] border border-amber-100 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-900">
-              Automated WhatsApp message templates cannot be modified or edited here because message templates need to be pre-approved by WhatsApp before they can be sent using the API.
-            </div>
-
-            <div className="space-y-4">
-              {WOOCOMMERCE_AUTOMATIONS.map((automation) => {
-                const automationState = wooCommerceAutomations[automation.id];
-                const isEnabled = automationState.enabled;
-
-                return (
-                  <div key={automation.id} className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-lg font-bold text-gray-900">{automation.title}</h4>
-                          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-                            {automation.triggerLabel}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">{automation.description}</p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => updateWooCommerceAutomation(automation.id, { enabled: !isEnabled })}
-                        aria-pressed={isEnabled}
-                        className={`inline-flex min-w-28 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                          isEnabled
-                            ? 'bg-[#1381FF] text-white shadow-lg shadow-[#1381FF]/20'
-                            : 'border border-gray-200 bg-gray-50 text-gray-600 hover:bg-white'
-                        }`}
-                      >
-                        <span
-                          className={`h-2.5 w-2.5 rounded-full ${
-                            isEnabled ? 'bg-white' : 'bg-gray-400'
-                          }`}
-                        />
-                        {isEnabled ? 'On' : 'Off'}
-                      </button>
-                    </div>
-
-                    <div className="mt-5 grid gap-4 md:grid-cols-2">
-                      <div className="block">
-                        <span className="mb-2 block text-sm font-medium text-gray-700">Select Template</span>
-                        <DropdownSelect
-                          value={automationState.templateKey}
-                          disabled={!isEnabled || approvedTemplateOptions.length === 0}
-                          onChange={(nextTemplateKey) =>
-                            updateWooCommerceAutomation(automation.id, {
-                              templateKey: nextTemplateKey,
-                            })
-                          }
-                          options={[
-                            {
-                              value: '',
-                              label: approvedTemplateOptions.length > 0 ? 'Choose approved WhatsApp template' : 'No approved templates available',
-                            },
-                            ...approvedTemplateOptions.map((template) => ({
-                              value: template.key,
-                              label: template.label,
-                            })),
-                          ]}
-                          placeholder={approvedTemplateOptions.length > 0 ? 'Choose approved WhatsApp template' : 'No approved templates available'}
-                          ariaLabel={`Select template for ${automation.title}`}
-                          buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15 disabled:opacity-60"
-                        />
-                      </div>
-
-                      {automation.hasDelay ? (
-                        <div className="block">
-                          <span className="mb-2 block text-sm font-medium text-gray-700">Send message after</span>
-                          <DropdownSelect
-                            value={String(automationState.sendAfterMinutes)}
-                            disabled={!isEnabled}
-                            onChange={(nextDelayMinutes) =>
-                              updateWooCommerceAutomation(automation.id, {
-                                sendAfterMinutes: Number(nextDelayMinutes),
-                              })
-                            }
-                            options={WOOCOMMERCE_DELAY_OPTIONS.map((minutes) => ({
-                              value: String(minutes),
-                              label: formatWooCommerceDelayOption(minutes),
-                            }))}
-                            ariaLabel={`Select delay for ${automation.title}`}
-                            buttonClassName="rounded-2xl border-gray-200 bg-gray-50 px-4 py-3 focus:border-[#1381FF] focus:ring-[#1381FF]/15 disabled:opacity-60"
-                          />
-                        </div>
-                      ) : (
-                        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                          <p className="text-sm font-medium text-gray-700">Send message after</p>
-                          <p className="mt-2 text-sm text-gray-500">Immediately when the WooCommerce trigger fires.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={closeWooCommerceModal}
-                className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveWooCommerceAutomations}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1381FF] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1381FF]/25 transition hover:bg-[#4a35e8]"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Save WooCommerce settings
-              </button>
-            </div>
           </div>
         </ModalShell>
       ) : null}

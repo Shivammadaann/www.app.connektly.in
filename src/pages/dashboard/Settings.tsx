@@ -3645,7 +3645,7 @@ export default function Settings() {
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">Connection Center</h3>
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-                          Open Connections to manage Meta, WhatsApp, WooCommerce, and Advanced integrations.
+                          Open Connections to manage Meta, WhatsApp, and Advanced integrations.
                         </p>
                       </div>
                     </div>

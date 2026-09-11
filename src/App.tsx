@@ -290,7 +290,6 @@ export default function App() {
               <Route path="connections/meta-lead-capture" element={<Integrations />} />
               <Route path="connections/meta-ads-manager" element={<Integrations />} />
               <Route path="connections/whatsapp" element={<ChannelsRedirect />} />
-              <Route path="connections/woocommerce" element={<Integrations />} />
               <Route path="connections/advanced" element={<DeveloperTools />} />
               <Route path="templates/whatsapp" element={<Navigate to="/dashboard/templates" replace />} />
               <Route path="notifications" element={<Notifications />} />
