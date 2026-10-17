@@ -1420,7 +1420,8 @@ export interface EmbeddedMetaConnectionInput {
   setupType: SetupType;
   signupTicket: string;
   wabaId: string;
-  phoneNumberId: string;
+  // Coexistence completion can return only the WABA; the server resolves its number.
+  phoneNumberId?: string;
   redirectUri?: string;
   flowState?: string | null;
   oauthState?: string | null;
@@ -1442,6 +1443,7 @@ export interface EmbeddedMetaCodeExchangeInput {
   code: string;
   configId: string;
   oauthState: string;
+  setupType?: SetupType;
 }
 
 export interface EmbeddedMetaCodeExchangeResponse {

@@ -228,6 +228,7 @@ for (const failure of [null, 'registration', 'webhook']) {
     const { context } = await serverSandbox(['activateEmbeddedWhatsAppChannel'], [], {
       getMetaChannelMetadata: (value) => value.metadata,
       getMetaChannelRow: async () => row,
+      mutateMetaChannelMetadata: async ({ mutate }) => { const patch = mutate(row.metadata, row); if (patch) Object.assign(row, patch); return row; },
       autoRegisterWhatsAppSenderForChannel: async () => {
         registrations++;
         if (failure === 'registration') throw new Error('Registration failed');
@@ -268,7 +269,8 @@ test('Webhook subscription must match this app, never an arbitrary subscribed ap
 test('Meta webhook verifies signature and dispatches account_update events', async () => {
   const updates = [];
   const { handlers } = await serverSandbox(['timingSafeCompareHex'], ['/api/meta/webhook'], {
-    handleWhatsAppAccountUpdateWebhook: async (wabaId, value) => updates.push({ wabaId, value }),
+    coexistenceWebhookQueue: { enqueue: async (input) => updates.push({ wabaId: input.wabaId, value: input.payload }), kick() {} },
+    coexistenceTimestamp: (value) => value == null ? null : new Date(Number(value) * 1000).toISOString(),
   });
   const body = { entry: [{ id: '123', changes: [{ field: 'account_update', value: { event: 'PARTNER_ADDED' } }] }] };
   const rawBody = Buffer.from(JSON.stringify(body));
@@ -330,6 +332,7 @@ test('Completion endpoint validates the ticket and asset pair before saving, wit
   }, 'test-app-secret');
   const { handlers } = await serverSandbox([], ['/api/meta/connect/embedded'], {
     requireMetaAppCredentials() {}, readEmbeddedSignupTicket,
+    metaRequest: async () => ({ is_on_biz_app: false, platform_type: 'CLOUD_API' }),
     assertWhatsAppPhoneBelongsToWaba: async (accessToken, wabaId, phoneId) => {
       assert.equal(accessToken, 'customer-business-token');
       assert.equal(wabaId, '123'); assert.equal(phoneId, '456'); calls.push('validate-pair');
@@ -365,4 +368,149 @@ test('Completion endpoint validates the ticket and asset pair before saving, wit
   const returned = JSON.stringify(response.body);
   assert.equal(returned.includes('customer-business-token'), false);
   assert.equal(returned.includes(token.signupTicket), false);
+});
+
+test('Encrypted signup tickets bind the selected connection type and immutable lifecycle', () => {
+  const identity = { userId: 'user-1', appId: 'app-1', configId: 'config-1', oauthState: 'state-1' };
+  const ticket = createEmbeddedSignupTicket({ ...identity, setupType: 'coexistence', accessToken: 'token' }, 'secret', 1000);
+  const first = readEmbeddedSignupTicket(ticket.signupTicket, { ...identity, setupType: 'coexistence' }, 'secret', 2000);
+  const retry = readEmbeddedSignupTicket(ticket.signupTicket, identity, 'secret', 3000);
+  assert.equal(first.setupType, 'coexistence');
+  assert.equal(first.issuedAt, 1000);
+  assert.equal(first.onboardingId, retry.onboardingId);
+  assert.throws(() => readEmbeddedSignupTicket(ticket.signupTicket, { ...identity, setupType: 'exclusive' }, 'secret', 2000), /invalid/);
+});
+
+test('Coexistence completion accepts WABA-only Meta events and resolves a verified phone before saving', async () => {
+  const calls = [];
+  let storedRow;
+  const authorization = createEmbeddedSignupTicket({
+    userId: 'user-1', appId: '797649033413847', configId: '959911236622056',
+    oauthState: 'core_onboarding:abcdef', setupType: 'coexistence', accessToken: 'customer-token',
+  }, 'test-app-secret');
+  const { handlers } = await serverSandbox([], ['/api/meta/connect/embedded'], {
+    requireMetaAppCredentials() {}, readEmbeddedSignupTicket,
+    resolveCoexistencePhone: async (input) => {
+      calls.push('verify'); assert.equal(input.wabaId, '123'); assert.equal(input.phoneNumberId, null);
+      return { id: '456', is_on_biz_app: true, platform_type: 'CLOUD_API' };
+    },
+    metaRequest: async () => assert.fail('Phone resolution is injected'),
+    assertWhatsAppPhoneBelongsToWaba: async () => assert.fail('Do not use the Cloud API registration path'),
+    fetchPhoneNumber: async () => ({ display_phone_number: '+1 555', verified_name: 'Example' }),
+    fetchWaba: async () => ({ id: '123', name: 'Example' }),
+    getNormalizedMessagingLimitTier: () => null, buildReusableMetaSetupContext: () => ({}),
+    saveMetaChannel: async (input) => {
+      calls.push('save');
+      assert.equal(input.setupType, 'coexistence'); assert.equal(input.phoneNumberId, '456');
+      assert.equal(input.metadataPatch.coexistence.isOnBizApp, true);
+      assert.equal(input.metadataPatch.coexistenceSync.contacts.status, 'not_requested');
+      assert.ok(input.metadataPatch.coexistenceSync.onboardingId);
+      storedRow = { id: 'channel-1', status: 'pending', metadata: input.metadataPatch };
+    },
+    getMetaChannelRow: async () => storedRow,
+    activateEmbeddedWhatsAppChannel: async ({ row }) => { calls.push('activate'); return { ...row, status: 'connected' }; },
+    mapChannel: (row) => row, syncTemplates: async () => {},
+  });
+  const response = apiResponse();
+  await handlers.get('/api/meta/connect/embedded')({ authedUser: { id: 'user-1' }, body: {
+    signupTicket: authorization.signupTicket, setupType: 'coexistence', wabaId: '123',
+    oauthState: 'core_onboarding:abcdef',
+    setupContext: { event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING', data: { waba_id: '123' } },
+  } }, response);
+  assert.equal(response.statusCode, 200, JSON.stringify(response.body));
+  assert.deepEqual(calls, ['verify', 'save', 'activate']);
+  assert.equal(JSON.stringify(response.body).includes('customer-token'), false);
+});
+
+test('Cloud API completion refuses Business app numbers before saving or registering', async () => {
+  const authorization = createEmbeddedSignupTicket({
+    userId: 'user-1', appId: '797649033413847', configId: '959911236622056',
+    oauthState: 'core_onboarding:abcdef', accessToken: 'token',
+  }, 'test-app-secret');
+  const { handlers } = await serverSandbox([], ['/api/meta/connect/embedded'], {
+    requireMetaAppCredentials() {}, readEmbeddedSignupTicket,
+    assertWhatsAppPhoneBelongsToWaba: async () => {},
+    metaRequest: async () => ({ is_on_biz_app: true, platform_type: 'CLOUD_API' }),
+    saveMetaChannel: async () => assert.fail('Do not save a Business app number as exclusive Cloud API'),
+  });
+  const response = apiResponse();
+  await handlers.get('/api/meta/connect/embedded')({ authedUser: { id: 'user-1' }, body: {
+    signupTicket: authorization.signupTicket, setupType: 'exclusive', wabaId: '123', phoneNumberId: '456',
+    oauthState: 'core_onboarding:abcdef', setupContext: { event: 'FINISH', data: finish.data },
+  } }, response);
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.error, /Coexistence/);
+});
+
+for (const failure of [null, 'webhook', 'queue', 'unknown']) {
+  test(`Coexistence activation ${failure || 'complete'} skips registration and gates irreversible sync`, async () => {
+    const calls = [];
+    const row = { id: 'channel-1', user_id: 'user-1', status: 'pending', setup_type: 'coexistence', phone_number_id: '456', waba_id: '123', metadata: {
+      coexistenceSync: { onboardingId: 'lifecycle-1', onboardedAt: '2026-10-17T09:00:00Z' },
+    } };
+    const { context } = await serverSandbox(['activateCoexistenceWhatsAppChannel', 'activateEmbeddedWhatsAppChannel'], [], {
+      getMetaChannelMetadata: (value) => value.metadata,
+      requireMetaAppCredentials() {}, requireMetaWebhookVerifyToken() {}, metaWebhookVerifyToken: 'verify-token',
+      resolveCoexistencePhone: async () => { calls.push('verify'); return { id: '456', is_on_biz_app: true, platform_type: 'CLOUD_API' }; },
+      metaRequest: async () => assert.fail('Injected Meta helpers handle requests'),
+      autoRegisterWhatsAppSenderForChannel: async () => assert.fail('Never register Coexistence phones'),
+      getMetaWebhookCallbackUrl: () => 'https://app.connektly.in/api/meta/webhook',
+      subscribeWhatsAppWebhookApp: async () => { calls.push('subscribe'); },
+      listWhatsAppSubscribedApps: async () => ({ data: [{ id: '797649033413847' }] }),
+      resolveWhatsAppWebhookSubscriptionEntry: (entries) => entries[0],
+      assertCoexistenceWebhookPrerequisites: async () => { calls.push('fields'); if (failure === 'webhook') throw new Error('Missing history webhook'); return ['history']; },
+      assertCoexistenceStorageReady: async () => { calls.push('queue'); if (failure === 'queue') throw new Error('Queue migration unavailable'); },
+      createCoexistenceSyncStore: () => ({}),
+      initiateCoexistenceSync: async () => { calls.push('sync'); return {
+        contacts: { status: failure === 'unknown' ? 'unknown' : 'pending', lastError: failure === 'unknown' ? 'Do not retry the request' : undefined },
+        history: { status: failure === 'unknown' ? 'not_requested' : 'pending' },
+      }; },
+      mutateMetaChannelMetadata: async ({ mutate }) => { const patch = mutate(row.metadata, row); if (patch) Object.assign(row, patch); return row; },
+      adminSupabase: {},
+    });
+    const activated = await context.activateEmbeddedWhatsAppChannel({ userId: 'user-1', row, accessToken: 'token', req: {} });
+    assert.equal(activated.status, failure ? 'pending' : 'connected');
+    assert.equal(activated.metadata.coexistence.isOnBizApp, true);
+    assert.equal(activated.metadata.embeddedSignup.status, failure ? 'activation_failed' : 'setup_complete');
+    if (failure === 'queue' || failure === 'webhook') assert.equal(calls.includes('sync'), false);
+    if (failure === 'webhook') assert.equal(calls.includes('queue'), false);
+  });
+}
+
+test('Status refresh, webhook checks, OBA, and catalog settings preserve concurrent sync/lifecycle evidence', async () => {
+  const fresh = { id: 'channel-1', user_id: 'user-1', waba_id: '123', phone_number_id: '456', status: 'pending', metadata: {
+    coexistence: { isOnBizApp: true, lifecycle: { event: 'ONBOARDED' } },
+    coexistenceSync: { onboardingId: 'lifecycle-1', contacts: { status: 'pending', requestId: 'contacts' }, history: { status: 'declined', requestId: 'history', lastError: 'Declined' } },
+    independentFeature: { keep: true },
+  } };
+  const stale = { ...fresh, metadata: { coexistenceSync: { history: { status: 'not_requested' } } } };
+  const { context } = await serverSandbox([
+    'persistWhatsAppWebhookSubscriptionStatus', 'refreshChannelSnapshot',
+    'saveMetaCatalogSelection', 'saveMetaCatalogConnection', 'persistOfficialBusinessAccountStatus',
+  ], [], {
+    getMetaWebhookCallbackUrl: () => 'https://app.connektly.in/api/meta/webhook',
+    metaWebhookVerifyToken: 'verify', last4: (value) => value.slice(-4),
+    resolveWhatsAppWebhookSubscriptionEntry: (entries) => entries[0],
+    getWhatsAppSubscribedAppData: (entry) => entry,
+    mutateMetaChannelMetadata: async ({ mutate }) => { const patch = mutate(fresh.metadata, fresh); if (patch) Object.assign(fresh, patch); return fresh; },
+    adminSupabase: {},
+    fetchPhoneNumber: async () => ({ display_phone_number: '+1555' }), fetchWaba: async () => ({ name: 'Example' }),
+    mergeLiveTwoStepVerificationMetadata: (metadata) => ({ ...metadata, twoStepVerification: { live: true } }),
+    getNormalizedMessagingLimitTier: () => null,
+    getMetaCatalogSelectionMetadata: (metadata) => metadata.catalogSelection || {},
+    getCatalogConnectionMetadata: (metadata) => metadata.catalogConnection || {},
+    listMetaBusinessesForCatalogConnection: async () => ['business-1'],
+    listOwnedMetaCatalogs: async () => [{ id: 'catalog-1', name: 'Catalog' }],
+    encryptAccessToken: () => 'encrypted-catalog-token',
+  });
+  const before = JSON.parse(JSON.stringify(fresh.metadata.coexistenceSync));
+  await context.persistWhatsAppWebhookSubscriptionStatus({ userId: 'user-1', row: stale, req: {}, entries: [{ id: '797649033413847' }], isSubscribed: true });
+  await context.refreshChannelSnapshot('user-1', stale, 'token');
+  await context.saveMetaCatalogSelection({ userId: 'user-1', row: stale, catalogId: 'catalog-1' });
+  await context.saveMetaCatalogConnection({ userId: 'user-1', row: stale, accessToken: 'catalog-token', flowState: 'catalog', oauthState: 'state' });
+  await context.persistOfficialBusinessAccountStatus('user-1', 'channel-1', { id: '456', obaStatus: 'NONE', statusMessage: 'Example' });
+  assert.deepEqual(fresh.metadata.coexistenceSync, before);
+  assert.deepEqual(fresh.metadata.independentFeature, { keep: true });
+  assert.equal(fresh.metadata.coexistence.lifecycle.event, 'ONBOARDED');
+  assert.equal(fresh.metadata.catalogSelection.selectedCatalogId, 'catalog-1');
 });

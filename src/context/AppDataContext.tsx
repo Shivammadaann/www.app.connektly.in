@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { appApi, ApiError } from '../lib/api';
+import { isWhatsAppCoexistence } from '../lib/whatsapp-capabilities';
 import { mapCallLogRecord, mapCallSessionRecord, removeCallSession, upsertCallLog, upsertCallSession } from '../lib/calls';
 import { mapConversationThreadRecord, removeConversationThread, upsertConversationThread } from '../lib/conversations';
 import { areInboxInsightsFiltersEqual, getTodayInboxInsightsFilters } from '../lib/insights';
@@ -113,9 +114,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const activeChannelPhoneNumberIdRef = useRef<string | null>(null);
+  const businessProfileEnabledRef = useRef(true);
   const defaultInboxInsightsPromiseRef = useRef<Promise<InboxInsightsResponse | null> | null>(null);
   const templateSyncPromiseRef = useRef<Promise<MetaTemplate[] | null> | null>(null);
   const activeChannelPhoneNumberId = bootstrap?.channel?.phoneNumberId ?? null;
+  const isCoexistence = isWhatsAppCoexistence(bootstrap?.channel);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -151,13 +154,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     activeChannelPhoneNumberIdRef.current = activeChannelPhoneNumberId;
-  }, [activeChannelPhoneNumberId]);
+    businessProfileEnabledRef.current = !isCoexistence;
+  }, [activeChannelPhoneNumberId, isCoexistence]);
 
   const refreshBusinessProfile = useCallback(
     async (options?: { silent?: boolean }) => {
       const channelPhoneNumberId = activeChannelPhoneNumberIdRef.current;
 
-      if (!channelPhoneNumberId) {
+      if (!channelPhoneNumberId || !businessProfileEnabledRef.current) {
         startTransition(() => {
           setBusinessProfileState(null);
           setBusinessProfileError(null);
@@ -176,7 +180,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       try {
         const response = await appApi.getBusinessProfile();
 
-        if (response.profile.phoneNumberId !== activeChannelPhoneNumberIdRef.current) {
+        if (!businessProfileEnabledRef.current || response.profile.phoneNumberId !== activeChannelPhoneNumberIdRef.current) {
           return null;
         }
 
@@ -363,6 +367,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (isCoexistence) {
+      setBusinessProfileState(null);
+      setBusinessProfileError(null);
+      return;
+    }
+
     if (!businessProfile) {
       void refreshBusinessProfile();
       return;
@@ -375,7 +385,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       });
       void refreshBusinessProfile();
     }
-  }, [activeChannelPhoneNumberId, businessProfile, refreshBusinessProfile]);
+  }, [activeChannelPhoneNumberId, businessProfile, refreshBusinessProfile, isCoexistence]);
 
   useEffect(() => {
     if (
@@ -421,7 +431,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }
 
     const refreshSilently = () => {
-      void refreshBusinessProfile({ silent: true });
+      if (!isCoexistence) void refreshBusinessProfile({ silent: true });
     };
 
     const intervalId = window.setInterval(() => {
@@ -448,7 +458,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [activeChannelPhoneNumberId, refreshBusinessProfile]);
+  }, [activeChannelPhoneNumberId, refreshBusinessProfile, isCoexistence]);
 
   useEffect(() => {
     if (!activeChannelPhoneNumberId) {

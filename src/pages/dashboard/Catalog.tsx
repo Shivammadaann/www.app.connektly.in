@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import { appApi } from '../../lib/api';
+import { getWhatsAppCapabilities } from '../../lib/whatsapp-capabilities';
 import { hasMetaCatalogLoginConfig } from '../../lib/config';
 import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../../components/ui/ModalPortal';
 import { beginMetaCatalogLogin } from '../../lib/meta-sdk';
@@ -185,6 +186,7 @@ function CatalogModal({
 
 export default function Catalog() {
   const { bootstrap, businessProfile, refresh } = useAppData();
+  const whatsappCapabilities = getWhatsAppCapabilities(bootstrap?.channel);
   const [catalogs, setCatalogs] = useState<MetaCatalogSummary[]>([]);
   const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
   const [selectedCatalog, setSelectedCatalog] = useState<MetaCatalogSummary | null>(null);
@@ -308,7 +310,7 @@ export default function Catalog() {
   }, [selectedCatalogId, catalogs]);
 
   useEffect(() => {
-    if (!connectedPhoneNumberId) {
+    if (!connectedPhoneNumberId || !whatsappCapabilities.canManageCommerceSettings) {
       setCommerceSettings(null);
       setCommerceDraft({
         isCartEnabled: false,
@@ -355,7 +357,7 @@ export default function Catalog() {
     return () => {
       isCancelled = true;
     };
-  }, [connectedPhoneNumberId]);
+  }, [connectedPhoneNumberId, whatsappCapabilities.canManageCommerceSettings]);
 
   const resetMessages = () => {
     setError(null);
@@ -413,6 +415,10 @@ export default function Catalog() {
   };
 
   const handleSaveCommerceSettings = async () => {
+    if (!whatsappCapabilities.canManageCommerceSettings) {
+      setCommerceError('Manage catalog visibility and cart settings in the WhatsApp Business app for this coexistence number.');
+      return;
+    }
     if (!connectedPhoneNumberId) {
       setCommerceError('Connect your WhatsApp Business Account first to manage commerce settings.');
       return;
@@ -592,7 +598,9 @@ export default function Catalog() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Catalog</h1>
           <p className="mt-1 max-w-3xl text-sm text-gray-500">
-            Connect Meta Catalogs, choose the active catalog, and manage products for WhatsApp commerce.
+            {whatsappCapabilities.isCoexistence
+              ? 'Manage separate Meta catalogs and products. Your WhatsApp Business app catalog and orders are managed in the app.'
+              : 'Connect Meta Catalogs, choose the active catalog, and manage products for WhatsApp commerce.'}
           </p>
         </div>
         <button
@@ -727,8 +735,16 @@ export default function Catalog() {
 
       <SectionCard
         title="WhatsApp Commerce Settings"
-        description="Live settings from Meta for the connected WhatsApp phone number. Use these to control whether catalog browsing and cart behavior are available in WhatsApp."
+        description={whatsappCapabilities.isCoexistence
+          ? 'Catalog visibility and cart controls for this number belong to the WhatsApp Business app.'
+          : 'Live settings from Meta for the connected WhatsApp phone number. Use these to control whether catalog browsing and cart behavior are available in WhatsApp.'}
       >
+        {whatsappCapabilities.isCoexistence ? (
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+            Manage catalog visibility, carts, and orders in your WhatsApp Business app. These app features do not synchronize with Connektly through Cloud API.
+            Meta catalogs and products managed elsewhere on this page are separate from your Business app catalog.
+          </div>
+        ) : (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="space-y-4">
             {commerceError ? (
@@ -823,6 +839,7 @@ export default function Catalog() {
             </div>
           </div>
         </div>
+        )}
       </SectionCard>
 
       <SectionCard

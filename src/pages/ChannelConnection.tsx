@@ -23,6 +23,7 @@ import { appApi } from '../lib/api';
 import { hasEmbeddedSignupConfig } from '../lib/config';
 import { beginEmbeddedSignup, ensureMetaSdkReady, type EmbeddedSignupSession } from '../lib/meta-sdk';
 import { getWhatsAppActivationIssue, getWhatsAppPaymentSettingsUrl } from '../lib/whatsapp-onboarding';
+import { getWhatsAppCoexistenceLifecycle, getWhatsAppCoexistenceSync, isWhatsAppCoexistence, WHATSAPP_COEXISTENCE_DISCONNECT_GUIDANCE } from '../lib/whatsapp-capabilities';
 import { useAppData } from '../context/AppDataContext';
 import OnboardingTopBar from '../components/OnboardingTopBar';
 import ChannelBrandIcon from '../components/ChannelBrandIcon';
@@ -33,11 +34,9 @@ import {
   StepCTA,
   onboardingMotion,
 } from '../components/onboarding/OnboardingStepPrimitives';
-import type { DashboardBootstrap, MetaChannelConnection, WhatsAppBusinessProfile } from '../lib/types';
+import type { DashboardBootstrap, MetaChannelConnection, SetupType, WhatsAppBusinessProfile } from '../lib/types';
 import facebookIconUrl from '../assets/Facebook.svg';
 import defaultProfilePictureUrl from '../assets/profile.png';
-
-const DEFAULT_WHATSAPP_SETUP_TYPE = 'exclusive' as const;
 
 type OnboardingBusinessProfileFormState = {
   description: string;
@@ -215,7 +214,10 @@ export default function ChannelConnection() {
     refreshBusinessProfile,
     setBusinessProfile,
   } = useAppData();
-  const totalSteps = 4;
+  const [setupType, setSetupType] = useState<SetupType>('exclusive');
+  const isCoexistenceSignup = setupType === 'coexistence';
+  const visibleModalSteps = modalSteps.filter((_, index) => !isCoexistenceSignup || index !== 2);
+  const totalSteps = visibleModalSteps.length;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
@@ -242,7 +244,18 @@ export default function ChannelConnection() {
   const pendingSignupRef = useRef<EmbeddedSignupSession | null>(null);
 
   const existingChannel = bootstrap?.channel || null;
-  const onboardingChannel = pendingChannel || existingChannel;
+  const onboardingChannel = pendingChannel && existingChannel?.id !== pendingChannel.id
+    ? pendingChannel : existingChannel || pendingChannel;
+  const coexistenceSync = getWhatsAppCoexistenceSync(onboardingChannel);
+  const coexistenceLifecycle = getWhatsAppCoexistenceLifecycle(onboardingChannel);
+  const storedSync = onboardingChannel?.metadata?.coexistenceSync;
+  const hasEmbeddedCoexistenceLifecycle = onboardingChannel?.connectionMethod === 'embedded_signup'
+    && storedSync && typeof storedSync === 'object' && !Array.isArray(storedSync)
+    && typeof (storedSync as Record<string, unknown>).onboardingId === 'string'
+    && Boolean((storedSync as Record<string, unknown>).onboardingId);
+  const canCheckCoexistence = isCoexistenceSignup && isWhatsAppCoexistence(onboardingChannel)
+    && hasEmbeddedCoexistenceLifecycle
+    && onboardingChannel?.status !== 'disconnected';
   const requirementsReady = hasAdmin === true && hasPhoneAccess === true;
   const manualConnectionReady =
     manualData.token.trim() !== '' && manualData.wabaId.trim() !== '' && manualData.phoneId.trim() !== '';
@@ -270,6 +283,9 @@ export default function ChannelConnection() {
   const primaryActionLabel = useMemo(() => {
     if (!existingChannel) {
       return 'Connect WhatsApp';
+    }
+    if (getWhatsAppCoexistenceLifecycle(existingChannel).isReconnecting) {
+      return 'Waiting for WhatsApp Business app reconnection';
     }
 
     return existingChannel.displayPhoneNumber
@@ -346,6 +362,10 @@ export default function ChannelConnection() {
   };
 
   const activateSenderWithGeneratedPin = async (failurePrefix: string) => {
+    if (isCoexistenceSignup || isWhatsAppCoexistence(onboardingChannel)) {
+      setError('This number is already registered in the WhatsApp Business app. Check the coexistence connection status to continue.');
+      return;
+    }
     try {
       setIsRegisteringSender(true);
       setError(null);
@@ -388,6 +408,7 @@ export default function ChannelConnection() {
   };
 
   const handleBusinessProfilePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (isWhatsAppCoexistence(onboardingChannel)) return;
     const input = event.currentTarget;
     const file = input.files?.[0];
 
@@ -426,6 +447,10 @@ export default function ChannelConnection() {
   };
 
   const handleSaveBusinessProfile = async () => {
+    if (isWhatsAppCoexistence(onboardingChannel)) {
+      setStep(4);
+      return;
+    }
     try {
       setIsSavingBusinessProfile(true);
       setError(null);
@@ -455,7 +480,17 @@ export default function ChannelConnection() {
     }
   };
 
-  const handleConnectMeta = async () => {
+  const handleConnectMeta = async (reauthorize = false) => {
+    if (coexistenceLifecycle.isReconnecting) {
+      setIsConnecting(true);
+      try { await refresh(); } finally { setIsConnecting(false); }
+      return;
+    }
+    if (canCheckCoexistence && !reauthorize) {
+      await handleCheckCoexistenceConnection();
+      return;
+    }
+    if (reauthorize) pendingSignupRef.current = null;
     const controller = new AbortController();
     signupAbortRef.current = controller;
     try {
@@ -465,7 +500,11 @@ export default function ChannelConnection() {
       if (pendingSignupRef.current && Date.parse(pendingSignupRef.current.expiresAt) <= Date.now()) {
         pendingSignupRef.current = null;
       }
+      if (pendingSignupRef.current && pendingSignupRef.current.setupType !== setupType) {
+        pendingSignupRef.current = null;
+      }
       const embeddedSession = pendingSignupRef.current || await beginEmbeddedSignup({
+        setupType,
         flowState: 'core_onboarding',
         signal: controller.signal,
         onCode: (input) => appApi.exchangeEmbeddedSignupCode(input),
@@ -473,7 +512,7 @@ export default function ChannelConnection() {
       if (controller.signal.aborted) return;
       pendingSignupRef.current = embeddedSession;
       const response = await appApi.connectMetaEmbedded({
-        setupType: DEFAULT_WHATSAPP_SETUP_TYPE,
+        setupType: embeddedSession.setupType,
         signupTicket: embeddedSession.signupTicket,
         wabaId: embeddedSession.wabaId,
         phoneNumberId: embeddedSession.phoneNumberId,
@@ -489,8 +528,12 @@ export default function ChannelConnection() {
       await refresh();
       const issue = getWhatsAppActivationIssue(response.channel);
       if (issue) throw new Error(issue);
-      await refreshBusinessProfile({ silent: true }).catch(() => null);
-      setStep(3);
+      if (isWhatsAppCoexistence(response.channel)) {
+        setStep(4);
+      } else {
+        await refreshBusinessProfile({ silent: true }).catch(() => null);
+        setStep(3);
+      }
     } catch (error) {
       if (!controller.signal.aborted) {
         setError(error instanceof Error ? error.message : 'Meta connection failed.');
@@ -505,13 +548,14 @@ export default function ChannelConnection() {
 
   const handleManualSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (isCoexistenceSignup) return;
 
     try {
       setIsConnecting(true);
       setError(null);
       setSuccess(null);
       const response = await appApi.connectMetaManually({
-        setupType: DEFAULT_WHATSAPP_SETUP_TYPE,
+        setupType: 'exclusive',
         accessToken: manualData.token.trim(),
         wabaId: manualData.wabaId.trim(),
         phoneNumberId: manualData.phoneId.trim(),
@@ -519,9 +563,31 @@ export default function ChannelConnection() {
       setPendingChannel(response.channel);
       setSuccess(null);
       setIsConnecting(false);
-      await activateSenderWithGeneratedPin('Meta connected, but automatic WhatsApp activation failed');
+      if (isWhatsAppCoexistence(response.channel)) {
+        setError('Connect this existing WhatsApp Business app number through Embedded Signup to confirm coexistence and synchronize your data.');
+      } else {
+        await activateSenderWithGeneratedPin('Meta connected, but automatic WhatsApp activation failed');
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Manual Meta connection failed.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleCheckCoexistenceConnection = async () => {
+    try {
+      setIsConnecting(true);
+      setError(null);
+      const response = await appApi.activateWhatsAppCoexistence();
+      setPendingChannel(response.channel);
+      await refresh();
+      const issue = getWhatsAppActivationIssue(response.channel);
+      if (issue) throw new Error(issue);
+      pendingSignupRef.current = null;
+      setStep(4);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Could not confirm the coexistence connection.');
     } finally {
       setIsConnecting(false);
     }
@@ -557,7 +623,7 @@ export default function ChannelConnection() {
                         existingChannel ? 'bg-emerald-500' : 'bg-gray-400'
                       }`}
                     />
-                    {existingChannel ? 'Connected' : 'Not connected'}
+                    {coexistenceLifecycle.isReconnecting ? 'Reconnecting' : existingChannel ? 'Connected' : 'Not connected'}
                   </span>
                 </div>
                 <p className="mt-2 text-sm leading-5 text-gray-500">
@@ -580,13 +646,13 @@ export default function ChannelConnection() {
               <SetupStepRow
                 index={2}
                 title="Connect with Facebook"
-                description="Secure embedded signup or manual credentials."
+                description="Keep your Business app number or connect Cloud API."
                 isComplete={existingChannel !== null}
               />
               <SetupStepRow
                 index={3}
-                title="Review public profile"
-                description="Optional details customers see on WhatsApp."
+                title={isWhatsAppCoexistence(existingChannel) ? 'Sync app data and add payment' : 'Review public profile'}
+                description={isWhatsAppCoexistence(existingChannel) ? 'Keep the app open while contacts and shared history sync.' : 'Optional details customers see on WhatsApp.'}
                 isComplete={existingChannel !== null}
               />
             </div>
@@ -595,7 +661,13 @@ export default function ChannelConnection() {
               <StepCTA
                 type="button"
                 variant="success"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  if (isWhatsAppCoexistence(existingChannel)) {
+                    setSetupType('coexistence');
+                    setStep(getWhatsAppActivationIssue(existingChannel) ? 2 : 4);
+                  }
+                  setIsModalOpen(true);
+                }}
                 icon={<ArrowRight className="h-4 w-4" />}
                 className="flex-1"
               >
@@ -665,7 +737,7 @@ export default function ChannelConnection() {
                     <ChannelBrandIcon channel="whatsapp" className="h-10 w-10 shrink-0" alt="" />
                     <div className="min-w-0">
                       <h2 className="truncate text-base font-semibold text-gray-950">WhatsApp setup</h2>
-                      <p className="text-xs text-gray-500">Step {step} of {totalSteps}</p>
+                      <p className="text-xs text-gray-500">Step {isCoexistenceSignup && step === 4 ? 3 : step} of {totalSteps}</p>
                     </div>
                   </div>
                   <button
@@ -678,9 +750,9 @@ export default function ChannelConnection() {
                   </button>
                 </div>
 
-                <div className="mt-4 grid gap-2 sm:grid-cols-4">
-                  {modalSteps.map(([title, description], index) => {
-                    const stepNumber = index + 1;
+                <div className={`mt-4 grid gap-2 ${isCoexistenceSignup ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
+                  {visibleModalSteps.map(([title, description], index) => {
+                    const stepNumber = isCoexistenceSignup && index === 2 ? 4 : index + 1;
                     const isActive = stepNumber === step;
                     const isComplete = stepNumber < step;
 
@@ -722,9 +794,44 @@ export default function ChannelConnection() {
                         </div>
                         <h3 className="mt-4 text-2xl font-semibold tracking-tight text-gray-950">Quick readiness check</h3>
                         <p className="mx-auto mt-2 max-w-md text-sm leading-5 text-gray-500">
-                          Two answers help avoid failed Meta setup attempts.
+                          Choose how you use WhatsApp, then confirm access to your business.
                         </p>
                       </div>
+
+                      <FormSection title="How do you want to connect WhatsApp?">
+                        <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="WhatsApp connection type">
+                          {([
+                            ['coexistence', 'Keep my WhatsApp Business app', 'Connect your existing number and keep using the app alongside Connektly.'],
+                            ['exclusive', 'Use Cloud API only', 'Connect a number for the WhatsApp Business Platform without the Business app.'],
+                          ] as const).map(([value, title, detail]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              aria-pressed={setupType === value}
+                              onClick={() => {
+                                setSetupType(value);
+                                setHasPhoneAccess(null);
+                                setConnectMethod(null);
+                                pendingSignupRef.current = null;
+                                setError(null);
+                              }}
+                              className={`rounded-2xl border p-4 text-left transition ${setupType === value ? 'border-[#1381FF] bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-200'}`}
+                            >
+                              <span className="block text-sm font-semibold text-gray-950">{title}</span>
+                              <span className="mt-2 block text-xs leading-5 text-gray-600">{detail}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </FormSection>
+
+                      {isCoexistenceSignup ? (
+                        <StatusMessage tone="info">
+                          Use WhatsApp Business version 2.24.17 or later. Keep your phone and the app open during signup and synchronization.
+                          Choose to connect your existing Business app account in Meta, then follow its in-app connection and verification instructions.
+                          If Meta shows a QR code, scan it with your phone and approve the connection in WhatsApp Business.
+                          You can choose whether to share up to six months of individual chat history.
+                        </StatusMessage>
+                      ) : null}
 
                       <FormSection
                         title="Can you manage or create a Meta Business Portfolio?"
@@ -767,15 +874,15 @@ export default function ChannelConnection() {
                             transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                           >
                             <FormSection
-                              title="Can you receive a verification code on your business number?"
-                              description="Have the number available for Meta's SMS or voice verification during signup."
+                              title={isCoexistenceSignup ? 'Can you open your existing WhatsApp Business app?' : 'Can you receive a verification code on your business number?'}
+                              description={isCoexistenceSignup ? 'Have your phone ready to approve the connection in the official Facebook Business message and follow Meta’s verification instructions.' : "Have the number available for Meta's SMS or voice verification during signup."}
                             >
                               <div className="flex flex-wrap gap-2">
                                 <RequirementChoice
                                   selected={hasPhoneAccess === true}
                                   onClick={() => setHasPhoneAccess(true)}
                                 >
-                                  Yes, I can verify it
+                                  {isCoexistenceSignup ? 'Yes, I have the app open' : 'Yes, I can verify it'}
                                 </RequirementChoice>
                                 <RequirementChoice
                                   selected={hasPhoneAccess === false}
@@ -825,12 +932,22 @@ export default function ChannelConnection() {
                           Connect your WhatsApp Business Account
                         </h3>
                         <p className="mx-auto mt-2 max-w-md text-sm leading-5 text-gray-500">
-                          Facebook embedded signup is fastest. Manual setup is available for advanced teams.
+                          {coexistenceLifecycle.isReconnecting
+                            ? 'Register your WhatsApp Business app again on your phone and keep your previous Cloud API products selected. Meta will reconnect your existing account automatically; this can take a few minutes.'
+                            : isCoexistenceSignup
+                            ? 'Connect your existing WhatsApp Business app number through Meta. Keep the app open to approve the connection and share contacts or history.'
+                            : 'Facebook embedded signup is fastest. Manual setup is available for advanced teams.'}
                         </p>
                       </div>
 
                       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
                       {success ? <StatusMessage tone="success">{success}</StatusMessage> : null}
+                      {coexistenceLifecycle.isReconnecting ? (
+                        <StatusMessage tone="info">
+                          Cloud API sending is paused while your app reconnects. Your existing token, account subscriptions, contacts, and history remain saved.
+                          This device reconnection does not need a new Meta signup or another initial history import. Re-link supported companion devices manually after registering your app.
+                        </StatusMessage>
+                      ) : null}
 
                       {!connectMethod ? (
                         <div className="space-y-4">
@@ -839,7 +956,7 @@ export default function ChannelConnection() {
                               type="button"
                               variant="facebook"
                               onClick={() => void handleConnectMeta()}
-                              disabled={isConnecting || isRegisteringSender || !hasEmbeddedSignupConfig || !sdkReady}
+                              disabled={isConnecting || isRegisteringSender || (!canCheckCoexistence && !coexistenceLifecycle.isReconnecting && (!hasEmbeddedSignupConfig || !sdkReady))}
                               loading={isConnecting || isRegisteringSender}
                               icon={<img src={facebookIconUrl} alt="" className="h-5 w-5" />}
                               className="w-full"
@@ -848,7 +965,11 @@ export default function ChannelConnection() {
                                 ? 'Activating WhatsApp...'
                                 : isConnecting
                                   ? 'Connecting...'
-                                  : !sdkReady && !sdkError
+                                  : coexistenceLifecycle.isReconnecting
+                                    ? 'Refresh current status'
+                                    : canCheckCoexistence
+                                    ? 'Check connection status'
+                                    : !sdkReady && !sdkError
                                     ? 'Loading Facebook...'
                                     : pendingSignupRef.current
                                       ? 'Retry connection'
@@ -856,7 +977,9 @@ export default function ChannelConnection() {
                             </StepCTA>
 
                             <div className="mt-4 grid gap-2 text-xs text-gray-500 sm:grid-cols-3">
-                              {['Secure Meta flow', 'Auto activation', 'No manual IDs'].map((item) => (
+                              {(isCoexistenceSignup
+                                ? ['Keep your app', 'Sync supported chats', 'No re-registration']
+                                : ['Secure Meta flow', 'Auto activation', 'No manual IDs']).map((item) => (
                                 <div key={item} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2">
                                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                                   {item}
@@ -866,11 +989,24 @@ export default function ChannelConnection() {
 
                             {!hasEmbeddedSignupConfig ? (
                               <p className="mt-4 text-xs leading-4 text-amber-700">
-                                Facebook embedded signup is not configured yet. Use manual setup below.
+                                {isCoexistenceSignup ? 'Facebook embedded signup must be configured to connect an existing WhatsApp Business app number.' : 'Facebook embedded signup is not configured yet. Use manual setup below.'}
                               </p>
                             ) : null}
                             {sdkError ? <p className="mt-4 text-xs text-amber-700">{sdkError}</p> : null}
-                            {pendingSignupRef.current && error ? (
+                            {canCheckCoexistence && error && !coexistenceLifecycle.isReconnecting ? (
+                              <div className="mt-4 text-sm text-gray-600">
+                                <p>If your Meta access expired or was revoked, authorize again. Existing initial-import evidence is preserved.</p>
+                                <button
+                                  type="button"
+                                  disabled={isConnecting || !sdkReady || !hasEmbeddedSignupConfig}
+                                  onClick={() => void handleConnectMeta(true)}
+                                  className="mt-2 font-semibold text-[#1381FF] underline disabled:opacity-60"
+                                >
+                                  Authorize Facebook again
+                                </button>
+                              </div>
+                            ) : null}
+                            {pendingSignupRef.current && error && !isWhatsAppCoexistence(onboardingChannel) ? (
                               <button
                                 type="button"
                                 disabled={isConnecting}
@@ -885,7 +1021,7 @@ export default function ChannelConnection() {
                             ) : null}
                           </FormSection>
 
-                          <div className="text-center">
+                          {!isCoexistenceSignup ? <div className="text-center">
                             <button
                               type="button"
                               onClick={() => setConnectMethod('manual')}
@@ -894,7 +1030,7 @@ export default function ChannelConnection() {
                             >
                               Use manual connection
                             </button>
-                          </div>
+                          </div> : null}
                         </div>
                       ) : (
                         <motion.form
@@ -992,7 +1128,7 @@ export default function ChannelConnection() {
                         </motion.form>
                       )}
 
-                      {onboardingChannel && error ? (
+                      {onboardingChannel && error && !isWhatsAppCoexistence(onboardingChannel) && !isCoexistenceSignup ? (
                         <StatusMessage tone="warning">
                           <p>The channel details were saved. You can retry automatic activation without entering a PIN.</p>
                           <button
@@ -1011,6 +1147,13 @@ export default function ChannelConnection() {
                         </StatusMessage>
                       ) : null}
 
+                      {onboardingChannel && error && isCoexistenceSignup ? (
+                        <StatusMessage tone="warning">
+                          <p>Your connection details are saved. Use “Check connection status” to confirm setup without registering your number again or repeating an initial import.</p>
+                          <p className="mt-2">Keep WhatsApp Business open. If setup requires a new signup, {WHATSAPP_COEXISTENCE_DISCONNECT_GUIDANCE}</p>
+                        </StatusMessage>
+                      ) : null}
+
                       <button
                         type="button"
                         onClick={() => setStep(1)}
@@ -1021,7 +1164,7 @@ export default function ChannelConnection() {
                     </motion.div>
                   ) : null}
 
-                  {step === 3 ? (
+                  {step === 3 && !isCoexistenceSignup && !isWhatsAppCoexistence(onboardingChannel) ? (
                     <motion.div
                       key="step3"
                       initial={{ opacity: 0, x: 12 }}
@@ -1221,8 +1364,28 @@ export default function ChannelConnection() {
                       </motion.div>
                       <h3 className="mt-6 text-3xl font-semibold tracking-tight text-gray-950">WhatsApp is connected</h3>
                       <p className="mx-auto mt-3 max-w-md text-sm leading-5 text-gray-500">
-                        Your number is registered for Cloud API and Connektly is subscribed to account webhooks.
+                        {isWhatsAppCoexistence(onboardingChannel)
+                          ? 'Your existing WhatsApp Business app number is connected to Connektly. Keep using the app while Cloud API messages and supported individual chats sync.'
+                          : 'Your number is registered for Cloud API and Connektly is subscribed to account webhooks.'}
                       </p>
+                      {coexistenceSync ? (
+                        <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-left text-sm text-blue-900" aria-live="polite">
+                          <p className="font-semibold">WhatsApp Business app synchronization</p>
+                          <p className="mt-2">Contacts: {coexistenceSync.contacts.label}</p>
+                          <p className="mt-1">Chat history: {coexistenceSync.history.label}{coexistenceSync.history.progress !== null && coexistenceSync.history.status !== 'declined' ? ` (${coexistenceSync.history.progress}%)` : ''}</p>
+                          <p className="mt-3">
+                            {coexistenceSync.history.status === 'completed'
+                              ? 'Your shared chat history has finished importing.'
+                              : coexistenceSync.history.status === 'declined'
+                                ? 'You chose not to share past chats. Supported new messages can still sync.'
+                                : 'Keep WhatsApp Business open. Your contacts and shared history are still synchronizing; an accepted request does not mean the import is complete.'}
+                          </p>
+                          <p className="mt-2">Manage your public profile and calls in the WhatsApp Business app. Coexistence has a fixed throughput of 20 messages per second.</p>
+                          {coexistenceSync.contacts.needsRecovery || coexistenceSync.history.needsRecovery ? (
+                            <p className="mt-3 text-amber-900">Synchronization needs attention. Each initial import can be requested only once. {WHATSAPP_COEXISTENCE_DISCONNECT_GUIDANCE}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
                       <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-left text-sm text-amber-900">
                         <p className="font-semibold">Add your WhatsApp payment method</p>
                         <p className="mt-1">Meta bills your business directly. Add or confirm a payment method for this WhatsApp account in WhatsApp Manager before sending messages.</p>

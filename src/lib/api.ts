@@ -431,6 +431,12 @@ export const appApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  activateWhatsAppCoexistence() {
+    return apiRequest<{ channel: DashboardBootstrap['channel'] }>('/meta/channel/coexistence/activate', {
+      method: 'POST',
+    });
+  },
   exchangeMetaOAuthCode(payload: MetaOAuthCodeExchangeInput) {
     return apiRequest<MetaOAuthCodeExchangeResponse>('/meta/oauth/exchange', {
       method: 'POST',

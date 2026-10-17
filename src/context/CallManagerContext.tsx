@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { appApi } from '../lib/api';
+import { getWhatsAppCapabilities } from '../lib/whatsapp-capabilities';
 import { upsertCallLog, upsertCallSession } from '../lib/calls';
 import { getDefaultNotificationPreferences } from '../lib/notifications';
 import { normalizeSdpString } from '../lib/sdp';
@@ -96,7 +97,8 @@ const CallManagerContext = createContext<CallManagerContextValue | null>(null);
 
 export function CallManagerProvider({ children }: { children: ReactNode }) {
   const { bootstrap, setBootstrap } = useAppData();
-  const callSessions = bootstrap?.callSessions || [];
+  const canUseCallingApi = getWhatsAppCapabilities(bootstrap?.channel).canUseCallingApi;
+  const callSessions = canUseCallingApi ? bootstrap?.callSessions || [] : [];
   const notificationPreferences =
     bootstrap?.notificationPreferences ||
     getDefaultNotificationPreferences(bootstrap?.profile?.userId || '');
@@ -113,6 +115,8 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const appliedAnswerCallIdsRef = useRef(new Set<string>());
   const previousStateRef = useRef<string | null>(null);
+  const callingAllowedRef = useRef(canUseCallingApi);
+  callingAllowedRef.current = canUseCallingApi;
 
   const topPrioritySession = useMemo(() => {
     const visibleSessions = callSessions.filter(
@@ -201,6 +205,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
   };
 
   const ensurePeerConnection = async (options?: { reset?: boolean }) => {
+    if (!canUseCallingApi) throw new Error('Place calls in the WhatsApp Business app for this coexistence number.');
     if (options?.reset) {
       releaseBrowserSession({ clearSessionDescription: true, clearCallId: true });
     }
@@ -219,6 +224,10 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
         audio: true,
         video: false,
       }));
+    if (!callingAllowedRef.current) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw new Error('Place calls in the WhatsApp Business app for this coexistence number.');
+    }
     const connection = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
@@ -323,6 +332,13 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  useEffect(() => {
+    if (canUseCallingApi) return;
+    setPendingOutgoingSession(null);
+    stopCallLoopSound();
+    releaseBrowserSession({ clearSessionDescription: true, clearCallId: true });
+  }, [canUseCallingApi]);
+
   const sendCallAction = async (payload: WhatsAppCallManageInput) => {
     setIsCallActionPending(true);
     setError(null);
@@ -331,6 +347,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
       const nextPayload: WhatsAppCallManageInput = {
         ...payload,
       };
+      if (!canUseCallingApi) throw new Error('Place calls in the WhatsApp Business app for this coexistence number.');
 
       if (payload.action === 'connect' && !payload.session) {
         nextPayload.session = {
@@ -356,6 +373,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      if (!callingAllowedRef.current) throw new Error('Place calls in the WhatsApp Business app for this coexistence number.');
       const response = await appApi.manageCall(nextPayload);
       syncResponse(response);
 
@@ -383,6 +401,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
 
   const startOutgoingCall = (to: string, callbackData?: string) =>
     {
+      if (!canUseCallingApi) return Promise.reject(new Error('Place calls in the WhatsApp Business app for this coexistence number.'));
       const now = new Date().toISOString();
       const optimisticCallId = `pending:${Date.now()}`;
 

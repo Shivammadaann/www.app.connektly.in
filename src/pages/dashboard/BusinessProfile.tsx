@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { appApi } from '../../lib/api';
+import { getWhatsAppCapabilities } from '../../lib/whatsapp-capabilities';
 import { useAppData } from '../../context/AppDataContext';
 import { DropdownSelect } from '../../components/ui/DropdownSelect';
 import ChannelBrandIcon from '../../components/ChannelBrandIcon';
@@ -753,6 +754,25 @@ export default function BusinessProfile() {
       setUsernameValidationError(null);
     }
   }, [businessProfile?.username, isUsernameDialogOpen]);
+
+  if (getWhatsAppCapabilities(bootstrap?.channel).isCoexistence) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
+          <Store className="h-12 w-12 text-emerald-600" />
+          <h1 className="mt-5 text-2xl font-bold text-gray-900">Manage your profile in WhatsApp Business</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            {bootstrap?.channel?.displayPhoneNumber || 'This number'} uses the WhatsApp Business app and Cloud API together.
+            Update your business name, photo, address, websites, and other public profile details in the WhatsApp Business app.
+            Meta does not support managing this profile through the Cloud API while coexistence is active.
+          </p>
+          <Link to="/dashboard/channels" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#1381FF]">
+            <ArrowLeft className="h-4 w-4" /> Back to channels
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!bootstrap?.channel) {
     return (

@@ -9,6 +9,9 @@ interface EmbeddedSignupTicketClaims {
   configId: string;
   oauthState: string;
   accessToken: string;
+  setupType: 'exclusive' | 'coexistence';
+  onboardingId: string;
+  issuedAt: number;
   expiresAt: number;
 }
 
@@ -18,7 +21,9 @@ function ticketKey(secret: string) {
 }
 
 export function createEmbeddedSignupTicket(
-  claims: Omit<EmbeddedSignupTicketClaims, 'expiresAt'>,
+  claims: Omit<EmbeddedSignupTicketClaims, 'expiresAt' | 'setupType' | 'onboardingId' | 'issuedAt'> & {
+    setupType?: EmbeddedSignupTicketClaims['setupType'];
+  },
   secret: string,
   now = Date.now(),
 ) {
@@ -27,7 +32,10 @@ export function createEmbeddedSignupTicket(
   const cipher = crypto.createCipheriv('aes-256-gcm', ticketKey(secret), iv);
   cipher.setAAD(Buffer.from(PURPOSE));
   const ciphertext = Buffer.concat([
-    cipher.update(JSON.stringify({ ...claims, expiresAt }), 'utf8'),
+    cipher.update(JSON.stringify({
+      ...claims, setupType: claims.setupType || 'exclusive',
+      onboardingId: crypto.randomUUID(), issuedAt: now, expiresAt,
+    }), 'utf8'),
     cipher.final(),
   ]);
   return {
@@ -38,7 +46,9 @@ export function createEmbeddedSignupTicket(
 
 export function readEmbeddedSignupTicket(
   ticket: string,
-  expected: Pick<EmbeddedSignupTicketClaims, 'userId' | 'appId' | 'configId' | 'oauthState'>,
+  expected: Pick<EmbeddedSignupTicketClaims, 'userId' | 'appId' | 'configId' | 'oauthState'> & {
+    setupType?: EmbeddedSignupTicketClaims['setupType'];
+  },
   secret: string,
   now = Date.now(),
 ): EmbeddedSignupTicketClaims {
@@ -52,9 +62,17 @@ export function readEmbeddedSignupTicket(
     const claims = JSON.parse(Buffer.concat([
       decipher.update(bytes.subarray(28)), decipher.final(),
     ]).toString('utf8')) as EmbeddedSignupTicketClaims;
+    // Pre-upgrade tickets remain usable only for their original Cloud API flow.
+    claims.setupType = claims.setupType || 'exclusive';
+    claims.issuedAt = claims.issuedAt ?? claims.expiresAt - TICKET_LIFETIME_MS;
+    claims.onboardingId = claims.onboardingId || crypto.createHash('sha256').update(ticket).digest('hex');
     if (
       claims.userId !== expected.userId || claims.appId !== expected.appId ||
       claims.configId !== expected.configId || claims.oauthState !== expected.oauthState ||
+      !['exclusive', 'coexistence'].includes(claims.setupType) ||
+      (expected.setupType !== undefined && claims.setupType !== expected.setupType) ||
+      typeof claims.onboardingId !== 'string' || !claims.onboardingId ||
+      !Number.isFinite(claims.issuedAt) || claims.issuedAt > now ||
       typeof claims.accessToken !== 'string' || !claims.accessToken ||
       !Number.isFinite(claims.expiresAt) || claims.expiresAt <= now
     ) throw new Error();

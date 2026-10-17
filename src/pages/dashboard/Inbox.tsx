@@ -36,6 +36,8 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { appApi } from '../../lib/api';
+import { opensCustomerServiceWindow } from '../../lib/customer-service-window';
+import { getWhatsAppCapabilities } from '../../lib/whatsapp-capabilities';
 import {
   canRequestCallPermissionFromResponse,
   canStartCallFromPermissionResponse,
@@ -541,7 +543,7 @@ function getConversationWindowState(messages: ConversationMessage[], currentTime
   let latestInboundMessageAtMs: number | null = null;
 
   for (const message of messages) {
-    if (message.direction !== 'inbound' || message.messageType === 'call_summary') {
+    if (!opensCustomerServiceWindow(message)) {
       continue;
     }
 
@@ -2274,6 +2276,13 @@ function MessageBubble({
   const failureReason = getMessageStatusErrorText(message);
 
   const metadataShouldStayVisible = isPending || Boolean(failureReason);
+  const coexistenceInfo = message.raw?.connektly_coexistence;
+  const sourceInfo: Record<string, unknown> = coexistenceInfo && typeof coexistenceInfo === 'object' && !Array.isArray(coexistenceInfo)
+    ? coexistenceInfo as Record<string, unknown> : {};
+  const sourceLabel = sourceInfo.historical === true ? 'Imported history'
+    : sourceInfo.source === 'whatsapp_business_app' ? 'WhatsApp Business app' : null;
+  const mutation = sourceInfo.mutation;
+  const isEdited = mutation && typeof mutation === 'object' && !Array.isArray(mutation) && (mutation as Record<string, unknown>).kind === 'edit';
 
   useEffect(() => {
     if (failedBubbleAvatarUrl && failedBubbleAvatarUrl !== inboundAvatarUrl) {
@@ -2379,6 +2388,8 @@ function MessageBubble({
           } ${isOutbound ? 'justify-end' : 'justify-start'}`}
         >
           <span>{isPending ? 'Sending...' : formatMessageTime(message.createdAt)}</span>
+          {sourceLabel ? <span>{sourceLabel}</span> : null}
+          {isEdited ? <span>Edited</span> : null}
           {isOutbound ? (
             <div className="flex items-center">
               <MessageReceiptStatus message={message} />
@@ -2397,6 +2408,7 @@ function MessageBubble({
 
 export default function Inbox() {
   const { bootstrap, setBootstrap } = useAppData();
+  const canUseCallingApi = getWhatsAppCapabilities(bootstrap?.channel).canUseCallingApi;
   const { startOutgoingCall } = useCallManager();
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
@@ -3302,6 +3314,10 @@ export default function Inbox() {
   };
 
   const handleStartCallFromInbox = async () => {
+    if (!canUseCallingApi) {
+      setError('Place calls in the WhatsApp Business app for this coexistence number.');
+      return;
+    }
     if (!activeThreadSupportsWhatsAppActions) {
       setError('Calls are currently available only for WhatsApp conversations.');
       return;
@@ -4233,7 +4249,7 @@ export default function Inbox() {
                 <Star className={`h-4 w-4 ${activeThreadIsStarred ? 'fill-amber-400 text-amber-400' : ''}`} />
               </button>
             ) : null}
-            {activeThread && activeThreadSupportsWhatsAppActions ? (
+            {activeThread && activeThreadSupportsWhatsAppActions && canUseCallingApi ? (
               <button
                 onClick={() => void handleStartCallFromInbox()}
                 disabled={!activeThread || isBusy === 'call' || activeThreadIsBlocked}

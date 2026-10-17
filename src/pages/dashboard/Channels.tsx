@@ -9,6 +9,12 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { appApi } from '../../lib/api';
+import {
+  getWhatsAppCapabilities,
+  getWhatsAppCoexistenceSync,
+  getWhatsAppCoexistenceLifecycle,
+  WHATSAPP_COEXISTENCE_DISCONNECT_GUIDANCE,
+} from '../../lib/whatsapp-capabilities';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import FeedbackPopupStack from '../../components/FeedbackPopupStack';
 import { useAppData } from '../../context/AppDataContext';
@@ -856,6 +862,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   const [searchParams] = useSearchParams();
   const [selectedChannelId, setSelectedChannelId] = useState<ChannelId>('whatsapp');
   const [isWhatsAppDisconnecting, setIsWhatsAppDisconnecting] = useState(false);
+  const [isRefreshingWhatsAppStatus, setIsRefreshingWhatsAppStatus] = useState(false);
   const [isInstagramConnecting, setIsInstagramConnecting] = useState(false);
   const [isInstagramDisconnecting, setIsInstagramDisconnecting] = useState(false);
   const [isSavingInstagramSelection, setIsSavingInstagramSelection] = useState(false);
@@ -892,9 +899,13 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   }, [searchParams]);
 
   const whatsappChannel = bootstrap?.channel || null;
+  const whatsappCapabilities = getWhatsAppCapabilities(whatsappChannel);
+  const coexistenceSync = getWhatsAppCoexistenceSync(whatsappChannel);
+  const coexistenceLifecycle = getWhatsAppCoexistenceLifecycle(whatsappChannel);
   const instagramChannel = bootstrap?.instagramChannel || null;
   const messengerChannel = bootstrap?.messengerChannel || null;
-  const isWhatsAppConnected = Boolean(whatsappChannel);
+  const isWhatsAppConnected = Boolean(whatsappChannel)
+    && (!whatsappCapabilities.isCoexistence || whatsappChannel?.status === 'connected');
   const isInstagramConnected = Boolean(instagramChannel);
   const isMessengerConnected = Boolean(messengerChannel);
   const activeBusinessProfile =
@@ -920,6 +931,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
     displayNameRequest?.requestedAt ||
     metadataDisplayNameState.requestedAt;
   const displayNameNeedsRegistration =
+    whatsappCapabilities.canRegisterSender &&
     Boolean(displayNameRequestedName) &&
     isApprovedDisplayNameStatus(displayNameStatus) &&
     (!whatsappSenderRegistrationTimestamp ||
@@ -1000,7 +1012,8 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
 
   const selectedChannel = channels.find((entry) => entry.id === selectedChannelId) || channels[0];
   const connectedChannelCount = channels.filter((channel) => channel.connected).length;
-  const selectedConnectionStatusLabel = selectedChannel.connected ? 'Connected' : 'Not connected';
+  const selectedConnectionStatusLabel = selectedChannel.id === 'whatsapp' && coexistenceLifecycle.isReconnecting
+    ? 'Waiting for app reconnection' : selectedChannel.connected ? 'Connected' : 'Not connected';
 
   const whatsappRows: StatusRow[] = [
     {
@@ -1012,7 +1025,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       detail: whatsappChannel?.businessAccountName
         ? `Business account: ${whatsappChannel.businessAccountName}`
         : 'Connect a real Meta WhatsApp account to load live channel details.',
-      statusText: isWhatsAppConnected ? 'Connected' : 'Disconnected',
+      statusText: coexistenceLifecycle.isReconnecting ? 'Reconnecting' : isWhatsAppConnected ? 'Connected' : 'Disconnected',
       statusTone: isWhatsAppConnected
         ? 'text-green-700 bg-green-50 border-green-200'
         : 'text-gray-700 bg-gray-50 border-gray-200',
@@ -1023,7 +1036,9 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
         displayNameNeedsRegistration && displayNameRequestedName
           ? displayNameRequestedName
           : whatsappChannel?.verifiedName || displayNameRequestedName || 'Display name not returned yet',
-      detail: displayNameNeedsRegistration
+      detail: whatsappCapabilities.isCoexistence
+        ? 'Manage the business name and other profile details in the WhatsApp Business app.'
+        : displayNameNeedsRegistration
         ? `Approved by Meta. The server will automatically register ${whatsappTwoStepPhoneLabel} again to apply this display name to Cloud API messaging.`
         : 'Shows approval status and the current display name returned by Meta.',
       statusText: displayNameApproval.label,
@@ -1037,6 +1052,28 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
       statusTone: 'text-[#0f2e82] bg-[#eff5ff] border-[#cdddff]',
     },
   ];
+
+  if (whatsappChannel) {
+    whatsappRows.push({
+      label: 'Connection Type',
+      account: whatsappCapabilities.connectionLabel,
+      detail: whatsappCapabilities.isCoexistence
+        ? 'Keep using your WhatsApp Business app alongside Connektly. Individual chats are mirrored; group chats and app-only business tools are not synchronized.'
+        : 'This number uses the WhatsApp Business Platform through Cloud API.',
+      statusText: whatsappCapabilities.isCoexistence ? 'Coexistence' : 'Cloud API',
+      statusTone: 'text-[#0f2e82] bg-[#eff5ff] border-[#cdddff]',
+    });
+  }
+
+  if (whatsappCapabilities.isCoexistence) {
+    whatsappRows.push({
+      label: 'Message Throughput',
+      account: '20 messages per second',
+      detail: 'Meta fixes coexistence throughput at 20 messages per second. Messaging tiers and Cloud API pricing still apply.',
+      statusText: 'Fixed by Meta',
+      statusTone: 'text-[#0f2e82] bg-[#eff5ff] border-[#cdddff]',
+    });
+  }
 
   const qualityRows: StatusRow[] = [
     {
@@ -1174,7 +1211,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   useEscapeKey(Boolean(messengerSelection), () => setMessengerSelection(null));
 
   const disconnectWhatsAppChannel = async () => {
-    if (!whatsappChannel) {
+    if (!whatsappChannel || whatsappCapabilities.isCoexistence) {
       return;
     }
 
@@ -1196,6 +1233,11 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
 
   const handleDisconnectWhatsApp = () => {
     if (!whatsappChannel) {
+      return;
+    }
+
+    if (whatsappCapabilities.isCoexistence) {
+      setSuccess(WHATSAPP_COEXISTENCE_DISCONNECT_GUIDANCE);
       return;
     }
 
@@ -1398,7 +1440,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   };
 
   const openTwoStepVerificationDialog = (mode: 'enable' | 'change') => {
-    if (!whatsappChannel) {
+    if (!whatsappCapabilities.canManageTwoStepVerification) {
       return;
     }
 
@@ -1417,7 +1459,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   };
 
   const openVerificationCodeDialog = (method: 'SMS' | 'VOICE') => {
-    if (!whatsappChannel) {
+    if (!whatsappCapabilities.canVerifyPhone) {
       return;
     }
 
@@ -1437,7 +1479,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   };
 
   const openVerifyCodeDialog = () => {
-    if (!whatsappChannel) {
+    if (!whatsappCapabilities.canVerifyPhone) {
       return;
     }
 
@@ -1456,7 +1498,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   };
 
   const handleRequestVerificationCode = async () => {
-    if (!whatsappChannel || !verificationCodeDialogMethod) {
+    if (!whatsappCapabilities.canVerifyPhone || !verificationCodeDialogMethod) {
       return;
     }
 
@@ -1494,7 +1536,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   };
 
   const handleVerifyVerificationCode = async () => {
-    if (!whatsappChannel) {
+    if (!whatsappCapabilities.canVerifyPhone) {
       return;
     }
 
@@ -1530,7 +1572,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   };
 
   const handleSaveTwoStepVerification = async () => {
-    if (!whatsappChannel || !twoStepVerificationDialogMode) {
+    if (!whatsappCapabilities.canManageTwoStepVerification || !twoStepVerificationDialogMode) {
       return;
     }
 
@@ -1573,7 +1615,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
   };
 
   const handleTurnOffTwoStepVerification = () => {
-    if (!whatsappChannel) {
+    if (!whatsappCapabilities.canManageTwoStepVerification) {
       return;
     }
 
@@ -1775,6 +1817,22 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
 
   const renderPrimaryAction = () => {
     if (selectedChannel.id === 'whatsapp') {
+      if (coexistenceLifecycle.isReconnecting) {
+        return (
+          <button
+            type="button"
+            disabled={isRefreshingWhatsAppStatus}
+            onClick={async () => {
+              setIsRefreshingWhatsAppStatus(true);
+              try { await refresh(); } finally { setIsRefreshingWhatsAppStatus(false); }
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800 disabled:opacity-60"
+          >
+            {isRefreshingWhatsAppStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Refresh current status
+          </button>
+        );
+      }
       return isWhatsAppConnected ? (
         <>
           <Link
@@ -1782,7 +1840,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#2364ff]/20 bg-[#eff3ff] px-3 py-2 text-xs font-semibold text-[#1d54d9] transition duration-200 hover:-translate-y-px hover:bg-[#e3ebff] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            Edit Business Profile
+            {whatsappCapabilities.isCoexistence ? 'Business Profile' : 'Edit Business Profile'}
           </Link>
           <button
             type="button"
@@ -1791,7 +1849,7 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition duration-200 hover:-translate-y-px hover:bg-red-100 active:scale-[0.97] disabled:opacity-60 sm:w-auto"
           >
             <Power className="h-3.5 w-3.5" />
-            {isWhatsAppDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+            {isWhatsAppDisconnecting ? 'Disconnecting...' : whatsappCapabilities.isCoexistence ? 'How to disconnect' : 'Disconnect'}
           </button>
         </>
       ) : (
@@ -1944,7 +2002,71 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
             <>
               <StatusTable rows={whatsappRows} reduceMotion={Boolean(shouldReduceMotion)} />
               <StatusTable rows={qualityRows} isQualityTable reduceMotion={Boolean(shouldReduceMotion)} />
-              {isWhatsAppConnected ? (
+              {whatsappCapabilities.isCoexistence ? (
+                <motion.div variants={slideUp} className="rounded-3xl border border-emerald-100 bg-emerald-50/60 px-5 py-5">
+                  <h3 className="text-base font-semibold text-gray-900">WhatsApp Business app coexistence</h3>
+                  {coexistenceLifecycle.isReconnecting ? (
+                    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                      WhatsApp is waiting for your Business app to reconnect after a device change or re-registration.
+                      Register the Business app on your phone and keep the previous Cloud API products selected when Meta asks.
+                      Meta reconnects your existing account automatically, which can take a few minutes. Cloud API sending is paused until Meta confirms reconnection.
+                      Your existing contacts and history import are preserved; a new signup or initial import is not needed. Re-link supported companion devices manually.
+                    </p>
+                  ) : null}
+                  <p className="mt-2 text-sm leading-6 text-gray-700">
+                    Manage your business profile, two-step verification, and voice or video calls in the WhatsApp Business app.
+                    This number is already registered; registration and phone verification controls are unavailable here.
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-gray-700">
+                    Cloud API replies in Connektly need an open 24-hour customer service window or an approved template.
+                    Imported history and messages sent from the Business app do not open or extend that window.
+                  </p>
+                  {!coexistenceLifecycle.isReconnecting ? <p className="mt-3 text-sm leading-6 text-gray-700">{WHATSAPP_COEXISTENCE_DISCONNECT_GUIDANCE}</p> : null}
+                </motion.div>
+              ) : null}
+              {coexistenceSync ? (
+                <motion.div variants={slideUp} className="rounded-3xl border border-gray-100 bg-white px-5 py-5 shadow-sm" aria-live="polite">
+                  <h3 className="text-base font-semibold text-gray-900">WhatsApp Business app synchronization</h3>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {([
+                      ['Contacts', coexistenceSync.contacts],
+                      ['Chat history', coexistenceSync.history],
+                    ] as const).map(([label, operation]) => (
+                      <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                        <p className="text-sm font-semibold text-gray-900">{label}</p>
+                        <p className={`mt-1 text-sm ${operation.needsRecovery ? 'text-amber-700' : 'text-gray-600'}`}>
+                          {operation.label}
+                          {label === 'Chat history' && operation.progress !== null && operation.status !== 'declined' ? ` (${operation.progress}%)` : ''}
+                        </p>
+                        {operation.requestId ? (
+                          <p className="mt-2 break-all text-xs text-gray-500">Support request ID: {operation.requestId}</p>
+                        ) : null}
+                        {operation.lastError ? <p className="mt-2 text-xs leading-5 text-amber-700">{operation.lastError}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-gray-600">
+                    {coexistenceSync.history.status === 'completed'
+                      ? 'Your shared chat history has finished synchronizing. New WhatsApp Business app messages will appear in Inbox.'
+                      : coexistenceSync.history.status === 'declined'
+                        ? 'You chose not to share chat history. New supported messages can still sync into Inbox.'
+                        : 'Keep your WhatsApp Business app open while Meta sends your contacts and shared chat history. Synchronization can take several minutes.'}
+                    {' '}Only individual chats are imported, with up to six months of shared history. Recent media may arrive separately.
+                  </p>
+                  {coexistenceSync.contacts.status === 'pending' ? (
+                    <p className="mt-2 text-xs leading-5 text-gray-500">
+                      Contact updates are being received from Meta. Meta does not provide a total or a completion marker for the initial contact import.
+                    </p>
+                  ) : null}
+                  {coexistenceSync.contacts.needsRecovery || coexistenceSync.history.needsRecovery ? (
+                    <p className="mt-3 text-sm leading-6 text-amber-800">
+                      Synchronization needs attention. Each initial import can be requested only once within 24 hours of onboarding.
+                      Check the request IDs with support before reconnecting. If a new signup is needed, disconnect from the WhatsApp Business app first, then connect again in Connektly.
+                    </p>
+                  ) : null}
+                </motion.div>
+              ) : null}
+              {isWhatsAppConnected && whatsappCapabilities.canManageTwoStepVerification ? (
                 <motion.div variants={slideUp} className="space-y-6">
                   <div className="rounded-3xl border border-gray-100 bg-white px-5 py-5 shadow-sm">
                     <div className="flex flex-col gap-5">

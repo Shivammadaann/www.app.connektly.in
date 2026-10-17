@@ -1,5 +1,5 @@
 import { WHATSAPP_ONBOARDING_CONFIG_ID, clientConfig } from './config';
-import type { EmbeddedMetaCodeExchangeInput, EmbeddedMetaCodeExchangeResponse } from './types';
+import type { EmbeddedMetaCodeExchangeInput, EmbeddedMetaCodeExchangeResponse, SetupType } from './types';
 
 export type FacebookLoginStatus = 'connected' | 'not_authorized' | 'unknown';
 
@@ -51,10 +51,11 @@ export type MetaOAuthFlowState =
   | 'messenger_flow';
 
 export interface EmbeddedSignupSession {
+  setupType: SetupType;
   signupTicket: string;
   expiresAt: string;
   wabaId: string;
-  phoneNumberId: string;
+  phoneNumberId?: string;
   redirectUri: string;
   flowState: MetaOAuthFlowState;
   oauthState: string;
@@ -455,6 +456,7 @@ export function beginEmbeddedSignup(options: {
   onCode: (input: EmbeddedMetaCodeExchangeInput) => Promise<EmbeddedMetaCodeExchangeResponse>;
   signal?: AbortSignal;
   flowState?: MetaOAuthFlowState;
+  setupType?: SetupType;
 }): Promise<EmbeddedSignupSession> {
   // FB.login must run directly in the click handler, without awaiting SDK loading.
   if (!sdkInitialized || !window.FB) {
@@ -471,6 +473,7 @@ export function beginEmbeddedSignup(options: {
   }
 
   const fb = window.FB;
+  const setupType = options.setupType || 'exclusive';
   const configId = WHATSAPP_ONBOARDING_CONFIG_ID;
   const redirectUri = `${window.location.origin}${window.location.pathname}`;
   const flowState = options.flowState || 'core_onboarding';
@@ -501,12 +504,13 @@ export function beginEmbeddedSignup(options: {
     const maybeResolve = () => {
       if (settled || !authorization || !sessionInfo) return;
       const wabaId = String(sessionInfo.data.waba_id || '').trim();
-      const phoneNumberId = String(sessionInfo.data.phone_number_id || '').trim();
+      const phoneNumberId = typeof sessionInfo.data.phone_number_id === 'string'
+        ? sessionInfo.data.phone_number_id.trim() : undefined;
       cleanup();
       resolve({
         signupTicket: authorization.signupTicket,
         expiresAt: authorization.expiresAt,
-        wabaId, phoneNumberId, redirectUri, flowState, oauthState,
+        setupType, wabaId, phoneNumberId, redirectUri, flowState, oauthState,
         setupContext: sessionInfo,
       });
     };
@@ -541,20 +545,26 @@ export function beginEmbeddedSignup(options: {
         fail('Meta created the WhatsApp account without a phone number. Run signup again and add a phone number to connect messaging.');
         return;
       }
-      if (payload.event?.startsWith('FINISH') && payload.event !== 'FINISH') {
-        fail('Meta returned a different WhatsApp onboarding flow. This connection requires the standard Cloud API flow; use its WhatsApp Embedded Signup configuration.');
+      const expectedFinishEvent = setupType === 'coexistence'
+        ? 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' : 'FINISH';
+      if (payload.event.startsWith('FINISH') && payload.event !== expectedFinishEvent) {
+        fail(setupType === 'coexistence'
+          ? 'Meta returned a different WhatsApp onboarding flow. Choose the option to connect your existing WhatsApp Business app account, then try again.'
+          : 'Meta returned a different WhatsApp onboarding flow. This connection requires the standard Cloud API flow; use its WhatsApp Embedded Signup configuration.');
         return;
       }
-      if (payload.event !== 'FINISH') return;
+      if (payload.event !== expectedFinishEvent) return;
       const wabaId = typeof data.waba_id === 'string' ? data.waba_id.trim() : '';
       const phoneNumberId = typeof data.phone_number_id === 'string' ? data.phone_number_id.trim() : '';
-      if (!/^\d+$/.test(wabaId) || !/^\d+$/.test(phoneNumberId)) {
+      if (!/^\d+$/.test(wabaId)
+        || (setupType === 'exclusive' && !/^\d+$/.test(phoneNumberId))
+        || (data.phone_number_id !== undefined && !/^\d+$/.test(phoneNumberId))) {
         fail('Meta finished signup without the WhatsApp account and phone number IDs. Confirm that the app domain is allowed in Facebook Login for Business, then try again.');
         return;
       }
       sessionInfo = {
-        type: 'WA_EMBEDDED_SIGNUP', event: 'FINISH',
-        data: { ...data, waba_id: wabaId, phone_number_id: phoneNumberId },
+        type: 'WA_EMBEDDED_SIGNUP', event: expectedFinishEvent,
+        data: { ...data, waba_id: wabaId, ...(phoneNumberId ? { phone_number_id: phoneNumberId } : {}) },
         receivedAt: new Date().toISOString(),
         appId: clientConfig.meta.appId, configId,
         graphVersion: clientConfig.meta.graphVersion, redirectUri, flowState, oauthState,
@@ -583,7 +593,7 @@ export function beginEmbeddedSignup(options: {
         }, 60000);
         let exchange: Promise<EmbeddedMetaCodeExchangeResponse>;
         try {
-          exchange = options.onCode({ code, configId, oauthState });
+          exchange = options.onCode({ code, configId, oauthState, setupType });
         } catch (error) {
           fail(error instanceof Error ? error.message : 'Could not exchange the Meta signup code.');
           return;
@@ -599,7 +609,10 @@ export function beginEmbeddedSignup(options: {
         config_id: configId,
         response_type: 'code',
         override_default_response_type: true,
-        extras: { setup: {}, version: 'v4', sessionInfoVersion: 3 },
+        extras: {
+          setup: {}, version: 'v4', sessionInfoVersion: 3,
+          ...(setupType === 'coexistence' ? { featureType: 'whatsapp_business_app_onboarding' } : {}),
+        },
       });
     } catch (error) {
       fail(error instanceof Error ? error.message : 'Could not open Meta Embedded Signup.');
