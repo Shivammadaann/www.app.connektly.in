@@ -58,6 +58,11 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+-- Service-role-only media cache. Access is proxied through the authenticated API.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('whatsapp-partner-media', 'whatsapp-partner-media', false, 52428800)
+on conflict (id) do nothing;
+
 create table if not exists public.meta_channels (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,

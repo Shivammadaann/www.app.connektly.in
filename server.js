@@ -1,6 +1,6 @@
 // server.ts
 import "dotenv/config";
-import crypto3 from "node:crypto";
+import crypto4 from "node:crypto";
 import dns from "node:dns";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,6 +10,16 @@ import express from "express";
 import multer from "multer";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+
+// src/lib/whatsapp-partner.ts
+var WHATSAPP_PARTNER_SOLUTION_ID = "1287084176407435";
+var WHATSAPP_SOLUTION_PARTNER_APP_ID = "340384197887925";
+function isWhatsAppPartnerChannel(channel) {
+  const metadata = channel?.metadata;
+  const partner = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata.partnerSolution : null;
+  return Boolean(partner && typeof partner === "object" && !Array.isArray(partner) && partner.id === WHATSAPP_PARTNER_SOLUTION_ID);
+}
+var WHATSAPP_PARTNER_CALLING_GUIDANCE = "Calling for this partner connection requires Gupshup SIP setup. Browser calling is unavailable on this connection.";
 
 // src/lib/whatsapp-capabilities.ts
 function record(value) {
@@ -91,6 +101,174 @@ function coexistenceRestrictedAction(method, pathname) {
   return null;
 }
 
+// server/gupshup.ts
+import crypto from "node:crypto";
+var record2 = (v) => Boolean(v && typeof v === "object" && !Array.isArray(v));
+var normalizePartnerPhone = (value) => String(value || "").replace(/\D/g, "");
+function gupshupCallbackSecret(secret, channelId, appId) {
+  if (!secret) throw new Error("Configure GUPSHUP_WEBHOOK_SECRET before partner onboarding.");
+  return crypto.createHmac("sha256", secret).update(`connektly:gupshup:v3:${channelId}:${appId}`).digest("hex");
+}
+function verifyGupshupCallbackSecret(supplied, expected) {
+  return /^[a-f0-9]{64}$/.test(supplied) && supplied.length === expected.length && crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+}
+function createGupshupClient(config) {
+  const requestFetch = config.fetch || fetch;
+  const appPath = (id) => `/partner/app/${encodeURIComponent(id)}`;
+  async function request(path2, options = {}) {
+    if (!config.token) throw new Error("Configure the server GUPSHUP_PARTNER_TOKEN Universal Token.");
+    const response = await requestFetch(`https://partner.gupshup.io${path2}`, {
+      method: options.method || "GET",
+      redirect: "error",
+      signal: AbortSignal.timeout(config.timeoutMs || 3e4),
+      headers: {
+        Accept: "application/json",
+        ...options.tokenHeader ? { token: config.token } : { Authorization: `${options.bearer ? "Bearer " : ""}${config.token}` },
+        ...options.body ? { "Content-Type": "application/json" } : {},
+        ...options.form || options.rawFormJson ? { "Content-Type": "application/x-www-form-urlencoded" } : {}
+      },
+      body: options.multipart || (options.body ? JSON.stringify(options.body) : options.form ? new URLSearchParams(options.form) : options.rawFormJson ? JSON.stringify(options.rawFormJson) : void 0)
+    });
+    let payload;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new Error(`Gupshup returned a non-JSON response (${response.status}). Partner API availability must be confirmed; the operation will not be replayed automatically.`);
+    }
+    if (!response.ok || !record2(payload) || payload.status === "error" || payload.status === "failed" || payload.error) {
+      throw Object.assign(new Error(`Gupshup could not confirm the operation (${response.status}). Check the partner app and wallet in the Partner Portal.`), { metaStatus: response.status });
+    }
+    return payload;
+  }
+  return {
+    async blockedUsers(appId, method, body, after) {
+      if (method === "GET") return request(`${appPath(appId)}/user/blocklist?${new URLSearchParams({ limit: "100", ...after ? { after } : {} })}`);
+      if (!["POST", "DELETE"].includes(method)) throw new Error("Unsupported partner block action.");
+      return request(`${appPath(appId)}/user/${method === "DELETE" ? "unblock" : "block"}`, { method: "POST", body });
+    },
+    async createApp(input) {
+      if (!/^\d+$/.test(config.partnerId) || !config.walletName) throw new Error("Configure GUPSHUP_PARTNER_ID and GUPSHUP_WALLET_NAME.");
+      const result = await request(`/partner/bizgate/partner/${config.partnerId}/tpp/app`, {
+        method: "POST",
+        bearer: true,
+        body: { ...input, phone: normalizePartnerPhone(input.phone), walletName: config.walletName, force: false }
+      });
+      if (result.status !== "success" || !record2(result.data) || typeof result.data.appId !== "string" || !result.data.appId) {
+        throw new Error("Gupshup did not confirm the created app ID. Check the Partner Portal before retrying onboarding.");
+      }
+      return result.data.appId;
+    },
+    async findApps(phone2) {
+      const matches = [];
+      for (let page = 1; page <= 100; page++) {
+        const result = await request(`/partner/app/list?${new URLSearchParams({ phone: normalizePartnerPhone(phone2), pageNo: String(page), pageSize: "100" })}`, { tokenHeader: true });
+        const rows = result.partnerAppsList || result.apps || result.appList;
+        if (!Array.isArray(rows)) throw new Error("Gupshup did not return a verifiable partner app list.");
+        matches.push(...rows.filter((row) => record2(row) && normalizePartnerPhone(row.phone) === normalizePartnerPhone(phone2)));
+        if (rows.length < 100) return matches;
+      }
+      throw new Error("Gupshup app pagination could not be completed.");
+    },
+    async details(appId) {
+      const result = await request(`${appPath(appId)}/details`, { tokenHeader: true });
+      const app2 = record2(result.app) ? result.app : result.appDetails;
+      if (!record2(app2) || String(app2.id || app2.appId) !== appId) throw new Error("Gupshup returned an unexpected app.");
+      return app2;
+    },
+    async health(appId) {
+      const result = await request(`${appPath(appId)}/waba/info`, { bearer: true });
+      if (!record2(result.wabaInfo)) throw new Error("Gupshup did not confirm WhatsApp account health.");
+      return result.wabaInfo;
+    },
+    async ensureSubscription(appId, input) {
+      const path2 = `${appPath(appId)}/subscription`;
+      const existing = await request(path2);
+      const rows = existing.subscriptions || existing.data;
+      if (!Array.isArray(rows)) throw new Error("Gupshup did not return callback subscriptions.");
+      const owned = rows.filter((row) => row.tag === input.tag);
+      if (owned.length > 1) throw new Error("Multiple Connektly callback subscriptions need review in the Partner Portal.");
+      const body = {
+        url: input.url,
+        tag: input.tag,
+        version: "3",
+        modes: "ALL,READ,DELIVERED,SENT,FAILED,ENQUEUED,BILLING,OTHERS,TEMPLATE,ACCOUNT,COEXISTENCE,FLOWS_MESSAGE",
+        showOnUI: "false",
+        meta: JSON.stringify({ "X-Gupshup-Webhook-Secret": input.secret })
+      };
+      await request(owned.length ? `${path2}/${encodeURIComponent(owned[0].id)}` : path2, {
+        method: owned.length ? "PUT" : "POST",
+        form: body
+      });
+      const confirmed = await request(path2);
+      const saved = (confirmed.subscriptions || confirmed.data || []).filter((row) => row.tag === input.tag && row.url === input.url && Number(row.version) === 3 && row.active === true);
+      if (saved.length !== 1) throw new Error("Gupshup has not confirmed the active v3 Connektly callback.");
+      let headers;
+      try {
+        headers = typeof saved[0].meta === "string" ? JSON.parse(saved[0].meta) : saved[0].meta;
+      } catch {
+        headers = {};
+      }
+      if (!record2(headers) || headers["X-Gupshup-Webhook-Secret"] !== input.secret) throw new Error("Gupshup did not confirm the callback authentication header.");
+      return String(saved[0].id);
+    },
+    async send(appId, body, marketing = false) {
+      if (body.status === "read") {
+        const result2 = await request(`${appPath(appId)}/v1/event`, { method: "POST", rawFormJson: { type: "message-event", message: body } });
+        if (result2.status !== "success") throw new Error("Gupshup did not confirm the read receipt.");
+        return { success: true };
+      }
+      const result = await request(`${appPath(appId)}/${marketing ? "onboarding/marketing/msg" : "v3/message"}`, { method: "POST", body });
+      if (!Array.isArray(result.messages) || !result.messages[0]?.id) throw new Error("Gupshup did not confirm a message ID. Do not automatically resend this message.");
+      return result;
+    },
+    async uploadMedia(appId, file) {
+      const form = new FormData();
+      form.append("file_type", file.mimeType);
+      form.append("file", new Blob([new Uint8Array(file.buffer)], { type: file.mimeType }), file.fileName);
+      const result = await request(`${appPath(appId)}/media`, { method: "POST", multipart: form });
+      if (result.status !== "success" || !result.mediaId) throw new Error("Gupshup did not confirm a media ID.");
+      return { id: String(result.mediaId) };
+    },
+    async downloadMedia(appId, mediaId) {
+      if (!config.token) throw new Error("The Gupshup Universal Token is not configured.");
+      const response = await requestFetch(`https://partner.gupshup.io${appPath(appId)}/media/${encodeURIComponent(mediaId)}`, {
+        headers: { Authorization: config.token },
+        redirect: "error",
+        signal: AbortSignal.timeout(config.timeoutMs || 3e4)
+      });
+      if (!response.ok || !response.body || response.headers.get("content-type")?.includes("text/html")) {
+        throw new Error(`Partner media is unavailable (${response.status}). Check media expiry and the provider download limit.`);
+      }
+      if (response.headers.get("content-type")?.includes("application/json")) {
+        const body = await response.clone().json().catch(() => null);
+        if (body?.status === "error" || body?.status === "failed") throw new Error("Gupshup could not retrieve this media.");
+      }
+      return response;
+    },
+    async sync(appId, syncType) {
+      if (!["smb_app_state_sync", "history"].includes(syncType)) throw new Error("Invalid coexistence sync type.");
+      const result = await request(`${appPath(appId)}/coex/sync`, { method: "POST", bearer: true, form: { syncType } });
+      if (!record2(result.data) || !result.data.request_id) throw new Error("Gupshup did not confirm a synchronization request ID.");
+      return result.data;
+    }
+  };
+}
+function normalizeGupshupWebhook(payload, channel) {
+  const appId = channel.metadata?.gupshup?.appId;
+  if (!appId || payload.gs_app_id !== appId || !Array.isArray(payload.entry)) throw new Error("Unexpected Gupshup callback app.");
+  return { ...payload, entry: payload.entry.map((entry) => {
+    return { ...entry, changes: (entry.changes || []).map((change) => {
+      if (change.field === "partner_solutions") throw new Error("Solution lifecycle events require the Meta-signed webhook.");
+      const value = record2(change.value) ? change.value : {};
+      const waba = value.waba_info?.waba_id;
+      if (waba && waba !== channel.waba_id || (!waba || change.field !== "account_update") && entry.id && entry.id !== channel.waba_id || value.phone_number_id && value.phone_number_id !== channel.phone_number_id || value.metadata?.phone_number_id && value.metadata.phone_number_id !== channel.phone_number_id) {
+        throw new Error("Gupshup callback assets do not match its connected app.");
+      }
+      return { ...change, value: { ...value, metadata: { ...value.metadata, phone_number_id: channel.phone_number_id } } };
+    }), id: entry.changes?.some((c) => c.field === "account_update") ? entry.id || channel.waba_id : channel.waba_id };
+  }) };
+}
+
 // server/coexistence-rate-limit.ts
 function whatsappSendPhoneId(args) {
   if (args.method !== "POST" || args.graphHost !== "graph.facebook.com" || args.body?.messaging_product !== "whatsapp") return null;
@@ -144,23 +322,23 @@ async function claimLiveWhatsAppMessage(args) {
 }
 
 // server/embedded-signup-ticket.ts
-import crypto from "node:crypto";
+import crypto2 from "node:crypto";
 var PURPOSE = "connektly:whatsapp-embedded-signup:v1";
 var TICKET_LIFETIME_MS = 10 * 60 * 1e3;
 function ticketKey(secret) {
   if (!secret) throw new Error("Meta app credentials are not configured.");
-  return crypto.createHash("sha256").update(`${PURPOSE}:${secret}`).digest();
+  return crypto2.createHash("sha256").update(`${PURPOSE}:${secret}`).digest();
 }
 function createEmbeddedSignupTicket(claims, secret, now = Date.now()) {
   const expiresAt = now + TICKET_LIFETIME_MS;
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", ticketKey(secret), iv);
+  const iv = crypto2.randomBytes(12);
+  const cipher = crypto2.createCipheriv("aes-256-gcm", ticketKey(secret), iv);
   cipher.setAAD(Buffer.from(PURPOSE));
   const ciphertext = Buffer.concat([
     cipher.update(JSON.stringify({
       ...claims,
       setupType: claims.setupType || "exclusive",
-      onboardingId: crypto.randomUUID(),
+      onboardingId: crypto2.randomUUID(),
       issuedAt: now,
       expiresAt
     }), "utf8"),
@@ -176,7 +354,7 @@ function readEmbeddedSignupTicket(ticket, expected, secret, now = Date.now()) {
     if (!ticket || ticket.length > 16e3 || !/^[A-Za-z0-9_-]+$/.test(ticket)) throw new Error();
     const bytes = Buffer.from(ticket, "base64url");
     if (bytes.length <= 28) throw new Error();
-    const decipher = crypto.createDecipheriv("aes-256-gcm", ticketKey(secret), bytes.subarray(0, 12));
+    const decipher = crypto2.createDecipheriv("aes-256-gcm", ticketKey(secret), bytes.subarray(0, 12));
     decipher.setAAD(Buffer.from(PURPOSE));
     decipher.setAuthTag(bytes.subarray(12, 28));
     const claims = JSON.parse(Buffer.concat([
@@ -185,8 +363,8 @@ function readEmbeddedSignupTicket(ticket, expected, secret, now = Date.now()) {
     ]).toString("utf8"));
     claims.setupType = claims.setupType || "exclusive";
     claims.issuedAt = claims.issuedAt ?? claims.expiresAt - TICKET_LIFETIME_MS;
-    claims.onboardingId = claims.onboardingId || crypto.createHash("sha256").update(ticket).digest("hex");
-    if (claims.userId !== expected.userId || claims.appId !== expected.appId || claims.configId !== expected.configId || claims.oauthState !== expected.oauthState || !["exclusive", "coexistence"].includes(claims.setupType) || expected.setupType !== void 0 && claims.setupType !== expected.setupType || typeof claims.onboardingId !== "string" || !claims.onboardingId || !Number.isFinite(claims.issuedAt) || claims.issuedAt > now || typeof claims.accessToken !== "string" || !claims.accessToken || !Number.isFinite(claims.expiresAt) || claims.expiresAt <= now) throw new Error();
+    claims.onboardingId = claims.onboardingId || crypto2.createHash("sha256").update(ticket).digest("hex");
+    if (claims.userId !== expected.userId || claims.appId !== expected.appId || claims.configId !== expected.configId || claims.oauthState !== expected.oauthState || !["exclusive", "coexistence"].includes(claims.setupType) || expected.setupType !== void 0 && claims.setupType !== expected.setupType || claims.solutionId !== expected.solutionId || typeof claims.onboardingId !== "string" || !claims.onboardingId || !Number.isFinite(claims.issuedAt) || claims.issuedAt > now || typeof claims.accessToken !== "string" || !claims.accessToken || !Number.isFinite(claims.expiresAt) || claims.expiresAt <= now) throw new Error();
     return claims;
   } catch {
     throw new Error("This WhatsApp signup session is invalid or expired. Start Embedded Signup again.");
@@ -194,7 +372,7 @@ function readEmbeddedSignupTicket(ticket, expected, secret, now = Date.now()) {
 }
 
 // server/coexistence-webhooks.ts
-var record2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
+var record3 = (value) => value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
 var array = (value) => Array.isArray(value) ? value : [];
 var string = (value) => typeof value === "string" && value.trim() ? value.trim() : null;
 var phone = (value) => {
@@ -211,7 +389,7 @@ function coexistenceTimestamp(value) {
 }
 function messagePreview(raw) {
   const type = string(raw.type) || "unknown";
-  const content = record2(raw[type]);
+  const content = record3(raw[type]);
   if (type === "text") return string(content.body);
   if (type === "media_placeholder") return "Media from WhatsApp Business app (not yet available)";
   if (type === "revoke") return "This message was deleted";
@@ -224,7 +402,7 @@ function messagePreview(raw) {
   if (type === "location") return string(content.name) || "Location";
   if (type === "button") return string(content.text) || "Button reply";
   if (type === "interactive") {
-    return string(record2(content.body).text) || string(record2(content.button_reply).title) || string(record2(content.list_reply).title) || string(record2(content.nfm_reply).body) || "Interactive message";
+    return string(record3(content.body).text) || string(record3(content.button_reply).title) || string(record3(content.list_reply).title) || string(record3(content.nfm_reply).body) || "Interactive message";
   }
   if (type === "reaction") return string(content.emoji) || "Reaction removed";
   return `${type} message`;
@@ -234,7 +412,7 @@ function historyStatus(value) {
   return status === "error" ? "failed" : status || null;
 }
 function normalizeMessage(args) {
-  const raw = record2(args.value);
+  const raw = record3(args.value);
   const id = string(raw.id);
   if (!id) {
     args.warnings.push("Ignored coexistence message without a WhatsApp message ID.");
@@ -246,7 +424,7 @@ function normalizeMessage(args) {
   const isEcho = args.source === "whatsapp_business_app" && !args.liveMutation;
   const historical = args.source === "history";
   const hydrationOnly = Boolean(args.hydrationOnly);
-  const direction = hydrationOnly ? null : isEcho ? "outbound" : sender && args.businessPhone && sender === args.businessPhone ? "outbound" : sender && threadPhone && sender === threadPhone ? "inbound" : recipient && threadPhone && recipient === threadPhone ? "outbound" : sender && args.businessPhone && sender !== args.businessPhone ? "inbound" : null;
+  const direction = hydrationOnly ? null : isEcho ? "outbound" : historical && typeof record3(raw.history_context).from_me === "boolean" ? record3(raw.history_context).from_me ? "outbound" : "inbound" : sender && args.businessPhone && sender === args.businessPhone ? "outbound" : sender && threadPhone && sender === threadPhone ? "inbound" : recipient && threadPhone && recipient === threadPhone ? "outbound" : sender && args.businessPhone && sender !== args.businessPhone ? "inbound" : null;
   const contactWaId = threadPhone || (isEcho ? recipient : direction === "outbound" ? recipient : sender !== args.businessPhone ? sender : recipient);
   const messageType = string(raw.type) || "unknown";
   if (!hydrationOnly && (!contactWaId || !direction)) {
@@ -262,7 +440,7 @@ function normalizeMessage(args) {
     senderWaId: sender,
     recipientWaId: recipient || (direction === "inbound" ? args.businessPhone : threadPhone),
     createdAt: coexistenceTimestamp(raw.timestamp),
-    status: historyStatus(record2(raw.history_context).status) || (isEcho ? "sent" : direction === "inbound" ? "received" : null),
+    status: historyStatus(record3(raw.history_context).status) || (isEcho ? "sent" : direction === "inbound" ? "received" : null),
     raw,
     source: args.source,
     historical,
@@ -272,20 +450,20 @@ function normalizeMessage(args) {
     affectsCustomerServiceWindow: false
   };
   if (messageType === "edit" || messageType === "revoke") {
-    const mutation = record2(raw[messageType]);
+    const mutation = record3(raw[messageType]);
     const originalMessageId = string(mutation.original_message_id);
     if (!originalMessageId) {
       args.warnings.push(`Ignored ${messageType} event ${id} without original_message_id.`);
       return null;
     }
     result.mutation = { kind: messageType, originalMessageId, eventId: id, eventAt: result.createdAt };
-    if (messageType === "edit") result.body = messagePreview(record2(mutation.message));
+    if (messageType === "edit") result.body = messagePreview(record3(mutation.message));
   }
   return result;
 }
 function parseCoexistenceWebhook(field, input, businessPhone) {
-  const value = record2(input);
-  const business = phone(record2(value.metadata).display_phone_number) || phone(businessPhone);
+  const value = record3(input);
+  const business = phone(record3(value.metadata).display_phone_number) || phone(businessPhone);
   const result = {
     handled: ["history", "smb_app_state_sync", "smb_message_echoes"].includes(field || ""),
     messages: [],
@@ -301,9 +479,9 @@ function parseCoexistenceWebhook(field, input, businessPhone) {
     for (const item of array(value.message_echoes)) addMessage(item, "whatsapp_business_app");
   } else if (field === "history") {
     for (const history of array(value.history)) {
-      const block = record2(history);
-      const metadata = record2(block.metadata);
-      const errors = array(block.errors).map(record2).filter((error) => Object.keys(error).length > 0);
+      const block = record3(history);
+      const metadata = record3(block.metadata);
+      const errors = array(block.errors).map(record3).filter((error) => Object.keys(error).length > 0);
       result.historyUpdates.push({
         phase: integer(metadata.phase, 0, 2),
         chunkOrder: integer(metadata.chunk_order, 0),
@@ -312,7 +490,7 @@ function parseCoexistenceWebhook(field, input, businessPhone) {
         errors
       });
       for (const thread of array(block.threads)) {
-        const threadRecord = record2(thread);
+        const threadRecord = record3(thread);
         const threadPhone = phone(threadRecord.id);
         if (!threadPhone) {
           result.warnings.push("Ignored history thread without a valid 1:1 contact phone number.");
@@ -324,8 +502,8 @@ function parseCoexistenceWebhook(field, input, businessPhone) {
     for (const message of array(value.messages)) addMessage(message, "history", null, true);
   } else if (field === "smb_app_state_sync") {
     for (const item of array(value.state_sync)) {
-      const state = record2(item);
-      const contact = record2(state.contact);
+      const state = record3(item);
+      const contact = record3(state.contact);
       const contactWaId = phone(contact.phone_number);
       if (state.type !== "contact" || !contactWaId || !["add", "remove"].includes(String(state.action))) continue;
       result.contacts.push({
@@ -333,13 +511,13 @@ function parseCoexistenceWebhook(field, input, businessPhone) {
         action: state.action,
         fullName: string(contact.full_name),
         firstName: string(contact.first_name),
-        changedAt: coexistenceTimestamp(record2(state.metadata).timestamp),
+        changedAt: coexistenceTimestamp(record3(state.metadata).timestamp),
         raw: state
       });
     }
   } else if (field === "messages") {
     for (const message of array(value.messages)) {
-      if (["edit", "revoke"].includes(String(record2(message).type))) addMessage(message, "whatsapp_business_app", null, false, true);
+      if (["edit", "revoke"].includes(String(record3(message).type))) addMessage(message, "whatsapp_business_app", null, false, true);
     }
   }
   return result;
@@ -359,8 +537,8 @@ function mergeCoexistenceMessage(existing, incoming) {
   if (!existing && (incoming.hydrationOnly || incoming.mutation)) return null;
   if (!existing && (!incoming.direction || !incoming.contactWaId)) return null;
   const previous = existing || {};
-  const previousRaw = record2(previous.raw);
-  const previousMeta = record2(previousRaw.connektly_coexistence);
+  const previousRaw = record3(previous.raw);
+  const previousMeta = record3(previousRaw.connektly_coexistence);
   const marker = {
     ...previousMeta,
     source: previousMeta.source || incoming.source,
@@ -370,11 +548,11 @@ function mergeCoexistenceMessage(existing, incoming) {
     affectsCustomerServiceWindow: Boolean(existing) && previousMeta.historical !== true && previous.direction === "inbound"
   };
   if (incoming.mutation) {
-    const oldMutation = record2(previousMeta.mutation);
+    const oldMutation = record3(previousMeta.mutation);
     const oldTime = Date.parse(string(oldMutation.eventAt) || "");
     const nextTime = Date.parse(incoming.mutation.eventAt || "");
     if (oldMutation.kind === "revoke" || Number.isFinite(oldTime) && (!Number.isFinite(nextTime) || oldTime > nextTime)) return { ...previous };
-    const edited = record2(record2(incoming.raw.edit).message);
+    const edited = record3(record3(incoming.raw.edit).message);
     const revoked = incoming.mutation.kind === "revoke";
     const nextRaw2 = revoked ? { ...previousRaw, type: "revoke", revoke: incoming.raw.revoke } : { ...previousRaw, ...edited };
     if (revoked && typeof previousRaw.type === "string") delete nextRaw2[previousRaw.type];
@@ -417,12 +595,12 @@ function mergeCoexistenceMessage(existing, incoming) {
   };
 }
 function mergeCoexistenceHistoryState(previous, updates) {
-  const state = record2(previous);
+  const state = record3(previous);
   const chunks = new Set(array(state.receivedChunks).filter((item) => typeof item === "string"));
   let progress = integer(state.progress, 0, 100) || 0;
   let phase = integer(state.phase, 0, 2);
   let declined = state.sharingDeclined === true;
-  const priorErrors = array(state.errors).map(record2);
+  const priorErrors = array(state.errors).map(record3);
   const errors = new Map(priorErrors.map((error) => [JSON.stringify(error), error]));
   for (const update of updates) {
     if (update.progress !== null) progress = Math.max(progress, update.progress);
@@ -447,8 +625,8 @@ function mergeCoexistenceHistoryState(previous, updates) {
   };
 }
 function mergeCoexistenceContactAttributes(previous, change) {
-  const attributes = record2(previous);
-  const old = record2(attributes.whatsappBusinessAppContact);
+  const attributes = record3(previous);
+  const old = record3(attributes.whatsappBusinessAppContact);
   const oldTime = Date.parse(string(old.changedAt) || "");
   const nextTime = Date.parse(change.changedAt || "");
   if (Number.isFinite(oldTime) && (!Number.isFinite(nextTime) || nextTime < oldTime)) return { ...attributes };
@@ -467,7 +645,7 @@ function mergeCoexistenceContactAttributes(previous, change) {
 }
 
 // server/coexistence-webhook-queue.ts
-import crypto2 from "node:crypto";
+import crypto3 from "node:crypto";
 var CoexistenceWebhookRetry = class extends Error {
   constructor(message, retrySeconds = 60) {
     super(message);
@@ -475,14 +653,14 @@ var CoexistenceWebhookRetry = class extends Error {
   }
 };
 function createCoexistenceWebhookQueue(args) {
-  const workerId = args.workerId || crypto2.randomUUID();
+  const workerId = args.workerId || crypto3.randomUUID();
   let running = false;
   let timer;
   const table = "whatsapp_coexistence_webhook_jobs";
   const report = args.onError || ((error) => console.error("Coexistence webhook worker:", error));
   async function enqueue(input) {
     const partition = input.phoneNumberId ? `phone:${input.phoneNumberId}` : `waba:${input.wabaId || "unknown"}`;
-    const id = crypto2.createHash("sha256").update(input.dedupeKey || JSON.stringify([
+    const id = crypto3.createHash("sha256").update(input.dedupeKey || JSON.stringify([
       input.wabaId,
       input.phoneNumberId,
       input.field,
@@ -586,7 +764,7 @@ var requiredCoexistenceWebhookFields = [
 ];
 var COEXISTENCE_SYNC_WINDOW_MS = 24 * 60 * 60 * 1e3;
 var COEXISTENCE_RECOVERY_INSTRUCTIONS = "Do not retry this once-only synchronization request. Check Meta support using the saved request ID. If a new synchronization is necessary, disconnect in WhatsApp Business app > Settings > Account > Business Platform > Disconnect Account, then complete Embedded Signup again.";
-function record3(value) {
+function record4(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 function text(value) {
@@ -598,7 +776,7 @@ function identifier(value, label) {
   return result;
 }
 function readCoexistenceSyncRequest(value) {
-  if (!record3(value)) return { status: value == null ? "not_requested" : "unknown" };
+  if (!record4(value)) return { status: value == null ? "not_requested" : "unknown" };
   const validStatuses = [
     "not_requested",
     "requested",
@@ -622,9 +800,9 @@ function readCoexistenceSyncRequest(value) {
   };
 }
 function readCoexistenceSyncState(value) {
-  let source = record3(value) ? value : {};
-  if (record3(source.metadata)) source = source.metadata;
-  if (record3(source.coexistenceSync)) source = source.coexistenceSync;
+  let source = record4(value) ? value : {};
+  if (record4(source.metadata)) source = source.metadata;
+  if (record4(source.coexistenceSync)) source = source.coexistenceSync;
   return {
     contacts: readCoexistenceSyncRequest(source.contacts),
     history: readCoexistenceSyncRequest(source.history)
@@ -705,7 +883,7 @@ async function assertCoexistenceWebhookPrerequisites(args) {
   return fields;
 }
 function apiFailure(error) {
-  const metaStatus = record3(error) && typeof error.metaStatus === "number" ? error.metaStatus : void 0;
+  const metaStatus = record4(error) && typeof error.metaStatus === "number" ? error.metaStatus : void 0;
   return {
     status: metaStatus && metaStatus >= 400 && metaStatus < 500 ? "failed" : "unknown",
     message: "Coexistence synchronization could not be confirmed. " + COEXISTENCE_RECOVERY_INSTRUCTIONS
@@ -782,15 +960,23 @@ async function assertCoexistenceStorageReady(supabase, workerId) {
   });
   if (rpc.error) throw new Error("The Coexistence webhook queue worker RPC is unavailable. Apply its database migration before starting synchronization. No synchronization request has been sent.");
 }
-function record4(value) {
+function record5(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 function mergeMetaChannelSaveMetadata(args) {
   const existing = args.existingRow;
   const sameAssets = Boolean(existing && existing.waba_id === args.wabaId && existing.phone_number_id === args.phoneNumberId);
-  const rawMetadata = record4(existing?.metadata) ? existing.metadata : {};
-  const registry = record4(rawMetadata.coexistenceSyncByPhone) ? { ...rawMetadata.coexistenceSyncByPhone } : {};
-  if (existing?.phone_number_id && record4(rawMetadata.coexistenceSync)) {
+  const rawMetadata = record5(existing?.metadata) ? existing.metadata : {};
+  const partnerRegistry = record5(rawMetadata.partnerAppsByPhone) ? { ...rawMetadata.partnerAppsByPhone } : {};
+  if (existing?.phone_number_id && record5(rawMetadata.gupshup)) {
+    partnerRegistry[String(existing.phone_number_id)] = {
+      wabaId: existing.waba_id,
+      gupshup: rawMetadata.gupshup,
+      partnerSolution: rawMetadata.partnerSolution
+    };
+  }
+  const registry = record5(rawMetadata.coexistenceSyncByPhone) ? { ...rawMetadata.coexistenceSyncByPhone } : {};
+  if (existing?.phone_number_id && record5(rawMetadata.coexistenceSync)) {
     registry[String(existing.phone_number_id)] = {
       wabaId: existing.waba_id,
       ...typeof existing.display_phone_number === "string" ? { displayPhoneNumber: existing.display_phone_number } : {},
@@ -799,17 +985,20 @@ function mergeMetaChannelSaveMetadata(args) {
     };
   }
   const priorNumberValue = registry[args.phoneNumberId];
-  const priorNumber = record4(priorNumberValue) ? priorNumberValue : null;
-  const restoringNumber = args.setupType === "coexistence" && Boolean(priorNumber);
-  const previous = sameAssets ? rawMetadata : restoringNumber ? {
-    coexistence: priorNumber.coexistence,
-    coexistenceSync: priorNumber.sync
-  } : {};
+  const priorNumber = record5(priorNumberValue) ? priorNumberValue : null;
   const patch = args.metadataPatch || {};
-  const previousCoexistence = record4(previous.coexistence) ? previous.coexistence : {};
-  const lifecycle = record4(previousCoexistence.lifecycle) ? previousCoexistence.lifecycle : {};
-  const oldSync = record4(previous.coexistenceSync) ? previous.coexistenceSync : {};
-  const newSync = record4(patch.coexistenceSync) ? patch.coexistenceSync : {};
+  const priorPartnerValue = partnerRegistry[args.phoneNumberId];
+  const priorPartner = record5(priorPartnerValue) ? priorPartnerValue : {};
+  const restoringPartner = priorPartner.wabaId === args.wabaId && record5(patch.partnerSolution) && record5(priorPartner.partnerSolution) && priorPartner.partnerSolution.id === patch.partnerSolution.id;
+  const restoringNumber = args.setupType === "coexistence" && Boolean(priorNumber);
+  const previous = sameAssets ? rawMetadata : {
+    ...restoringNumber ? { coexistence: priorNumber.coexistence, coexistenceSync: priorNumber.sync } : {},
+    ...restoringPartner ? { gupshup: priorPartner.gupshup, partnerSolution: priorPartner.partnerSolution } : {}
+  };
+  const previousCoexistence = record5(previous.coexistence) ? previous.coexistence : {};
+  const lifecycle = record5(previousCoexistence.lifecycle) ? previousCoexistence.lifecycle : {};
+  const oldSync = record5(previous.coexistenceSync) ? previous.coexistenceSync : {};
+  const newSync = record5(patch.coexistenceSync) ? patch.coexistenceSync : {};
   const offboardedAt = Date.parse(String(lifecycle.partnerRemovedAt || ""));
   const onboardedAt = Date.parse(String(oldSync.onboardedAt || ""));
   const offboarded = lifecycle.event === "PARTNER_REMOVED" || Number.isFinite(offboardedAt) && (!Number.isFinite(onboardedAt) || offboardedAt >= onboardedAt);
@@ -817,6 +1006,14 @@ function mergeMetaChannelSaveMetadata(args) {
     throw new Error("This number is connected through WhatsApp Business app Coexistence. Use the Coexistence connection flow.");
   }
   const result = { ...previous, ...patch };
+  if (Object.keys(partnerRegistry).length) result.partnerAppsByPhone = partnerRegistry;
+  if (record5(previous.partnerSolution) && record5(patch.partnerSolution) && previous.partnerSolution.id === patch.partnerSolution.id) {
+    result.partnerSolution = {
+      ...previous.partnerSolution,
+      ...patch.partnerSolution,
+      status: previous.partnerSolution.status || patch.partnerSolution.status
+    };
+  }
   if (Object.keys(registry).length) result.coexistenceSyncByPhone = registry;
   if (args.setupType !== "coexistence" || !sameAssets && !restoringNumber) return result;
   const hasPreviousLifecycle = typeof oldSync.onboardingId === "string";
@@ -837,8 +1034,8 @@ function mergeMetaChannelSaveMetadata(args) {
   }
   if (hasPreviousLifecycle) {
     result.coexistenceSync = oldSync;
-    result.coexistence = { ...previousCoexistence, ...record4(patch.coexistence) ? patch.coexistence : {}, lifecycle };
-  } else if (record4(previous.coexistenceSync)) {
+    result.coexistence = { ...previousCoexistence, ...record5(patch.coexistence) ? patch.coexistence : {}, lifecycle };
+  } else if (record5(previous.coexistenceSync)) {
     const oldState = readCoexistenceSyncState(oldSync);
     result.coexistenceSync = {
       ...newSync,
@@ -854,7 +1051,7 @@ async function mutateMetaChannelMetadata(args) {
     if (current.error) throw current.error;
     if (!current.data) throw new Error("The WhatsApp connection no longer exists.");
     const row = current.data;
-    const metadata = record4(row.metadata) ? row.metadata : {};
+    const metadata = record5(row.metadata) ? row.metadata : {};
     const patch = args.mutate(metadata, row);
     if (!patch) return row;
     for (const protectedKey of ["id", "user_id", "waba_id", "phone_number_id"]) {
@@ -877,7 +1074,7 @@ function patchMetaChannelMetadata(args) {
   return mutateMetaChannelMetadata({
     ...args,
     mutate: (metadata, row) => {
-      const coexistence = record4(metadata.coexistence) ? metadata.coexistence : {};
+      const coexistence = record5(metadata.coexistence) ? metadata.coexistence : {};
       if (args.expectedPhoneNumberId !== void 0 && row.phone_number_id !== args.expectedPhoneNumberId || args.expectedWabaId !== void 0 && row.waba_id !== args.expectedWabaId || row.status === "disconnected") {
         throw new Error("The WhatsApp connection changed. Reload the channel before continuing.");
       }
@@ -890,12 +1087,12 @@ function patchMetaChannelMetadata(args) {
 }
 function createCoexistenceSyncStore(args) {
   const assertLifecycle = (metadata, row) => {
-    const sync = record4(metadata.coexistenceSync) ? metadata.coexistenceSync : {};
+    const sync = record5(metadata.coexistenceSync) ? metadata.coexistenceSync : {};
     if (row.setup_type !== "coexistence" || sync.onboardingId !== args.onboardingId || args.phoneNumberId !== void 0 && row.phone_number_id !== args.phoneNumberId || args.wabaId !== void 0 && row.waba_id !== args.wabaId) {
       throw new Error("The Coexistence onboarding session changed. Reload the channel before continuing.");
     }
-    const coexistence = record4(metadata.coexistence) ? metadata.coexistence : {};
-    const lifecycle = record4(coexistence.lifecycle) ? coexistence.lifecycle : {};
+    const coexistence = record5(metadata.coexistence) ? metadata.coexistence : {};
+    const lifecycle = record5(coexistence.lifecycle) ? coexistence.lifecycle : {};
     if (row.status === "disconnected" || ["PARTNER_REMOVED", "ACCOUNT_OFFBOARDED"].includes(String(lifecycle.event))) {
       throw new Error("This WhatsApp Business app connection was disconnected. Complete Embedded Signup again.");
     }
@@ -940,6 +1137,13 @@ function getWhatsAppActivationIssue(channel) {
   const registration = metadata.autoRegistration;
   const webhook = metadata.webhookSubscription;
   const embedded = metadata.embeddedSignup;
+  if (isWhatsAppPartnerChannel(channel)) {
+    const provider = metadata.gupshup;
+    if (provider?.status !== "ready" || channel.status !== "connected") {
+      return provider?.lastError || embedded?.lastError || "Partner setup is pending. Check the connection to confirm the Gupshup app, wallet route, and callback.";
+    }
+    return null;
+  }
   if (isWhatsAppCoexistence(channel)) {
     const coexistence = metadata.coexistence;
     if (coexistence?.isOnBizApp !== true || coexistence.platformType !== "CLOUD_API") {
@@ -1393,7 +1597,7 @@ var adminSupabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
     persistSession: false
   }
 });
-var encryptionKey = tokenEncryptionSecret ? crypto3.createHash("sha256").update(tokenEncryptionSecret).digest() : null;
+var encryptionKey = tokenEncryptionSecret ? crypto4.createHash("sha256").update(tokenEncryptionSecret).digest() : null;
 var app = express();
 var upload = multer({
   storage: multer.memoryStorage(),
@@ -1412,7 +1616,7 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use("/api/meta/webhook", express.json({
+app.use(["/api/meta/webhook", "/api/gupshup/webhook"], express.json({
   limit: "25mb",
   verify: (req, _res, buffer) => {
     req.rawBody = Buffer.from(buffer);
@@ -1480,10 +1684,10 @@ function parseRazorpayCoupons(raw) {
       if (!value || typeof value !== "object" || Array.isArray(value)) {
         continue;
       }
-      const record5 = value;
+      const record6 = value;
       const normalizedCode = normalizeCouponCode(couponCode);
-      const kind = record5.kind === "percent" || record5.type === "percent" ? "percent" : record5.kind === "flat" || record5.type === "flat" ? "flat" : null;
-      const parsedValue = parseCouponValue(record5.value);
+      const kind = record6.kind === "percent" || record6.type === "percent" ? "percent" : record6.kind === "flat" || record6.type === "flat" ? "flat" : null;
+      const parsedValue = parseCouponValue(record6.value);
       if (!normalizedCode || !kind || parsedValue === null || parsedValue <= 0) {
         continue;
       }
@@ -1491,7 +1695,7 @@ function parseRazorpayCoupons(raw) {
         code: normalizedCode,
         kind,
         value: parsedValue,
-        description: typeof record5.description === "string" && record5.description.trim() ? record5.description.trim() : void 0
+        description: typeof record6.description === "string" && record6.description.trim() ? record6.description.trim() : void 0
       });
     }
   } catch (error) {
@@ -1693,7 +1897,7 @@ async function createRazorpayOrder(input) {
 }
 function verifyRazorpaySubscriptionSignature(args) {
   requireRazorpayCredentials();
-  const expectedSignature = crypto3.createHmac("sha256", razorpayKeySecret).update(`${args.paymentId}|${args.subscriptionId}`).digest("hex");
+  const expectedSignature = crypto4.createHmac("sha256", razorpayKeySecret).update(`${args.paymentId}|${args.subscriptionId}`).digest("hex");
   if (expectedSignature !== args.signature) {
     throw new Error("Razorpay payment signature verification failed.");
   }
@@ -1967,7 +2171,7 @@ async function fetchRazorpayPayment(paymentId) {
 }
 function verifyRazorpayOrderSignature(args) {
   requireRazorpayCredentials();
-  const expectedSignature = crypto3.createHmac("sha256", razorpayKeySecret).update(`${args.orderId}|${args.paymentId}`).digest("hex");
+  const expectedSignature = crypto4.createHmac("sha256", razorpayKeySecret).update(`${args.orderId}|${args.paymentId}`).digest("hex");
   if (expectedSignature !== args.signature) {
     throw new Error("Razorpay payment signature verification failed.");
   }
@@ -1985,7 +2189,7 @@ function verifyRazorpayWebhookSignature(req) {
   if (!signature || !req.rawBody) {
     throw new Error("Razorpay webhook signature is missing.");
   }
-  const expectedSignature = crypto3.createHmac("sha256", razorpayWebhookSecret).update(req.rawBody).digest("hex");
+  const expectedSignature = crypto4.createHmac("sha256", razorpayWebhookSecret).update(req.rawBody).digest("hex");
   if (!timingSafeCompareHex(expectedSignature, signature)) {
     throw new Error("Razorpay webhook signature is invalid.");
   }
@@ -2222,8 +2426,8 @@ function encryptSecretValue(value) {
   if (!encryptionKey) {
     return value;
   }
-  const iv = crypto3.randomBytes(12);
-  const cipher = crypto3.createCipheriv("aes-256-gcm", encryptionKey, iv);
+  const iv = crypto4.randomBytes(12);
+  const cipher = crypto4.createCipheriv("aes-256-gcm", encryptionKey, iv);
   const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return `enc:${iv.toString("base64")}.${tag.toString("base64")}.${encrypted.toString("base64")}`;
@@ -2233,7 +2437,7 @@ function decryptSecretValue(value) {
     return value;
   }
   const [iv, tag, payload] = value.slice(4).split(".");
-  const decipher = crypto3.createDecipheriv(
+  const decipher = crypto4.createDecipheriv(
     "aes-256-gcm",
     encryptionKey,
     Buffer.from(iv, "base64")
@@ -2387,10 +2591,10 @@ function normalizeOptionalIdentifier(value) {
   return normalizeOptionalString(value);
 }
 function generateDeveloperToken(prefix, byteLength = 24) {
-  return `${prefix}_${crypto3.randomBytes(byteLength).toString("hex")}`;
+  return `${prefix}_${crypto4.randomBytes(byteLength).toString("hex")}`;
 }
 function hashDeveloperSecret(value) {
-  return crypto3.createHash("sha256").update(value).digest("hex");
+  return crypto4.createHash("sha256").update(value).digest("hex");
 }
 function normalizeDeveloperApiScopes(value) {
   if (!Array.isArray(value)) {
@@ -2458,7 +2662,7 @@ function getDeveloperApiRequiredScope(req) {
 function timingSafeCompareHex(left, right) {
   const leftBuffer = Buffer.from(left, "hex");
   const rightBuffer = Buffer.from(right, "hex");
-  return leftBuffer.length === rightBuffer.length && crypto3.timingSafeEqual(leftBuffer, rightBuffer);
+  return leftBuffer.length === rightBuffer.length && crypto4.timingSafeEqual(leftBuffer, rightBuffer);
 }
 function resolveConfiguredMetaVersion(envKey, recommendedVersion, supportedVersions) {
   const configuredVersion = normalizeOptionalString(process.env[envKey]) || recommendedVersion;
@@ -2508,7 +2712,7 @@ async function deleteStoredAppProfilePhoto(value) {
   }
 }
 async function uploadAppProfilePhoto(args) {
-  const objectPath = `${args.userId}/${args.purpose || "profile-picture"}/${crypto3.randomUUID()}.${getAppProfilePhotoExtension(args.mimeType)}`;
+  const objectPath = `${args.userId}/${args.purpose || "profile-picture"}/${crypto4.randomUUID()}.${getAppProfilePhotoExtension(args.mimeType)}`;
   const { error } = await adminSupabase.storage.from(APP_PROFILE_PICTURE_BUCKET).upload(objectPath, args.buffer, {
     contentType: args.mimeType,
     upsert: false
@@ -3222,7 +3426,7 @@ function normalizeAutomationRulesInput(value) {
   });
 }
 function generateVerifyToken() {
-  return crypto3.randomBytes(18).toString("hex");
+  return crypto4.randomBytes(18).toString("hex");
 }
 function getRequestOrigin(req) {
   const forwardedProto = normalizeOptionalString(req.headers["x-forwarded-proto"]);
@@ -3238,7 +3442,7 @@ function requireMetaWebhookVerifyToken() {
   }
 }
 function getMetaWebhookCallbackUrl(req) {
-  return new URL("/api/meta/webhook", getRequestOrigin(req)).toString();
+  return new URL("/api/meta/webhook", frontendOrigin).toString();
 }
 function getMetaLeadCaptureCallbackUrl(req) {
   return new URL("/api/meta/lead-capture/webhook", getRequestOrigin(req)).toString();
@@ -3688,6 +3892,30 @@ async function paceCoexistenceGraphSend(args) {
   if (rows.length && !rows.some((row) => row.status === "connected")) throw new Error("Reconnect your WhatsApp channel before sending messages.");
   if (rows.some(isCoexistenceChannelRow)) await waitForCoexistenceSendSlot(phoneId);
 }
+var gupshup = createGupshupClient({
+  token: process.env.GUPSHUP_PARTNER_TOKEN?.trim() || "",
+  partnerId: process.env.GUPSHUP_PARTNER_ID?.trim() || "4607",
+  walletName: process.env.GUPSHUP_WALLET_NAME?.trim() || "Connektly"
+});
+async function routePartnerWhatsAppSend(args) {
+  const blockMatch = args.graphHost === "graph.facebook.com" ? /^\/?(\d+)\/block_users\/?$/.exec(args.path) : null;
+  const phoneId = whatsappSendPhoneId(args) || blockMatch?.[1];
+  if (!phoneId) return null;
+  const result = await adminSupabase.from("meta_channels").select("*").eq("phone_number_id", phoneId);
+  if (result.error) throw result.error;
+  const partners = (result.data || []).filter(isWhatsAppPartnerChannel);
+  if (!partners.length) return null;
+  if (partners.length !== 1) throw new Error("The partner messaging route is ambiguous. Review channel ownership.");
+  const channel = partners[0];
+  const metadata = getMetaChannelMetadata(channel);
+  const provider = isRecord(metadata.gupshup) ? metadata.gupshup : {};
+  const solution = isRecord(metadata.partnerSolution) ? metadata.partnerSolution : {};
+  if (channel.status !== "connected" || provider.status !== "ready" || !provider.appId || !["ACTIVE", "PENDING_DEACTIVATION"].includes(String(solution.status))) {
+    throw new Error("Partner WhatsApp setup is not ready. Check the Gupshup connection before sending.");
+  }
+  if (blockMatch) return gupshup.blockedUsers(String(provider.appId), args.method, args.body, typeof args.query?.after === "string" ? args.query.after : void 0);
+  return gupshup.send(String(provider.appId), args.body, /\/marketing_messages\/?$/.test(args.path));
+}
 async function metaRequest({
   accessToken,
   path: graphPath,
@@ -3704,6 +3932,8 @@ async function metaRequest({
     }
   }
   await paceCoexistenceGraphSend({ path: graphPath, method, graphHost, body });
+  const partnerResponse = await routePartnerWhatsAppSend({ path: graphPath, method, graphHost, body, query });
+  if (partnerResponse) return partnerResponse;
   const response = await fetch(url, {
     method,
     headers: {
@@ -3774,6 +4004,8 @@ async function metaRequestDetailed({
     }
   }
   await paceCoexistenceGraphSend({ path: graphPath, method, graphHost, body });
+  const partnerResponse = await routePartnerWhatsAppSend({ path: graphPath, method, graphHost, body, query });
+  if (partnerResponse) return partnerResponse;
   const response = await fetch(url, {
     method,
     headers: {
@@ -4043,7 +4275,7 @@ function normalizeMetaRegistrationPin(value) {
   return trimmed;
 }
 function generateMetaRegistrationPin() {
-  return String(crypto3.randomInt(1e5, 1e6));
+  return String(crypto4.randomInt(1e5, 1e6));
 }
 function normalizeMetaVerificationCodeMethod(value) {
   if (value === "SMS" || value === "VOICE") {
@@ -4267,6 +4499,7 @@ function shouldAutoRegisterApprovedDisplayName(row, phoneSnapshot) {
   return Boolean(requestedName && registeredName && requestedName !== registeredName);
 }
 async function autoRegisterWhatsAppSenderForChannel(args) {
+  if (isWhatsAppPartnerChannel(args.row)) throw new Error("This number uses partner registration. Check the Gupshup connection instead of registering through Connektly\u2019s Meta app.");
   if (args.row.status === "disconnected") throw new Error("Reconnect this WhatsApp number before registering it.");
   if (isCoexistenceChannelRow(args.row)) {
     throw new Error("Coexistence numbers are already registered. Manage this number in the WhatsApp Business app.");
@@ -4452,7 +4685,7 @@ async function autoRegisterWhatsAppSenderForChannel(args) {
   }
 }
 async function maybeAutoRegisterApprovedDisplayName(args) {
-  if (isCoexistenceChannelRow(args.row) || !shouldAutoRegisterApprovedDisplayName(args.row, args.phone)) {
+  if (isCoexistenceChannelRow(args.row) || isWhatsAppPartnerChannel(args.row) || !shouldAutoRegisterApprovedDisplayName(args.row, args.phone)) {
     return {
       row: args.row,
       phone: args.phone
@@ -6667,23 +6900,23 @@ function parseMetaOptionalNumber(value) {
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
-function mapMetaCatalogSummary(record5) {
-  const id = normalizeOptionalIdentifier(record5.id);
+function mapMetaCatalogSummary(record6) {
+  const id = normalizeOptionalIdentifier(record6.id);
   if (!id) {
     return null;
   }
-  const business = isRecord(record5.business) ? record5.business : {};
+  const business = isRecord(record6.business) ? record6.business : {};
   return {
     id,
-    name: normalizeOptionalString(record5.name),
-    vertical: normalizeOptionalString(record5.vertical),
-    productCount: parseMetaOptionalNumber(record5.product_count),
-    feedCount: parseMetaOptionalNumber(record5.feed_count),
+    name: normalizeOptionalString(record6.name),
+    vertical: normalizeOptionalString(record6.vertical),
+    productCount: parseMetaOptionalNumber(record6.product_count),
+    feedCount: parseMetaOptionalNumber(record6.feed_count),
     businessId: normalizeOptionalIdentifier(business.id),
     businessName: normalizeOptionalString(business.name),
-    defaultImageUrl: normalizeOptionalString(record5.default_image_url),
-    isCatalogSegment: Boolean(record5.is_catalog_segment),
-    isLocalCatalog: Boolean(record5.is_local_catalog)
+    defaultImageUrl: normalizeOptionalString(record6.default_image_url),
+    isCatalogSegment: Boolean(record6.is_catalog_segment),
+    isLocalCatalog: Boolean(record6.is_local_catalog)
   };
 }
 async function fetchMetaCatalog(accessToken, catalogId) {
@@ -6862,23 +7095,23 @@ async function selectMetaCatalogForChannel(args) {
     selectedCatalogId: catalogId
   };
 }
-function mapMetaCatalogProduct(record5) {
-  const id = normalizeOptionalIdentifier(record5.id);
+function mapMetaCatalogProduct(record6) {
+  const id = normalizeOptionalIdentifier(record6.id);
   if (!id) {
     return null;
   }
   return {
     id,
-    retailerId: normalizeOptionalString(record5.retailer_id) || normalizeOptionalString(record5.id),
-    name: normalizeOptionalString(record5.name),
-    description: normalizeOptionalString(record5.description),
-    availability: normalizeOptionalString(record5.availability),
-    price: normalizeOptionalString(record5.price),
-    currency: normalizeOptionalString(record5.currency),
-    brand: normalizeOptionalString(record5.brand),
-    imageUrl: normalizeOptionalString(record5.image_url) || normalizeOptionalString(record5.image_link),
-    url: normalizeOptionalString(record5.url) || normalizeOptionalString(record5.link),
-    raw: record5
+    retailerId: normalizeOptionalString(record6.retailer_id) || normalizeOptionalString(record6.id),
+    name: normalizeOptionalString(record6.name),
+    description: normalizeOptionalString(record6.description),
+    availability: normalizeOptionalString(record6.availability),
+    price: normalizeOptionalString(record6.price),
+    currency: normalizeOptionalString(record6.currency),
+    brand: normalizeOptionalString(record6.brand),
+    imageUrl: normalizeOptionalString(record6.image_url) || normalizeOptionalString(record6.image_link),
+    url: normalizeOptionalString(record6.url) || normalizeOptionalString(record6.link),
+    raw: record6
   };
 }
 async function listMetaCatalogProducts(args) {
@@ -7112,6 +7345,165 @@ async function checkWhatsAppWebhookSubscription(args) {
     isSubscribed: Boolean(matchedEntry)
   });
 }
+async function assertPartnerSolutionForWaba(accessToken, wabaId) {
+  let after;
+  const seen = /* @__PURE__ */ new Set();
+  do {
+    const result = await metaRequest({
+      accessToken,
+      path: `${wabaId}/solutions`,
+      query: { fields: "id,status", limit: 100, ...after ? { after } : {} }
+    });
+    const solution = result.data?.find((entry) => entry.id === WHATSAPP_PARTNER_SOLUTION_ID);
+    if (solution) {
+      if (!["ACTIVE", "PENDING_DEACTIVATION"].includes(String(solution.status))) throw new Error("The Meta partner solution is not active for this WhatsApp account.");
+      return solution.status;
+    }
+    after = result.paging?.next ? result.paging.cursors?.after : void 0;
+    if (result.paging?.next && (!after || seen.has(after))) throw new Error("Meta solution pagination could not be verified.");
+    if (after) seen.add(after);
+  } while (after);
+  throw new Error("Meta has not associated this WhatsApp account with Connektly Gupshup OD. Complete the partner Embedded Signup consent.");
+}
+async function prepareGupshupChannel(args) {
+  let row = args.row;
+  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+  const secret = process.env.GUPSHUP_WEBHOOK_SECRET?.trim() || "";
+  if (!process.env.GUPSHUP_PARTNER_TOKEN?.trim() || !secret) throw new Error("Configure the Gupshup Universal Token and webhook secret before partner onboarding.");
+  const solutionStatus = await assertPartnerSolutionForWaba(args.accessToken, String(row.waba_id));
+  const appSubscriptions = await metaRequest({
+    accessToken: `${metaAppId}|${metaAppSecret}`,
+    path: `${metaAppId}/subscriptions`
+  });
+  const fields = appSubscriptions.data?.find((entry) => entry.object === "whatsapp_business_account")?.fields || [];
+  const names = fields.map((entry) => typeof entry === "string" ? entry : entry.name);
+  const missing = ["messages", "account_update", "partner_solutions"].filter((field) => !names.includes(field));
+  if (missing.length) throw new Error(`Enable these Meta WhatsApp webhook fields before partner activation: ${missing.join(", ")}.`);
+  await assertCoexistenceStorageReady(adminSupabase, crypto4.randomUUID());
+  const patchProvider = async (patch) => {
+    row = await mutateMetaChannelMetadata({
+      supabase: adminSupabase,
+      userId: args.userId,
+      channelId: String(row.id),
+      mutate: (metadata, current) => {
+        if (current.waba_id !== args.row.waba_id || current.phone_number_id !== args.row.phone_number_id || current.status === "disconnected" || !isWhatsAppPartnerChannel({ metadata })) throw new Error("The partner connection changed. Reload before continuing.");
+        const provider2 = isRecord(metadata.gupshup) ? metadata.gupshup : {};
+        const solution = isRecord(metadata.partnerSolution) ? metadata.partnerSolution : {};
+        if (Date.parse(String(solution.eventAt || "")) >= Date.parse(timestamp) && !["ACTIVE", "PENDING_DEACTIVATION"].includes(String(solution.status))) throw new Error("The partner solution was deactivated during setup.");
+        return { metadata: {
+          ...metadata,
+          partnerSolution: { ...solution, status: solutionStatus, verifiedAt: timestamp },
+          gupshup: { ...provider2, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() }
+        } };
+      }
+    });
+    return row;
+  };
+  const phone2 = normalizePartnerPhone(row.display_phone_number);
+  if (!phone2) throw new Error("Meta did not return the partner phone number.");
+  await assertWhatsAppPhoneBelongsToWaba(args.accessToken, String(row.waba_id), String(row.phone_number_id));
+  const currentPhone = await fetchPhoneNumber(args.accessToken, String(row.phone_number_id));
+  if (normalizePartnerPhone(currentPhone.display_phone_number) !== phone2) throw new Error("The Meta phone number changed during partner activation.");
+  let provider = isRecord(getMetaChannelMetadata(row).gupshup) ? getMetaChannelMetadata(row).gupshup : {};
+  let appId = normalizeOptionalString(provider.appId);
+  if (!appId) {
+    const candidates = await gupshup.findApps(phone2);
+    if (candidates.length > 1) throw new Error("Multiple Gupshup apps match this number. Review the Partner Portal before continuing.");
+    appId = normalizeOptionalString(candidates[0]?.id);
+    if (!appId) {
+      const attemptId = crypto4.randomUUID();
+      row = await mutateMetaChannelMetadata({
+        supabase: adminSupabase,
+        userId: args.userId,
+        channelId: String(row.id),
+        mutate: (metadata, current) => {
+          if (current.phone_number_id !== args.row.phone_number_id || current.waba_id !== args.row.waba_id || current.status === "disconnected" || !isWhatsAppPartnerChannel({ metadata })) throw new Error("The partner connection changed during app setup.");
+          const previous = isRecord(metadata.gupshup) ? metadata.gupshup : {};
+          if (previous.appId || previous.creation) return null;
+          return { metadata: { ...metadata, gupshup: {
+            ...previous,
+            creation: { status: "requested", attemptId, requestedAt: timestamp },
+            status: "provisioning"
+          } } };
+        }
+      });
+      provider = getMetaChannelMetadata(row).gupshup;
+      const creation = isRecord(provider.creation) ? provider.creation : {};
+      if (creation.attemptId !== attemptId) throw new Error("A previous Gupshup app creation is awaiting confirmation. Check the Partner Portal; activation checks will reconcile it without creating another app.");
+      try {
+        appId = await gupshup.createApp({
+          name: `Connektly${crypto4.createHash("sha256").update(`${row.id}:${row.phone_number_id}`).digest("hex").slice(0, 32)}`,
+          wabaId: String(row.waba_id),
+          phone: phone2
+        });
+      } catch (error) {
+        await patchProvider({ creation: { ...creation, status: "unknown" }, status: "pending", lastError: mapDbError(error) });
+        throw error;
+      }
+    }
+    await patchProvider({ appId, status: "checking", lastError: null });
+  }
+  const [details, health] = await Promise.all([gupshup.details(appId), gupshup.health(appId)]);
+  if (normalizePartnerPhone(details.phone) !== phone2 || normalizePartnerPhone(health.phone) !== phone2 || details.phoneId != null && String(details.phoneId) !== row.phone_number_id || String(health.wabaId) !== row.waba_id || details.provider !== "OD") {
+    throw new Error("The Gupshup app does not match this OneDirect WhatsApp account and phone. No route was activated.");
+  }
+  if (details.live !== true || details.stopped !== false || health.accountStatus !== "ACTIVE" || health.dockerStatus !== "CONNECTED" || !["AVAILABLE", "LIMITED"].includes(String(health.canSendMessage))) {
+    throw new Error("Gupshup has not confirmed a live, connected app with messaging available. Check partner setup and billing in the Partner Portal.");
+  }
+  const callbackUrl = new URL(`/api/gupshup/webhook/${encodeURIComponent(appId)}`, frontendOrigin);
+  if (callbackUrl.protocol !== "https:") throw new Error("Gupshup callbacks require the public HTTPS application URL.");
+  const subscriptionId = await gupshup.ensureSubscription(appId, {
+    url: callbackUrl.toString(),
+    tag: `Connektly_${row.id}`,
+    secret: gupshupCallbackSecret(secret, String(row.id), appId)
+  });
+  return patchProvider({
+    appId,
+    status: "ready",
+    subscriptionId,
+    callbackUrl: callbackUrl.toString(),
+    callbackVersion: 3,
+    lastCheckedAt: timestamp,
+    lastError: null,
+    canSendMessage: health.canSendMessage,
+    walletName: process.env.GUPSHUP_WALLET_NAME?.trim() || "Connektly"
+  });
+}
+async function activatePartnerWhatsAppChannel(args) {
+  if (args.rawPin !== void 0) throw new Error("Partner activation does not accept a Cloud API registration PIN.");
+  let row = args.row;
+  let errorMessage = null;
+  try {
+    row = await prepareGupshupChannel({ ...args, row });
+    row = await syncWhatsAppWebhookSubscription({ ...args, row, throwOnError: true });
+    if (isCoexistenceChannelRow(row)) return activateCoexistenceWhatsAppChannel({ ...args, row });
+  } catch (error) {
+    errorMessage = mapDbError(error);
+  }
+  return mutateMetaChannelMetadata({
+    supabase: adminSupabase,
+    userId: args.userId,
+    channelId: String(row.id),
+    mutate: (metadata, current) => {
+      if (current.status === "disconnected" || current.phone_number_id !== args.row.phone_number_id || current.waba_id !== args.row.waba_id || !isWhatsAppPartnerChannel({ metadata })) throw new Error("The partner connection changed during activation.");
+      const previous = isRecord(metadata.embeddedSignup) ? metadata.embeddedSignup : {};
+      const provider = isRecord(metadata.gupshup) ? metadata.gupshup : {};
+      const solution = isRecord(metadata.partnerSolution) ? metadata.partnerSolution : {};
+      if (!errorMessage && !["ACTIVE", "PENDING_DEACTIVATION"].includes(String(solution.status))) throw new Error("The partner solution changed during activation. Check its current status.");
+      return { status: errorMessage ? "pending" : "connected", metadata: {
+        ...metadata,
+        gupshup: { ...provider, ...errorMessage ? { status: "pending", lastError: errorMessage } : {} },
+        embeddedSignup: {
+          ...previous,
+          status: errorMessage ? "activation_failed" : "setup_complete",
+          lastError: errorMessage,
+          billing: { type: "solution_partner_credit_line", provider: "OneDirect / Gupshup" },
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      } };
+    }
+  });
+}
 async function activateCoexistenceWhatsAppChannel(args) {
   if (args.rawPin !== void 0) throw new Error("Coexistence numbers are already registered. Manage the number in the WhatsApp Business app; no registration PIN is required.");
   let row = args.row;
@@ -7121,6 +7513,10 @@ async function activateCoexistenceWhatsAppChannel(args) {
     const sync = isRecord(metadata.coexistenceSync) ? metadata.coexistenceSync : {};
     const coexistence = isRecord(metadata.coexistence) ? metadata.coexistence : {};
     const lifecycle = isRecord(coexistence.lifecycle) ? coexistence.lifecycle : {};
+    const solution = isRecord(metadata.partnerSolution) ? metadata.partnerSolution : {};
+    if (isWhatsAppPartnerChannel({ metadata }) && !["ACTIVE", "PENDING_DEACTIVATION"].includes(String(solution.status))) {
+      throw new Error("The partner solution is not active. Confirm partner setup before synchronizing.");
+    }
     if (current.setup_type !== "coexistence" || current.phone_number_id !== args.row.phone_number_id || current.waba_id !== args.row.waba_id || sync.onboardingId !== originalSync.onboardingId) {
       throw new Error("The WhatsApp onboarding session changed. Reload the connection before continuing.");
     }
@@ -7199,13 +7595,17 @@ async function activateCoexistenceWhatsAppChannel(args) {
     const onboardingId = normalizeOptionalString(syncMetadata.onboardingId);
     const onboardedAt = normalizeOptionalString(syncMetadata.onboardedAt);
     if (!onboardingId || !onboardedAt) throw new Error("Complete Coexistence Embedded Signup before starting synchronization.");
-    await assertCoexistenceStorageReady(adminSupabase, crypto3.randomUUID());
+    await assertCoexistenceStorageReady(adminSupabase, crypto4.randomUUID());
     const state = await initiateCoexistenceSync({
       accessToken: args.accessToken,
       phoneNumberId: String(row.phone_number_id),
       onboardedAt,
       webhooksReady: true,
-      metaRequest,
+      metaRequest: isWhatsAppPartnerChannel({ metadata: getMetaChannelMetadata(row) }) ? async (input) => {
+        const provider = getMetaChannelMetadata(row).gupshup;
+        if (provider.status !== "ready" || !provider.appId) throw new Error("Confirm the Gupshup callback before synchronization.");
+        return await gupshup.sync(String(provider.appId), String(input.body?.sync_type));
+      } : metaRequest,
       store: createCoexistenceSyncStore({
         supabase: adminSupabase,
         userId: args.userId,
@@ -7235,7 +7635,7 @@ async function activateCoexistenceWhatsAppChannel(args) {
           status: activationError ? "activation_failed" : synchronizing ? "synchronizing" : "setup_complete",
           lastError: activationError,
           updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          billing: { type: "customer_payment_method", paymentMethodCheck: "required_in_whatsapp_manager" }
+          billing: isWhatsAppPartnerChannel({ metadata }) ? { type: "solution_partner_credit_line", provider: "OneDirect / Gupshup" } : { type: "customer_payment_method", paymentMethodCheck: "required_in_whatsapp_manager" }
         } }
       };
     }
@@ -7243,6 +7643,7 @@ async function activateCoexistenceWhatsAppChannel(args) {
 }
 async function activateEmbeddedWhatsAppChannel(args) {
   const initialMetadata = getMetaChannelMetadata(args.row);
+  if (isWhatsAppPartnerChannel({ metadata: initialMetadata })) return activatePartnerWhatsAppChannel(args);
   const coexistence = isRecord(initialMetadata.coexistence) ? initialMetadata.coexistence : {};
   if (args.row.setup_type === "coexistence" || coexistence.isOnBizApp === true) {
     return activateCoexistenceWhatsAppChannel(args);
@@ -7390,7 +7791,7 @@ async function fetchInstagramLoginProfile(accessToken) {
 var messengerUserProfileCache = /* @__PURE__ */ new Map();
 var instagramMessagingUserProfileCache = /* @__PURE__ */ new Map();
 function getMetaAccessTokenCacheKey(accessToken) {
-  return crypto3.createHash("sha256").update(accessToken).digest("hex").slice(0, 16);
+  return crypto4.createHash("sha256").update(accessToken).digest("hex").slice(0, 16);
 }
 function getCachedMetaUserProfile(cache, key) {
   const entry = cache.get(key);
@@ -8822,6 +9223,14 @@ async function sendRemoteWhatsAppTemplateMessageForStoredCategory(args) {
   return sendRemoteWhatsAppMessage(args.accessToken, args.phoneNumberId, args.payload);
 }
 async function uploadRemoteMedia(accessToken, phoneNumberId, file) {
+  const channels = await adminSupabase.from("meta_channels").select("*").eq("phone_number_id", phoneNumberId);
+  if (channels.error) throw channels.error;
+  const partner = channels.data?.find(isWhatsAppPartnerChannel);
+  if (partner) {
+    const provider = getMetaChannelMetadata(partner).gupshup;
+    if (partner.status !== "connected" || provider?.status !== "ready" || !provider.appId) throw new Error("Confirm partner setup before uploading media.");
+    return gupshup.uploadMedia(String(provider.appId), file);
+  }
   const formData = new FormData();
   formData.append("messaging_product", "whatsapp");
   formData.append("file", new Blob([file.buffer], { type: file.mimeType }), file.fileName);
@@ -8921,7 +9330,7 @@ function getTemplateHeaderMediaExtension(fileName, mimeType) {
 }
 async function saveTemplateHeaderMediaPreview(userId, file) {
   const storageExtension = getTemplateHeaderMediaExtension(file.fileName, file.mimeType) || ".bin";
-  const storageObjectPath = `${userId}/template-header-media/${crypto3.randomUUID()}${storageExtension}`;
+  const storageObjectPath = `${userId}/template-header-media/${crypto4.randomUUID()}${storageExtension}`;
   try {
     const { error } = await adminSupabase.storage.from(TEMPLATE_HEADER_MEDIA_BUCKET).upload(storageObjectPath, file.buffer, {
       contentType: file.mimeType,
@@ -8946,7 +9355,7 @@ async function saveTemplateHeaderMediaPreviewWithFallback(req, userId, file) {
     console.error("Failed to store template header media in Supabase Storage, falling back to local disk:", error);
   }
   await fs.promises.mkdir(templateHeaderMediaDir, { recursive: true });
-  const storedFileName = `${Date.now()}-${crypto3.randomBytes(16).toString("hex")}${getTemplateHeaderMediaExtension(
+  const storedFileName = `${Date.now()}-${crypto4.randomBytes(16).toString("hex")}${getTemplateHeaderMediaExtension(
     file.fileName,
     file.mimeType
   )}`;
@@ -9078,6 +9487,48 @@ async function migrateTemplateHeaderMediaPreviewToDurableUrl(userId, templateNam
   } catch (error) {
     console.error("Failed to migrate template header media preview to durable storage:", error);
     return preview;
+  }
+}
+var partnerMediaBucketReady = null;
+var partnerMediaDownloads = /* @__PURE__ */ new Map();
+async function getCachedPartnerMedia(userId, appId, mediaId) {
+  const bucket = "whatsapp-partner-media";
+  const key = `${userId}/${appId}/${crypto4.createHash("sha256").update(mediaId).digest("hex")}`;
+  const pending = partnerMediaDownloads.get(key);
+  if (pending) return pending;
+  const download = (async () => {
+    if (!partnerMediaBucketReady) {
+      partnerMediaBucketReady = (async () => {
+        const existing = await adminSupabase.storage.getBucket(bucket);
+        if (existing.data?.public) throw new Error("The partner media bucket must be private.");
+        if (existing.data) return;
+        const created = await adminSupabase.storage.createBucket(bucket, { public: false, fileSizeLimit: 52428800 });
+        if (created.error) {
+          const raced = await adminSupabase.storage.getBucket(bucket);
+          if (!raced.data || raced.data.public) throw new Error("Private partner media storage is unavailable.");
+        }
+      })().catch((error) => {
+        partnerMediaBucketReady = null;
+        throw error;
+      });
+    }
+    await partnerMediaBucketReady;
+    const cached = await adminSupabase.storage.from(bucket).download(key);
+    if (cached.data) return cached.data;
+    const response = await gupshup.downloadMedia(appId, mediaId);
+    if (Number(response.headers.get("content-length")) > 52428800) throw new Error("Partner media exceeds the supported size.");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > 52428800) throw new Error("Partner media exceeds the supported size.");
+    const contentType = response.headers.get("content-type") || "application/octet-stream";
+    const saved = await adminSupabase.storage.from(bucket).upload(key, bytes, { contentType, upsert: true });
+    if (saved.error) throw new Error("Partner media could not be saved to private storage.");
+    return new Blob([bytes], { type: contentType });
+  })();
+  partnerMediaDownloads.set(key, download);
+  try {
+    return await download;
+  } finally {
+    partnerMediaDownloads.delete(key);
   }
 }
 async function fetchRemoteMediaMetadata(accessToken, mediaId) {
@@ -10344,7 +10795,7 @@ async function dispatchDeveloperWebhookEvent(userId, eventName, data) {
     return;
   }
   for (const { endpoint, signingSecret } of endpoints) {
-    const deliveryId = crypto3.randomUUID();
+    const deliveryId = crypto4.randomUUID();
     const createdAt = (/* @__PURE__ */ new Date()).toISOString();
     const body = JSON.stringify({
       id: deliveryId,
@@ -10352,7 +10803,7 @@ async function dispatchDeveloperWebhookEvent(userId, eventName, data) {
       createdAt,
       data
     });
-    const signature = crypto3.createHmac("sha256", signingSecret).update(body).digest("hex");
+    const signature = crypto4.createHmac("sha256", signingSecret).update(body).digest("hex");
     try {
       const response = await fetch(endpoint.url, {
         method: "POST",
@@ -13647,21 +14098,24 @@ function mergeWhatsAppStatusPayloadIntoRaw(raw, statusRecord) {
   const nextHistory = [...previousHistory, nextStatusRecord].slice(-10);
   return {
     ...currentRaw,
+    ...typeof statusRecord.gs_id === "string" && typeof statusRecord.id === "string" && statusRecord.id.startsWith("wamid.") ? { gupshup_whatsapp_message_id: statusRecord.id, gupshup_message_id: statusRecord.gs_id } : {},
     whatsapp_status: nextStatusRecord,
     whatsapp_status_history: nextHistory
   };
 }
 async function updateOutgoingWhatsAppMessageStatus(args) {
   const messageId = normalizeOptionalString(args.statusRecord.id);
-  if (!messageId) {
+  const providerMessageId = normalizeOptionalString(args.statusRecord.gs_id);
+  if (!messageId && !providerMessageId) {
     return;
   }
-  const result = await adminSupabase.from("conversation_messages").select("*").eq("user_id", args.userId).eq("wa_message_id", messageId);
+  const result = await adminSupabase.from("conversation_messages").select("*").eq("user_id", args.userId).eq("direction", "outbound").in("wa_message_id", [messageId, providerMessageId].filter((id) => Boolean(id)));
   if (result.error) {
     throw result.error;
   }
+  if (!result.data?.length && args.retryUnmatched) throw new CoexistenceWebhookRetry("Waiting for the outgoing partner message to be stored.", 5);
   const nextStatus = normalizeOptionalString(args.statusRecord.status) || null;
-  const errors = Array.isArray(args.statusRecord.errors) ? args.statusRecord.errors.filter(isRecord) : [];
+  const errors = Array.isArray(args.statusRecord.errors) ? args.statusRecord.errors.filter(isRecord) : args.statusRecord.code ? [{ code: args.statusRecord.code, message: args.statusRecord.reason }] : [];
   const firstError = errors[0] || null;
   const firstErrorData = isRecord(firstError?.error_data) ? firstError.error_data : null;
   console.info("WhatsApp message status webhook:", {
@@ -13689,14 +14143,17 @@ async function updateOutgoingWhatsAppMessageStatus(args) {
   }
   for (const row of result.data || []) {
     const previousStatus = normalizeOptionalString(row.status);
+    const rank = { enqueued: 0, queued: 0, sent: 1, delivered: 2, read: 3 };
+    const regresses = nextStatus === "failed" ? ["delivered", "read"].includes(previousStatus || "") : previousStatus === "failed" ? ["queued", "enqueued", "sent"].includes(nextStatus || "") : (rank[previousStatus || ""] ?? -1) > (rank[nextStatus || ""] ?? -1) && nextStatus in rank;
+    const savedStatus = regresses ? previousStatus : nextStatus;
     const { data, error } = await adminSupabase.from("conversation_messages").update({
-      status: nextStatus,
+      status: savedStatus,
       raw: mergeWhatsAppStatusPayloadIntoRaw(row.raw, args.statusRecord)
     }).eq("id", row.id).select("*").single();
     if (error) {
       throw error;
     }
-    if (nextStatus && nextStatus !== previousStatus) {
+    if (nextStatus && savedStatus === nextStatus && nextStatus !== previousStatus) {
       const eventName = nextStatus === "read" ? "message.read" : nextStatus === "delivered" ? "message.delivered" : nextStatus === "failed" ? "message.failed" : null;
       if (eventName) {
         const message = mapMessage(data);
@@ -14477,12 +14934,37 @@ async function handlePhoneNumberNameUpdateWebhook(args) {
   }
 }
 async function handleWhatsAppAccountUpdateWebhook(wabaId, value, eventAt) {
+  const wabaInfo = isRecord(value.waba_info) ? value.waba_info : {};
+  if (wabaInfo.solution_id && wabaInfo.solution_id !== WHATSAPP_PARTNER_SOLUTION_ID) return;
+  wabaId = normalizeOptionalIdentifier(wabaInfo.waba_id) || wabaId;
   if (!wabaId) return;
   const { data: rows, error } = await adminSupabase.from("meta_channels").select("*").eq("waba_id", wabaId);
   if (error) throw error;
   const phoneNumberId = normalizeOptionalIdentifier(value.phone_number_id) || (isRecord(value.metadata) ? normalizeOptionalIdentifier(value.metadata.phone_number_id) : null);
   const displayPhone = normalizePhoneLike(value.phone_number || value.display_phone_number);
   const event = normalizeOptionalString(value.event);
+  if (wabaInfo.solution_id === WHATSAPP_PARTNER_SOLUTION_ID && ["PARTNER_ADDED", "PARTNER_APP_INSTALLED"].includes(event || "")) {
+    for (const row of rows || []) {
+      if (!isWhatsAppPartnerChannel(row)) continue;
+      await mutateMetaChannelMetadata({
+        supabase: adminSupabase,
+        userId: String(row.user_id),
+        channelId: String(row.id),
+        mutate: (metadata, current) => {
+          if (current.waba_id !== wabaId || !isWhatsAppPartnerChannel({ metadata })) return null;
+          const partner = isRecord(metadata.partnerSolution) ? metadata.partnerSolution : {};
+          if (!eventAt || Date.parse(String(partner.accountEventAt || "")) >= Date.parse(eventAt)) return null;
+          return { metadata: { ...metadata, partnerSolution: {
+            ...partner,
+            ownerBusinessId: normalizeOptionalIdentifier(wabaInfo.owner_business_id),
+            solutionPartnerBusinessIds: Array.isArray(wabaInfo.solution_partner_business_ids) ? wabaInfo.solution_partner_business_ids : [],
+            accountEvent: event,
+            accountEventAt: eventAt
+          } } };
+        }
+      });
+    }
+  }
   const lifecycleEvent = ["PARTNER_REMOVED", "ACCOUNT_OFFBOARDED", "ACCOUNT_RECONNECTED"].includes(event || "");
   const candidates = new Map((rows || []).map((row) => [String(row.id), row]));
   if (lifecycleEvent) {
@@ -14569,6 +15051,11 @@ async function handleWhatsAppAccountUpdateWebhook(wabaId, value, eventAt) {
           } };
           if (target.active) {
             if (lifecycleEvent) activeStatus = disconnect ? "disconnected" : "connected";
+            if (activeStatus === "connected" && isWhatsAppPartnerChannel({ metadata })) {
+              const provider = isRecord(metadata.gupshup) ? metadata.gupshup : {};
+              const solution = isRecord(metadata.partnerSolution) ? metadata.partnerSolution : {};
+              if (provider.status !== "ready" || !["ACTIVE", "PENDING_DEACTIVATION"].includes(String(solution.status))) activeStatus = "pending";
+            }
             nextMetadata = {
               ...nextMetadata,
               accountUpdate,
@@ -14659,7 +15146,12 @@ async function persistCoexistenceMessage(channel, incoming, deferUnmatched = tru
   for (let attempt = 0; attempt < 12; attempt++) {
     const found = await adminSupabase.from("conversation_messages").select("*").eq("user_id", userId).eq("wa_message_id", targetId).maybeSingle();
     if (found.error) throw found.error;
-    const existing = found.data;
+    let existing = found.data;
+    if (!existing && isWhatsAppPartnerChannel(channel)) {
+      const alias = await adminSupabase.from("conversation_messages").select("*").eq("user_id", userId).eq("raw->>gupshup_whatsapp_message_id", targetId).maybeSingle();
+      if (alias.error) throw alias.error;
+      existing = alias.data;
+    }
     const merged = mergeCoexistenceMessage(existing, incoming);
     if (!merged) {
       if (!deferUnmatched) throw new CoexistenceWebhookRetry("Waiting for the original historical WhatsApp message.", 60);
@@ -14691,6 +15183,19 @@ async function persistCoexistenceMessage(channel, incoming, deferUnmatched = tru
   throw new Error("Coexistence message changed repeatedly; retrying the queued update.");
 }
 async function processCoexistenceWebhookJob(job, heartbeat) {
+  if (job.field === "gupshup_callback") {
+    await heartbeat();
+    const channelResult2 = await adminSupabase.from("meta_channels").select("*").eq("id", String(job.payload.channelId || "")).maybeSingle();
+    if (channelResult2.error) throw channelResult2.error;
+    const channel2 = channelResult2.data;
+    if (!channel2 || !isWhatsAppPartnerChannel(channel2) || channel2.status === "disconnected" || channel2.waba_id !== job.waba_id || channel2.phone_number_id !== job.phone_number_id) return;
+    await processWhatsAppWebhookPayload(normalizeGupshupWebhook(job.payload.callback, channel2), job.attempts <= 6);
+    return;
+  }
+  if (job.field === "partner_solutions") {
+    await handlePartnerSolutionWebhook(job.payload, job.entry_time);
+    return;
+  }
   if (job.field === "account_update") {
     await handleWhatsAppAccountUpdateWebhook(job.waba_id, job.payload, job.entry_time);
     return;
@@ -14750,183 +15255,260 @@ var coexistenceWebhookQueue = createCoexistenceWebhookQueue({
   supabase: adminSupabase,
   processJob: processCoexistenceWebhookJob
 });
+async function handlePartnerSolutionWebhook(value, eventAt) {
+  if (value.solution_id !== WHATSAPP_PARTNER_SOLUTION_ID || !eventAt || !Number.isFinite(Date.parse(eventAt))) return;
+  const status = normalizeOptionalString(value.solution_status);
+  if (!status || !["ACTIVE", "DEACTIVATED", "DRAFT", "INITIATED", "PENDING", "PENDING_DEACTIVATION", "REJECTED"].includes(status)) return;
+  const result = await adminSupabase.from("meta_channels").select("*").contains("metadata", { partnerSolution: { id: WHATSAPP_PARTNER_SOLUTION_ID } });
+  if (result.error) throw result.error;
+  for (const row of result.data || []) {
+    await mutateMetaChannelMetadata({
+      supabase: adminSupabase,
+      userId: String(row.user_id),
+      channelId: String(row.id),
+      mutate: (metadata, current) => {
+        if (!isWhatsAppPartnerChannel({ metadata })) return null;
+        const partner = isRecord(metadata.partnerSolution) ? metadata.partnerSolution : {};
+        if (Date.parse(String(partner.eventAt || partner.verifiedAt || "")) >= Date.parse(eventAt)) return null;
+        const paused = !["ACTIVE", "PENDING_DEACTIVATION"].includes(status);
+        return {
+          ...paused && current.status !== "disconnected" ? { status: "pending" } : {},
+          metadata: {
+            ...metadata,
+            partnerSolution: { ...partner, status, eventAt, event: value.event },
+            ...paused ? { gupshup: {
+              ...isRecord(metadata.gupshup) ? metadata.gupshup : {},
+              status: "pending",
+              lastError: "The Meta partner solution is inactive. Restore the solution and check partner activation before sending."
+            } } : {}
+          }
+        };
+      }
+    });
+  }
+}
+app.post("/api/gupshup/webhook/:appId", async (req, res) => {
+  try {
+    const result = await adminSupabase.from("meta_channels").select("*").contains("metadata", { gupshup: { appId: req.params.appId } }).maybeSingle();
+    if (result.error) throw result.error;
+    const channel = result.data;
+    const secret = process.env.GUPSHUP_WEBHOOK_SECRET?.trim();
+    if (!channel || !secret || !isWhatsAppPartnerChannel(channel) || !verifyGupshupCallbackSecret(
+      req.get("X-Gupshup-Webhook-Secret") || "",
+      gupshupCallbackSecret(secret, String(channel.id), req.params.appId)
+    )) {
+      res.sendStatus(403);
+      return;
+    }
+    let callback;
+    try {
+      callback = normalizeGupshupWebhook(req.body, channel);
+    } catch {
+      res.status(400).json({ error: "The callback does not match its connected partner app." });
+      return;
+    }
+    await coexistenceWebhookQueue.enqueue({
+      wabaId: String(channel.waba_id),
+      phoneNumberId: String(channel.phone_number_id),
+      field: "gupshup_callback",
+      payload: { channelId: channel.id, callback }
+    });
+    res.status(200).end();
+    coexistenceWebhookQueue.kick();
+  } catch (error) {
+    sendError(res, 500, error);
+  }
+});
+async function processWhatsAppWebhookPayload(webhookPayload, retryUnmatchedStatuses = false) {
+  const payload = webhookPayload;
+  for (const entry of payload.entry || []) {
+    for (const change of entry.changes || []) {
+      const value = change.value;
+      if (change.field === "partner_solutions" && value && isRecord(value)) {
+        await coexistenceWebhookQueue.enqueue({
+          wabaId: null,
+          field: "partner_solutions",
+          entryTime: coexistenceTimestamp(entry.time),
+          payload: value
+        });
+        continue;
+      }
+      if (["account_update", "history", "smb_app_state_sync", "smb_message_echoes"].includes(change.field || "") && value && isRecord(value)) {
+        const coexMetadata = isRecord(value.metadata) ? value.metadata : {};
+        await coexistenceWebhookQueue.enqueue({
+          wabaId: normalizeOptionalIdentifier(isRecord(value.waba_info) ? value.waba_info.waba_id : null) || normalizeOptionalIdentifier(entry.id),
+          phoneNumberId: normalizeOptionalIdentifier(coexMetadata.phone_number_id) || normalizeOptionalIdentifier(value.phone_number_id),
+          field: change.field,
+          entryTime: coexistenceTimestamp(entry.time),
+          payload: value
+        });
+        continue;
+      }
+      if (change.field === "messages" && value && isRecord(value)) {
+        const mutations = (Array.isArray(value.messages) ? value.messages : []).filter((message) => isRecord(message) && (message.type === "edit" || message.type === "revoke"));
+        if (mutations.length) {
+          const coexMetadata = isRecord(value.metadata) ? value.metadata : {};
+          await coexistenceWebhookQueue.enqueue({
+            wabaId: normalizeOptionalIdentifier(entry.id),
+            phoneNumberId: normalizeOptionalIdentifier(coexMetadata.phone_number_id),
+            field: "messages",
+            entryTime: coexistenceTimestamp(entry.time),
+            payload: { ...value, messages: mutations }
+          });
+        }
+      }
+      if (change.field === "phone_number_name_update" && value && isRecord(value)) {
+        await handlePhoneNumberNameUpdateWebhook({
+          entryId: normalizeOptionalIdentifier(entry.id),
+          value
+        });
+        continue;
+      }
+      const metadata = value && isRecord(value.metadata) ? value.metadata : null;
+      const phoneNumberId = normalizeOptionalString(metadata?.phone_number_id);
+      if (!phoneNumberId) {
+        continue;
+      }
+      const { data: channel, error: channelError } = await adminSupabase.from("meta_channels").select("*").eq("phone_number_id", phoneNumberId).maybeSingle();
+      if (channelError || !channel) {
+        continue;
+      }
+      const userId = String(channel.user_id);
+      const metaChannelId = String(channel.id);
+      const accessToken = decryptAccessToken(String(channel.access_token_ciphertext || ""));
+      const contacts = Array.isArray(value?.contacts) ? value.contacts : [];
+      const firstContact = contacts[0] && isRecord(contacts[0]) ? contacts[0] : null;
+      const contactProfile = firstContact && isRecord(firstContact.profile) ? firstContact.profile : null;
+      const messages = Array.isArray(value?.messages) ? value.messages : [];
+      const statuses = Array.isArray(value?.statuses) ? value.statuses : [];
+      const calls = Array.isArray(value?.calls) ? value.calls : [];
+      for (const message of messages) {
+        if (!isRecord(message)) {
+          continue;
+        }
+        if (message.type === "edit" || message.type === "revoke") continue;
+        const createdAt = toIsoTimestamp(message.timestamp) || (/* @__PURE__ */ new Date()).toISOString();
+        const messageRecord = message;
+        const messageId = normalizeOptionalString(message.id) || null;
+        const body = getMessageText(messageRecord);
+        const liveClaim = messageId ? await claimLiveWhatsAppMessage({ supabase: adminSupabase, userId, messageId }) : "new";
+        if (liveClaim === "duplicate") continue;
+        let thread = await upsertThread({
+          userId,
+          metaChannelId,
+          contactWaId: String(message.from || firstContact?.wa_id || ""),
+          contactName: contactProfile?.name || null,
+          displayPhone: String(message.from || firstContact?.wa_id || ""),
+          status: "New Lead",
+          lastMessageText: body,
+          lastMessageAt: createdAt,
+          unreadDelta: 1
+        });
+        const isNewConversation = Math.abs(Date.parse(thread.createdAt) - Date.parse(createdAt)) < 2e3;
+        await insertMessage({
+          userId,
+          threadId: thread.id,
+          waMessageId: messageId,
+          direction: "inbound",
+          messageType: normalizeOptionalString(message.type) || "text",
+          body,
+          senderName: contactProfile?.name || null,
+          senderWaId: normalizeOptionalString(message.from) || null,
+          recipientWaId: phoneNumberId,
+          status: "received",
+          raw: messageRecord,
+          createdAt,
+          emitExistingInbound: liveClaim === "promoted"
+        });
+        const flowReply = getFlowReplyFromMessage(messageRecord);
+        if (flowReply) {
+          try {
+            await recordFlowSubmission({
+              userId,
+              threadId: thread.id,
+              contactId: normalizeOptionalString(message.from) || normalizeOptionalString(firstContact?.wa_id),
+              messageId,
+              responses: flowReply.responses,
+              submittedAt: createdAt
+            });
+            const refreshedThread = await adminSupabase.from("conversation_threads").select("*").eq("user_id", userId).eq("id", thread.id).maybeSingle();
+            if (!refreshedThread.error && refreshedThread.data) {
+              thread = mapThread(refreshedThread.data);
+            }
+          } catch (error) {
+            console.error("Flow response processing failed:", error);
+          }
+        }
+        await createIncomingMessageNotification({
+          userId,
+          source: "WhatsApp",
+          messageId,
+          contactName: normalizeOptionalString(contactProfile?.name),
+          contactValue: normalizeOptionalString(message.from) || normalizeOptionalString(firstContact?.wa_id),
+          previewText: body,
+          threadId: thread.id
+        });
+        try {
+          await processAutomationRulesForIncomingMessage({
+            userId,
+            metaChannelId,
+            phoneNumberId,
+            accessToken,
+            thread,
+            body,
+            receivedAt: createdAt,
+            isNewConversation,
+            contactExists: !isNewConversation,
+            senderWaId: normalizeOptionalString(message.from) || normalizeOptionalString(firstContact?.wa_id),
+            messageId
+          });
+        } catch (error) {
+          console.error("Automation rule processing failed:", error);
+        }
+      }
+      for (const call of calls) {
+        if (isCoexistenceChannelRow(channel) || isWhatsAppPartnerChannel(channel)) continue;
+        if (!isRecord(call)) {
+          continue;
+        }
+        await handleCallWebhookEntry({
+          userId,
+          metaChannelId,
+          callRecord: call,
+          fallbackContactName: contactProfile?.name || null
+        });
+      }
+      for (const status of statuses) {
+        if (!isRecord(status)) {
+          continue;
+        }
+        const handledCallStatus = await handleCallWebhookStatus({
+          userId,
+          metaChannelId,
+          statusRecord: status
+        });
+        if (handledCallStatus) {
+          continue;
+        }
+        await updateOutgoingWhatsAppMessageStatus({
+          userId,
+          statusRecord: status,
+          retryUnmatched: retryUnmatchedStatuses
+        });
+      }
+    }
+  }
+}
 app.post("/api/meta/webhook", async (req, res) => {
   const signature = req.get("x-hub-signature-256") || "";
   const suppliedSignature = /^sha256=([a-f0-9]{64})$/i.exec(signature)?.[1];
-  const expectedSignature = metaAppSecret && req.rawBody ? crypto3.createHmac("sha256", metaAppSecret).update(req.rawBody).digest("hex") : null;
+  const expectedSignature = metaAppSecret && req.rawBody ? crypto4.createHmac("sha256", metaAppSecret).update(req.rawBody).digest("hex") : null;
   if (!suppliedSignature || !expectedSignature || !timingSafeCompareHex(suppliedSignature, expectedSignature)) {
     res.status(403).json({ error: "Invalid Meta webhook signature." });
     return;
   }
   try {
-    const payload = req.body;
-    for (const entry of payload.entry || []) {
-      for (const change of entry.changes || []) {
-        const value = change.value;
-        if (["account_update", "history", "smb_app_state_sync", "smb_message_echoes"].includes(change.field || "") && value && isRecord(value)) {
-          const coexMetadata = isRecord(value.metadata) ? value.metadata : {};
-          await coexistenceWebhookQueue.enqueue({
-            wabaId: normalizeOptionalIdentifier(entry.id),
-            phoneNumberId: normalizeOptionalIdentifier(coexMetadata.phone_number_id) || normalizeOptionalIdentifier(value.phone_number_id),
-            field: change.field,
-            entryTime: coexistenceTimestamp(entry.time),
-            payload: value
-          });
-          continue;
-        }
-        if (change.field === "messages" && value && isRecord(value)) {
-          const mutations = (Array.isArray(value.messages) ? value.messages : []).filter((message) => isRecord(message) && (message.type === "edit" || message.type === "revoke"));
-          if (mutations.length) {
-            const coexMetadata = isRecord(value.metadata) ? value.metadata : {};
-            await coexistenceWebhookQueue.enqueue({
-              wabaId: normalizeOptionalIdentifier(entry.id),
-              phoneNumberId: normalizeOptionalIdentifier(coexMetadata.phone_number_id),
-              field: "messages",
-              entryTime: coexistenceTimestamp(entry.time),
-              payload: { ...value, messages: mutations }
-            });
-          }
-        }
-        if (change.field === "phone_number_name_update" && value && isRecord(value)) {
-          await handlePhoneNumberNameUpdateWebhook({
-            entryId: normalizeOptionalIdentifier(entry.id),
-            value
-          });
-          continue;
-        }
-        const metadata = value && isRecord(value.metadata) ? value.metadata : null;
-        const phoneNumberId = normalizeOptionalString(metadata?.phone_number_id);
-        if (!phoneNumberId) {
-          continue;
-        }
-        const { data: channel, error: channelError } = await adminSupabase.from("meta_channels").select("*").eq("phone_number_id", phoneNumberId).maybeSingle();
-        if (channelError || !channel) {
-          continue;
-        }
-        const userId = String(channel.user_id);
-        const metaChannelId = String(channel.id);
-        const accessToken = decryptAccessToken(String(channel.access_token_ciphertext || ""));
-        const contacts = Array.isArray(value?.contacts) ? value.contacts : [];
-        const firstContact = contacts[0] && isRecord(contacts[0]) ? contacts[0] : null;
-        const contactProfile = firstContact && isRecord(firstContact.profile) ? firstContact.profile : null;
-        const messages = Array.isArray(value?.messages) ? value.messages : [];
-        const statuses = Array.isArray(value?.statuses) ? value.statuses : [];
-        const calls = Array.isArray(value?.calls) ? value.calls : [];
-        for (const message of messages) {
-          if (!isRecord(message)) {
-            continue;
-          }
-          if (message.type === "edit" || message.type === "revoke") continue;
-          const createdAt = toIsoTimestamp(message.timestamp) || (/* @__PURE__ */ new Date()).toISOString();
-          const messageRecord = message;
-          const messageId = normalizeOptionalString(message.id) || null;
-          const body = getMessageText(messageRecord);
-          const liveClaim = messageId ? await claimLiveWhatsAppMessage({ supabase: adminSupabase, userId, messageId }) : "new";
-          if (liveClaim === "duplicate") continue;
-          let thread = await upsertThread({
-            userId,
-            metaChannelId,
-            contactWaId: String(message.from || firstContact?.wa_id || ""),
-            contactName: contactProfile?.name || null,
-            displayPhone: String(message.from || firstContact?.wa_id || ""),
-            status: "New Lead",
-            lastMessageText: body,
-            lastMessageAt: createdAt,
-            unreadDelta: 1
-          });
-          const isNewConversation = Math.abs(Date.parse(thread.createdAt) - Date.parse(createdAt)) < 2e3;
-          await insertMessage({
-            userId,
-            threadId: thread.id,
-            waMessageId: messageId,
-            direction: "inbound",
-            messageType: normalizeOptionalString(message.type) || "text",
-            body,
-            senderName: contactProfile?.name || null,
-            senderWaId: normalizeOptionalString(message.from) || null,
-            recipientWaId: phoneNumberId,
-            status: "received",
-            raw: messageRecord,
-            createdAt,
-            emitExistingInbound: liveClaim === "promoted"
-          });
-          const flowReply = getFlowReplyFromMessage(messageRecord);
-          if (flowReply) {
-            try {
-              await recordFlowSubmission({
-                userId,
-                threadId: thread.id,
-                contactId: normalizeOptionalString(message.from) || normalizeOptionalString(firstContact?.wa_id),
-                messageId,
-                responses: flowReply.responses,
-                submittedAt: createdAt
-              });
-              const refreshedThread = await adminSupabase.from("conversation_threads").select("*").eq("user_id", userId).eq("id", thread.id).maybeSingle();
-              if (!refreshedThread.error && refreshedThread.data) {
-                thread = mapThread(refreshedThread.data);
-              }
-            } catch (error) {
-              console.error("Flow response processing failed:", error);
-            }
-          }
-          await createIncomingMessageNotification({
-            userId,
-            source: "WhatsApp",
-            messageId,
-            contactName: normalizeOptionalString(contactProfile?.name),
-            contactValue: normalizeOptionalString(message.from) || normalizeOptionalString(firstContact?.wa_id),
-            previewText: body,
-            threadId: thread.id
-          });
-          try {
-            await processAutomationRulesForIncomingMessage({
-              userId,
-              metaChannelId,
-              phoneNumberId,
-              accessToken,
-              thread,
-              body,
-              receivedAt: createdAt,
-              isNewConversation,
-              contactExists: !isNewConversation,
-              senderWaId: normalizeOptionalString(message.from) || normalizeOptionalString(firstContact?.wa_id),
-              messageId
-            });
-          } catch (error) {
-            console.error("Automation rule processing failed:", error);
-          }
-        }
-        for (const call of calls) {
-          if (isCoexistenceChannelRow(channel)) continue;
-          if (!isRecord(call)) {
-            continue;
-          }
-          await handleCallWebhookEntry({
-            userId,
-            metaChannelId,
-            callRecord: call,
-            fallbackContactName: contactProfile?.name || null
-          });
-        }
-        for (const status of statuses) {
-          if (!isRecord(status)) {
-            continue;
-          }
-          const handledCallStatus = await handleCallWebhookStatus({
-            userId,
-            metaChannelId,
-            statusRecord: status
-          });
-          if (handledCallStatus) {
-            continue;
-          }
-          await updateOutgoingWhatsAppMessageStatus({
-            userId,
-            statusRecord: status
-          });
-        }
-      }
-    }
+    await processWhatsAppWebhookPayload(req.body);
     res.status(200).json({ ok: true });
     coexistenceWebhookQueue.kick();
   } catch (error) {
@@ -15428,10 +16010,22 @@ app.post("/api/auth/password-reset", async (req, res) => {
 app.use("/api", authenticate);
 app.use("/api", async (req, res, next) => {
   const guidance = coexistenceRestrictedAction(req.method, req.originalUrl.split("?")[0]);
-  if (!guidance) return next();
+  const path2 = req.originalUrl.split("?")[0].replace(/\/+$/, "");
+  const partnerCalling = /^\/api\/(?:calls(?:\/|$)|meta\/call-settings$)/.test(path2);
+  const partnerNumberControl = [
+    "/api/meta/channel/register",
+    "/api/meta/channel/deregister",
+    "/api/meta/channel/request-code",
+    "/api/meta/channel/verify-code",
+    "/api/meta/channel/two-step-verification"
+  ].includes(path2);
+  if (!guidance && !partnerCalling && !partnerNumberControl) return next();
   try {
     const row = await getMetaChannelRow(req.authedUser.id);
     if (isCoexistenceChannelRow(row)) return res.status(409).json({ error: guidance });
+    if (isWhatsAppPartnerChannel(row) && (partnerCalling || partnerNumberControl)) return res.status(409).json({
+      error: partnerCalling ? WHATSAPP_PARTNER_CALLING_GUIDANCE : "Manage registration and verification through partner onboarding. Use Check partner setup to confirm this connection."
+    });
     next();
   } catch (error) {
     sendError(res, 400, error);
@@ -15686,7 +16280,16 @@ app.post("/api/media/upload", upload.single("file"), async (req, res) => {
 });
 app.get("/api/media/:mediaId", async (req, res) => {
   try {
-    const { accessToken } = await getChannelWithToken(req.authedUser.id);
+    const { row, accessToken } = await getChannelWithToken(req.authedUser.id);
+    if (isWhatsAppPartnerChannel(row)) {
+      const provider = getMetaChannelMetadata(row).gupshup;
+      if (!provider?.appId) throw new Error("The Gupshup app is not connected.");
+      const media = await getCachedPartnerMedia(req.authedUser.id, String(provider.appId), req.params.mediaId);
+      res.setHeader("Content-Type", media.type || "application/octet-stream");
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.send(Buffer.from(await media.arrayBuffer()));
+      return;
+    }
     const metadata = await fetchRemoteMediaMetadata(accessToken, req.params.mediaId);
     if (!metadata.url) {
       throw new Error("Media URL was not returned by Meta.");
@@ -16220,6 +16823,7 @@ app.post("/api/meta/connect/embedded/exchange", async (req, res) => {
     if (input.configId !== WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID) {
       throw new Error("Use the configured WhatsApp Embedded Signup configuration.");
     }
+    if (input.solutionId !== WHATSAPP_PARTNER_SOLUTION_ID) throw new Error("Use the configured Connektly Gupshup partner solution for new WhatsApp signup.");
     if (!encryptionKey) {
       throw new Error("Configure META_TOKEN_ENCRYPTION_KEY before onboarding WhatsApp accounts.");
     }
@@ -16232,7 +16836,8 @@ app.post("/api/meta/connect/embedded/exchange", async (req, res) => {
       appId: metaAppId,
       configId: WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID,
       oauthState,
-      setupType
+      setupType,
+      solutionId: input.solutionId
     }, metaAppSecret));
   } catch (error) {
     sendError(res, 400, error);
@@ -16240,7 +16845,7 @@ app.post("/api/meta/connect/embedded/exchange", async (req, res) => {
 });
 app.post("/api/meta/connect/embedded", async (req, res) => {
   try {
-    const { signupTicket, setupType, wabaId, setupContext, oauthState } = req.body;
+    const { signupTicket, setupType, wabaId, setupContext, oauthState, solutionId } = req.body;
     let phoneNumberId = normalizeOptionalIdentifier(req.body.phoneNumberId);
     const isCoexistence = setupType === "coexistence";
     if (!signupTicket || setupType !== "exclusive" && !isCoexistence || typeof wabaId !== "string" || !/^\d+$/.test(wabaId) || phoneNumberId !== null && !/^\d+$/.test(phoneNumberId) || !isCoexistence && !phoneNumberId || !oauthState || setupContext?.event !== (isCoexistence ? "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" : "FINISH")) {
@@ -16252,9 +16857,11 @@ app.post("/api/meta/connect/embedded", async (req, res) => {
       appId: metaAppId,
       configId: WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID,
       oauthState,
-      setupType
+      setupType,
+      solutionId
     }, metaAppSecret);
     const accessToken = authorization.accessToken;
+    if (authorization.solutionId && authorization.solutionId !== WHATSAPP_PARTNER_SOLUTION_ID) throw new Error("Unexpected partner solution in signup authorization.");
     const mergedSetupContext = {
       ...setupContext,
       appId: metaAppId,
@@ -16293,6 +16900,14 @@ app.post("/api/meta/connect/embedded", async (req, res) => {
       messagingLimitTier: getNormalizedMessagingLimitTier(phone2),
       businessAccountName: waba.name || null,
       metadataPatch: {
+        ...authorization.solutionId ? { partnerSolution: {
+          id: authorization.solutionId,
+          ownerAppId: metaAppId,
+          partnerAppId: WHATSAPP_SOLUTION_PARTNER_APP_ID,
+          provider: "gupshup",
+          status: "UNVERIFIED",
+          onboardingId: authorization.onboardingId
+        } } : {},
         embeddedSignup: {
           version: 4,
           status: "activating",
@@ -16356,12 +16971,23 @@ app.post("/api/meta/channel/coexistence/activate", async (req, res) => {
     if (row.setup_type !== "coexistence" || row.connection_method !== "embedded_signup") {
       throw new Error("This activation check is only available for WhatsApp Business app Coexistence signup.");
     }
-    const activated = await activateCoexistenceWhatsAppChannel({
+    const activated = await activateEmbeddedWhatsAppChannel({
       userId: req.authedUser.id,
       row,
       accessToken,
       req
     });
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ channel: mapChannel(activated) });
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+app.post("/api/meta/channel/partner/activate", async (req, res) => {
+  try {
+    const { row, accessToken } = await getChannelWithToken(req.authedUser.id);
+    if (!isWhatsAppPartnerChannel({ metadata: getMetaChannelMetadata(row) })) throw new Error("This channel is not connected through the configured partner solution.");
+    const activated = await activateEmbeddedWhatsAppChannel({ userId: req.authedUser.id, row, accessToken, req });
     res.setHeader("Cache-Control", "no-store");
     res.json({ channel: mapChannel(activated) });
   } catch (error) {

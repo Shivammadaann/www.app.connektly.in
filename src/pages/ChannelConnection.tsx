@@ -23,6 +23,7 @@ import { appApi } from '../lib/api';
 import { hasEmbeddedSignupConfig } from '../lib/config';
 import { beginEmbeddedSignup, ensureMetaSdkReady, type EmbeddedSignupSession } from '../lib/meta-sdk';
 import { getWhatsAppActivationIssue, getWhatsAppPaymentSettingsUrl } from '../lib/whatsapp-onboarding';
+import { isWhatsAppPartnerChannel } from '../lib/whatsapp-partner';
 import { getWhatsAppCoexistenceLifecycle, getWhatsAppCoexistenceSync, isWhatsAppCoexistence, WHATSAPP_COEXISTENCE_DISCONNECT_GUIDANCE } from '../lib/whatsapp-capabilities';
 import { useAppData } from '../context/AppDataContext';
 import OnboardingTopBar from '../components/OnboardingTopBar';
@@ -253,8 +254,10 @@ export default function ChannelConnection() {
     && storedSync && typeof storedSync === 'object' && !Array.isArray(storedSync)
     && typeof (storedSync as Record<string, unknown>).onboardingId === 'string'
     && Boolean((storedSync as Record<string, unknown>).onboardingId);
-  const canCheckCoexistence = isCoexistenceSignup && isWhatsAppCoexistence(onboardingChannel)
-    && hasEmbeddedCoexistenceLifecycle
+  const isPartnerConnection = isWhatsAppPartnerChannel(onboardingChannel);
+  const canCheckCoexistence = (isPartnerConnection || isCoexistenceSignup && isWhatsAppCoexistence(onboardingChannel)
+    && hasEmbeddedCoexistenceLifecycle)
+    && onboardingChannel?.setupType === setupType
     && onboardingChannel?.status !== 'disconnected';
   const requirementsReady = hasAdmin === true && hasPhoneAccess === true;
   const manualConnectionReady =
@@ -514,6 +517,7 @@ export default function ChannelConnection() {
       const response = await appApi.connectMetaEmbedded({
         setupType: embeddedSession.setupType,
         signupTicket: embeddedSession.signupTicket,
+        solutionId: embeddedSession.solutionId,
         wabaId: embeddedSession.wabaId,
         phoneNumberId: embeddedSession.phoneNumberId,
         redirectUri: embeddedSession.redirectUri,
@@ -579,13 +583,13 @@ export default function ChannelConnection() {
     try {
       setIsConnecting(true);
       setError(null);
-      const response = await appApi.activateWhatsAppCoexistence();
+      const response = await (isPartnerConnection ? appApi.activateWhatsAppPartner() : appApi.activateWhatsAppCoexistence());
       setPendingChannel(response.channel);
       await refresh();
       const issue = getWhatsAppActivationIssue(response.channel);
       if (issue) throw new Error(issue);
       pendingSignupRef.current = null;
-      setStep(4);
+      setStep(isWhatsAppCoexistence(response.channel) ? 4 : 3);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Could not confirm the coexistence connection.');
     } finally {
@@ -651,7 +655,7 @@ export default function ChannelConnection() {
               />
               <SetupStepRow
                 index={3}
-                title={isWhatsAppCoexistence(existingChannel) ? 'Sync app data and add payment' : 'Review public profile'}
+                title={isWhatsAppCoexistence(existingChannel) ? 'Sync app data and review billing' : 'Review public profile'}
                 description={isWhatsAppCoexistence(existingChannel) ? 'Keep the app open while contacts and shared history sync.' : 'Optional details customers see on WhatsApp.'}
                 isComplete={existingChannel !== null}
               />
@@ -940,6 +944,9 @@ export default function ChannelConnection() {
                         </p>
                       </div>
 
+                      <p className="mx-auto mt-3 max-w-md text-center text-sm leading-5 text-gray-600">
+                        Facebook signup connects Connektly and OneDirect through the Gupshup partner solution. WhatsApp usage uses partner billing; your Connektly plan is separate.
+                      </p>
                       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
                       {success ? <StatusMessage tone="success">{success}</StatusMessage> : null}
                       {coexistenceLifecycle.isReconnecting ? (
@@ -1387,8 +1394,11 @@ export default function ChannelConnection() {
                         </div>
                       ) : null}
                       <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-left text-sm text-amber-900">
-                        <p className="font-semibold">Add your WhatsApp payment method</p>
-                        <p className="mt-1">Meta bills your business directly. Add or confirm a payment method for this WhatsApp account in WhatsApp Manager before sending messages.</p>
+                        <p className="font-semibold">{isPartnerConnection ? 'WhatsApp partner billing' : 'Add your WhatsApp payment method'}</p>
+                        <p className="mt-1">{isPartnerConnection
+                          ? 'WhatsApp usage is routed through OneDirect / Gupshup under the Connektly partner solution. Your Connektly subscription is separate. Messaging remains subject to partner wallet availability and Meta account limits.'
+                          : 'Meta bills your business directly. Add or confirm a payment method for this WhatsApp account in WhatsApp Manager before sending messages.'}</p>
+                        {!isPartnerConnection ? (
                         <a
                           href={getWhatsAppPaymentSettingsUrl(onboardingChannel?.wabaId)}
                           target="_blank"
@@ -1397,6 +1407,7 @@ export default function ChannelConnection() {
                         >
                           Open WhatsApp Manager
                         </a>
+                        ) : null}
                       </div>
                       <StepCTA
                         type="button"

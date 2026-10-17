@@ -205,7 +205,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
   };
 
   const ensurePeerConnection = async (options?: { reset?: boolean }) => {
-    if (!canUseCallingApi) throw new Error('Place calls in the WhatsApp Business app for this coexistence number.');
+    if (!canUseCallingApi) throw new Error('Calling is unavailable for this connection. Review the calling guidance in Channels.');
     if (options?.reset) {
       releaseBrowserSession({ clearSessionDescription: true, clearCallId: true });
     }
@@ -347,7 +347,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
       const nextPayload: WhatsAppCallManageInput = {
         ...payload,
       };
-      if (!canUseCallingApi) throw new Error('Place calls in the WhatsApp Business app for this coexistence number.');
+      if (!canUseCallingApi) throw new Error('Calling is unavailable for this connection. Review the calling guidance in Channels.');
 
       if (payload.action === 'connect' && !payload.session) {
         nextPayload.session = {
@@ -401,7 +401,7 @@ export function CallManagerProvider({ children }: { children: ReactNode }) {
 
   const startOutgoingCall = (to: string, callbackData?: string) =>
     {
-      if (!canUseCallingApi) return Promise.reject(new Error('Place calls in the WhatsApp Business app for this coexistence number.'));
+      if (!canUseCallingApi) return Promise.reject(new Error('Calling is unavailable for this connection. Review the calling guidance in Channels.'));
       const now = new Date().toISOString();
       const optimisticCallId = `pending:${Date.now()}`;
 

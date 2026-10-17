@@ -10,6 +10,7 @@ interface EmbeddedSignupTicketClaims {
   oauthState: string;
   accessToken: string;
   setupType: 'exclusive' | 'coexistence';
+  solutionId?: string;
   onboardingId: string;
   issuedAt: number;
   expiresAt: number;
@@ -48,6 +49,7 @@ export function readEmbeddedSignupTicket(
   ticket: string,
   expected: Pick<EmbeddedSignupTicketClaims, 'userId' | 'appId' | 'configId' | 'oauthState'> & {
     setupType?: EmbeddedSignupTicketClaims['setupType'];
+    solutionId?: string;
   },
   secret: string,
   now = Date.now(),
@@ -71,6 +73,7 @@ export function readEmbeddedSignupTicket(
       claims.configId !== expected.configId || claims.oauthState !== expected.oauthState ||
       !['exclusive', 'coexistence'].includes(claims.setupType) ||
       (expected.setupType !== undefined && claims.setupType !== expected.setupType) ||
+      claims.solutionId !== expected.solutionId ||
       typeof claims.onboardingId !== 'string' || !claims.onboardingId ||
       !Number.isFinite(claims.issuedAt) || claims.issuedAt > now ||
       typeof claims.accessToken !== 'string' || !claims.accessToken ||

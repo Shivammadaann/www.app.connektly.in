@@ -1,13 +1,23 @@
 # WhatsApp Embedded Signup and coexistence
 
-Connektly supports two WhatsApp connection modes as a **Meta Tech Provider**.
-Customers own their WhatsApp assets and add their own payment method in WhatsApp
-Manager. Connektly does not share a partner credit line.
+Connektly is a **Meta Tech Provider**. New Facebook Embedded Signup connections
+use the active **Connektly Gupshup OD** Multi-Partner Solution **1287084176407435**:
+Connektly app **797649033413847** owns the solution; OneDirect app
+**340384197887925** provides messaging and calling permissions. Connektly retains
+template and phone-asset management. Both exclusive and coexistence signup use
+this solution. Existing direct Meta/manual connections retain their direct route
+and customer payment method; this integration does not migrate them.
+
+Partner customers use the Solution Partner's credit line. The documented Gupshup
+SDK API provisions new apps in partner **4607**, wallet **Connektly**. This provider
+wallet is separate from Connektly's customer platform subscriptions and internal
+wallet feature flags. Do not enable global partner-billing flags to migrate
+existing direct customers.
 
 | Mode | Customer experience | Phone registration | After connection |
 | --- | --- | --- | --- |
-| Cloud API only (`exclusive`) | Connect a number for the WhatsApp Business Platform | Register through the API using the existing stored/generated PIN flow | Optional public profile editing, then customer payment setup |
-| Business app + Cloud API (`coexistence`) | Connect an existing WhatsApp Business app number and keep using the app | **Never register, deregister, request phone verification codes, or set a PIN through Cloud API** | Request contacts/shared history immediately, show synchronization status, then customer payment setup |
+| Cloud API only (`exclusive`) | Connect a number for the WhatsApp Business Platform | New partner signup provisions through Gupshup; existing direct connections retain their PIN flow | Optional public profile editing, then review the connection's billing route |
+| Business app + Cloud API (`coexistence`) | Connect an existing WhatsApp Business app number and keep using the app | **Never register, deregister, request phone verification codes, or set a PIN through Connektly's Cloud API** | Confirm partner callbacks, request contacts/shared history, show synchronization and partner billing status |
 
 Multi-WABA sharing and the phone-number bypass flow are not supported. A
 `FINISH_ONLY_WABA` event is rejected. A coexistence completion that supplies only
@@ -34,7 +44,7 @@ API **v25.0**. These version settings are independent.
 3. Configure the WhatsApp Business Account webhook callback as
    `https://app.connektly.in/api/meta/webhook` using
    `META_WEBHOOK_VERIFY_TOKEN`. Subscribe at app level to **`messages`,
-   `account_update`, `history`, `smb_app_state_sync`, and `smb_message_echoes`**.
+   `account_update`, `partner_solutions`, `history`, `smb_app_state_sync`, and `smb_message_echoes`**.
    Keep all existing subscriptions needed by other platform features. WABA
    subscription alone does not enable missing app-level webhook fields.
 4. Apply both database migrations before enabling coexistence onboarding:
@@ -46,11 +56,28 @@ API **v25.0**. These version settings are independent.
    stores onboarding and synchronization state. Missing queue storage/RPCs
    stops activation before initial synchronization requests are sent.
 5. Configure `META_APP_ID`, `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN`,
-   `META_TOKEN_ENCRYPTION_KEY`, and the existing Supabase service-role settings
+   `META_TOKEN_ENCRYPTION_KEY`, `GUPSHUP_PARTNER_TOKEN` (Universal Token),
+   `GUPSHUP_PARTNER_ID=4607`, `GUPSHUP_WALLET_NAME=Connektly`,
+   `GUPSHUP_WEBHOOK_SECRET`, and the existing Supabase service-role settings
    on the API. Browser and API Graph version settings must agree. Deploy the
    rebuilt frontend and API together, and restart the API so the webhook
    worker runs. `npm run dev:api` runs the development API; production uses the
    normal built-server deployment.
+
+Use the public HTTPS `FRONTEND_ORIGIN` for callbacks. Gupshup v3 subscriptions
+use `/api/gupshup/webhook/{providerAppId}` and an app/channel-bound authentication
+header derived from the server webhook secret. Credentials never enter Vite
+configuration or channel metadata. Keep the Universal Token current in server
+secrets. No additional app token needs to be generated for an existing valid UT.
+
+The private `whatsapp-partner-media` Supabase storage bucket caches downloaded
+provider media, with a 50 MiB object limit matching the current storage limit.
+It is included in `schema.sql` and created privately on first use if absent.
+The API refuses to use a public bucket with this name. Downloads are served
+through the authenticated user/app route. Gupshup documents a download limit of
+five requests per hour; cached objects avoid repeated provider requests. An
+uncached expired or rate-limited object remains unavailable until the provider
+allows retrieval. No private media URLs or provider tokens are exposed.
 
 On **October 17, 2026**, the selected configuration was checked read-only in
 Meta's Embedded Signup Builder with
@@ -70,7 +97,7 @@ production Embedded Signup flow.
 1. The browser preloads the Facebook JavaScript SDK. The customer's click
    launches `FB.login` synchronously with the configured ID,
    `response_type: 'code'`, `override_default_response_type: true`, and
-   `extras: { setup: {}, version: 'v4', sessionInfoVersion: 3 }`.
+   `extras: { setup: { solutionID: '1287084176407435' }, version: 'v4', sessionInfoVersion: 3 }`.
 2. For coexistence only, `extras` also includes
    `featureType: 'whatsapp_business_app_onboarding'`. The customer needs
    WhatsApp Business **2.24.17 or later**, access to their phone and business,
@@ -79,12 +106,12 @@ production Embedded Signup flow.
    open throughout onboarding and synchronization.
 3. Handle the authorization code independently of the asset message. Send it
    immediately to authenticated `POST /api/meta/connect/embedded/exchange`
-   with the selected `setupType`. Meta's code lifetime is 30 seconds; do not
+   with the selected `setupType` and `solutionId`. Meta's code lifetime is 30 seconds; do not
    wait for the asset message before exchanging it.
 4. The server exchanges the code without an SDK `redirect_uri` and returns a
    ten-minute opaque AES-GCM ticket. The ticket binds the business token to
    the signed-in user, app, configuration, signup state, selected mode, and
-   onboarding lifecycle. The raw business token is not returned to the browser.
+   onboarding lifecycle and partner solution. The raw business token is not returned to the browser.
 5. Accept only HTTPS Facebook-origin session messages. Cloud API mode expects
    `FINISH` with WABA and phone IDs. Coexistence expects
    `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`, with WABA and an optional phone
@@ -95,15 +122,49 @@ production Embedded Signup flow.
    For coexistence it requires `is_on_biz_app: true` and
    `platform_type: 'CLOUD_API'`; absent phone IDs are resolved only when an
    unambiguous matching number is available.
-7. Cloud API mode registers the sender and subscribes the app to the WABA.
-   Coexistence skips registration, verifies app-level webhook subscriptions
-   and durable import storage, subscribes the WABA, and requests initial
-   contacts then history. Each request is durably claimed before the Meta
-   call. A retry cannot replay an already claimed initial import.
+7. For partner connections, verify `/{wabaId}/solutions`, app-level webhook
+   fields, durable queue storage, and the current Meta phone identity. Reconcile
+   an existing Gupshup app using full phone/WABA matches or durably claim one SDK
+   creation request with `force:false`. Interrupted or ambiguous creation is
+   never replayed; later activation checks only reconcile the existing app.
+   Confirm the live OneDirect app's WABA health, authenticated v3 callback,
+   and Connektly's management webhook subscription before showing connected.
+   A provider refusal or HTML response leaves the channel pending.
+   Coexistence then uses Gupshup's `/coex/sync` API with the same durable claims
+   as direct Meta sync. No second import is issued through the other provider.
 8. Cloud API mode offers optional profile editing. Coexistence proceeds to
-   the payment step with synchronization status; it does not expose API
-   profile editing. A technically connected channel does not confirm that
-   the customer's Meta payment method is configured.
+   the billing step with synchronization status; it does not expose API
+   profile editing. Partner connections show partner billing. Direct connections
+   still prompt for their own Meta payment method. Connected does not certify
+   wallet balance or remove Meta messaging limits.
+
+`POST /api/meta/channel/partner/activate` powers **Check partner setup**. It
+rechecks readiness without blindly repeating app creation or imports. Only
+Gupshup handles outbound partner messages, marketing templates, read receipts,
+user blocking, and ordinary media uploads/downloads. Provider failures never
+fall back to direct Meta sending. Graph template and phone-asset management
+retain Connektly's management token. Gupshup's `gs_id` is reconciled with the
+Meta `wamid` for delivery receipts and contextual replies. Duplicate callbacks
+share the existing message/import deduplication; statuses arriving before local
+send persistence receive bounded delayed reconciliation.
+
+Partner solution lifecycle events require Meta's HMAC signature. MPS
+`account_update` events route using `value.waba_info.waba_id`, since `entry.id`
+can identify the provider portfolio. Solution updates are timestamp ordered;
+deactivation pauses sending and reactivation requires a fresh readiness check.
+Gupshup callbacks cannot change global solution lifecycle state.
+
+The active solution grants calling to OneDirect. Gupshup currently documents
+partner calling in `GS_SIP` mode; Connektly's existing browser WebRTC calling
+cannot use its own Meta token for these customers. Both UI and API disable that
+path and explain the SIP requirement. Coexistence calls remain in the Business
+app. SIP trunk configuration and a browser-to-SIP bridge are not implemented.
+
+Primary partner references: [SDK app creation](https://bizgate-docs.gupshup.io/reference/createtppapp),
+[v3 messaging](https://partner-docs.gupshup.io/docs/whatsapp-passthrough-apis-for-partners),
+[callback subscriptions](https://partner-docs.gupshup.io/reference/setsubscription-api-v3),
+[coexistence sync](https://partner-docs.gupshup.io/reference/initiatecoexsync), and
+[Meta Multi-Partner Solutions](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/multi-partner-solutions).
 
 Manual credentials remain available for Cloud API only. Existing Business app
 numbers must use the coexistence Embedded Signup path.
@@ -201,8 +262,17 @@ restrictions, shared sending limits, and rendered UI for both connection modes.
 
 A live HTTPS acceptance test must still verify a real eligible Business app
 number, webhook delivery, contact import, shared-history completion or refusal,
-new app-sent echoes, inbound customer replies and templates, customer payment
+new app-sent echoes, inbound customer replies and templates, the applicable billing
 setup, and offboarding/reconnection. Check supported companion devices after
 onboarding because Meta unlinks existing companions; WhatsApp for Windows and
 WearOS are not supported companions for this integration. Unit/simulated tests
 do not establish live Meta authorization or delivery.
+
+On October 17, 2026, Meta showed solution 1287084176407435 Active and Gupshup
+Settings > Solutions showed APPROVED. Read-only calls verified the current UT's
+partner app-list and subscription access, and Meta confirmed all six required
+webhook fields above are active. A related new Bizgate list endpoint returned
+portal HTML; the SDK create POST has not been exercised against a customer
+number. Confirm its availability and run a real HTTPS customer acceptance test
+before production rollout. Do not create dummy customer apps, force-register
+phones, or send real messages merely to probe endpoint availability.

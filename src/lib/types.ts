@@ -1417,6 +1417,7 @@ export interface ManualMetaConnectionInput {
 }
 
 export interface EmbeddedMetaConnectionInput {
+  solutionId?: string;
   setupType: SetupType;
   signupTicket: string;
   wabaId: string;
@@ -1440,6 +1441,7 @@ export interface EmbeddedMetaConnectionInput {
 }
 
 export interface EmbeddedMetaCodeExchangeInput {
+  solutionId?: string;
   code: string;
   configId: string;
   oauthState: string;

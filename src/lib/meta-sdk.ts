@@ -1,4 +1,5 @@
 import { WHATSAPP_ONBOARDING_CONFIG_ID, clientConfig } from './config';
+import { WHATSAPP_PARTNER_SOLUTION_ID } from './whatsapp-partner';
 import type { EmbeddedMetaCodeExchangeInput, EmbeddedMetaCodeExchangeResponse, SetupType } from './types';
 
 export type FacebookLoginStatus = 'connected' | 'not_authorized' | 'unknown';
@@ -51,6 +52,7 @@ export type MetaOAuthFlowState =
   | 'messenger_flow';
 
 export interface EmbeddedSignupSession {
+  solutionId: string;
   setupType: SetupType;
   signupTicket: string;
   expiresAt: string;
@@ -511,6 +513,7 @@ export function beginEmbeddedSignup(options: {
         signupTicket: authorization.signupTicket,
         expiresAt: authorization.expiresAt,
         setupType, wabaId, phoneNumberId, redirectUri, flowState, oauthState,
+        solutionId: WHATSAPP_PARTNER_SOLUTION_ID,
         setupContext: sessionInfo,
       });
     };
@@ -593,7 +596,7 @@ export function beginEmbeddedSignup(options: {
         }, 60000);
         let exchange: Promise<EmbeddedMetaCodeExchangeResponse>;
         try {
-          exchange = options.onCode({ code, configId, oauthState, setupType });
+          exchange = options.onCode({ code, configId, oauthState, setupType, solutionId: WHATSAPP_PARTNER_SOLUTION_ID });
         } catch (error) {
           fail(error instanceof Error ? error.message : 'Could not exchange the Meta signup code.');
           return;
@@ -610,7 +613,7 @@ export function beginEmbeddedSignup(options: {
         response_type: 'code',
         override_default_response_type: true,
         extras: {
-          setup: {}, version: 'v4', sessionInfoVersion: 3,
+          setup: { solutionID: WHATSAPP_PARTNER_SOLUTION_ID }, version: 'v4', sessionInfoVersion: 3,
           ...(setupType === 'coexistence' ? { featureType: 'whatsapp_business_app_onboarding' } : {}),
         },
       });

@@ -437,6 +437,9 @@ export const appApi = {
       method: 'POST',
     });
   },
+  activateWhatsAppPartner() {
+    return apiRequest<{ channel: DashboardBootstrap['channel'] }>('/meta/channel/partner/activate', { method: 'POST' });
+  },
   exchangeMetaOAuthCode(payload: MetaOAuthCodeExchangeInput) {
     return apiRequest<MetaOAuthCodeExchangeResponse>('/meta/oauth/exchange', {
       method: 'POST',
