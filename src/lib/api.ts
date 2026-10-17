@@ -23,6 +23,8 @@ import type {
   BillingQuoteInput,
   BillingQuoteResponse,
   EmbeddedMetaConnectionInput,
+  EmbeddedMetaCodeExchangeInput,
+  EmbeddedMetaCodeExchangeResponse,
   InstagramConnectableAccount,
   InboxInsightsFilters,
   InboxInsightsResponse,
@@ -419,6 +421,12 @@ export const appApi = {
   },
   connectMetaEmbedded(payload: EmbeddedMetaConnectionInput) {
     return apiRequest<{ channel: DashboardBootstrap['channel'] }>('/meta/connect/embedded', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  exchangeEmbeddedSignupCode(payload: EmbeddedMetaCodeExchangeInput) {
+    return apiRequest<EmbeddedMetaCodeExchangeResponse>('/meta/connect/embedded/exchange', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

@@ -1,9 +1,31 @@
 import { WHATSAPP_ONBOARDING_CONFIG_ID, clientConfig } from './config';
+import type { EmbeddedMetaCodeExchangeInput, EmbeddedMetaCodeExchangeResponse } from './types';
+
+export type FacebookLoginStatus = 'connected' | 'not_authorized' | 'unknown';
+
+export interface FacebookAuthResponse {
+  accessToken: string;
+  expiresIn: number;
+  signedRequest: string;
+  userID: string;
+}
+
+export interface FacebookLoginStatusResponse {
+  status: FacebookLoginStatus;
+  authResponse?: FacebookAuthResponse;
+}
 
 declare global {
   interface Window {
     FB?: {
       init: (params: Record<string, unknown>) => void;
+      AppEvents: {
+        logPageView: () => void;
+      };
+      getLoginStatus: (callback: (response: FacebookLoginStatusResponse) => void) => void;
+      XFBML: {
+        parse: (element: HTMLElement) => void;
+      };
       login: (
         callback: (response: {
           status?: string;
@@ -16,6 +38,7 @@ declare global {
       ) => void;
     };
     fbAsyncInit?: () => void;
+    connektlyFacebookLogin?: (response?: FacebookLoginStatusResponse) => void;
   }
 }
 
@@ -27,8 +50,9 @@ export type MetaOAuthFlowState =
   | 'instagram_flow'
   | 'messenger_flow';
 
-interface EmbeddedSignupSession {
-  code: string;
+export interface EmbeddedSignupSession {
+  signupTicket: string;
+  expiresAt: string;
   wabaId: string;
   phoneNumberId: string;
   redirectUri: string;
@@ -91,6 +115,33 @@ interface MetaConfiguredLoginMessage {
 }
 
 let sdkPromise: Promise<void> | null = null;
+let sdkInitialized = false;
+let embeddedSignupActive = false;
+let loginStatusPromise: Promise<FacebookLoginStatusResponse> | null = null;
+let facebookLoginStatus: FacebookLoginStatus | null = null;
+const loginStatusListeners = new Set<() => void>();
+
+export function getFacebookLoginStatusSnapshot() {
+  return facebookLoginStatus;
+}
+
+export function subscribeToFacebookLoginStatus(listener: () => void) {
+  loginStatusListeners.add(listener);
+  return () => {
+    loginStatusListeners.delete(listener);
+  };
+}
+
+export function statusChangeCallback(response: FacebookLoginStatusResponse) {
+  if (facebookLoginStatus === response.status) {
+    return;
+  }
+
+  // Facebook authorization does not establish a Connektly (Supabase) session.
+  // Keep only the status in shared state, rather than copying the access token.
+  facebookLoginStatus = response.status;
+  loginStatusListeners.forEach((listener) => listener());
+}
 
 export const INSTAGRAM_BUSINESS_LOGIN_EVENT = 'CONNEKTLY_INSTAGRAM_BUSINESS_LOGIN';
 export const META_CONFIGURED_LOGIN_EVENT = 'CONNEKTLY_META_CONFIGURED_LOGIN';
@@ -295,26 +346,25 @@ function beginConfiguredOAuthLogin(args: {
   });
 }
 
-function injectMetaScript() {
-  if (document.querySelector('script[data-meta-sdk="true"]')) {
+function injectMetaScript(onError: () => void) {
+  if (document.getElementById('facebook-jssdk') || document.querySelector('script[data-meta-sdk="true"]')) {
     return;
   }
 
   const script = document.createElement('script');
+  script.id = 'facebook-jssdk';
   script.src = 'https://connect.facebook.net/en_US/sdk.js';
   script.async = true;
   script.defer = true;
+  script.crossOrigin = 'anonymous';
   script.dataset.metaSdk = 'true';
+  script.onerror = onError;
   document.head.appendChild(script);
 }
 
 export async function ensureMetaSdkReady() {
   if (!clientConfig.meta.appId) {
     throw new Error('Meta SDK is not configured. Set VITE_META_APP_ID first.');
-  }
-
-  if (window.FB) {
-    return;
   }
 
   if (!sdkPromise) {
@@ -325,12 +375,19 @@ export async function ensureMetaSdkReady() {
 
       window.fbAsyncInit = () => {
         try {
-          window.FB?.init({
+          const fb = window.FB;
+          if (!fb) {
+            throw new Error('The Meta SDK did not provide the Facebook API.');
+          }
+
+          fb.init({
             appId: clientConfig.meta.appId,
             cookie: true,
-            xfbml: false,
+            xfbml: true,
             version: clientConfig.meta.graphVersion,
           });
+          fb.AppEvents.logPageView();
+          sdkInitialized = true;
           window.clearTimeout(timeout);
           resolve();
         } catch (error) {
@@ -339,147 +396,214 @@ export async function ensureMetaSdkReady() {
         }
       };
 
-      injectMetaScript();
+      if (window.FB) {
+        window.fbAsyncInit();
+      } else {
+        injectMetaScript(() => {
+          window.clearTimeout(timeout);
+          reject(new Error('Failed to load the Meta SDK.'));
+        });
+      }
     });
   }
 
   return sdkPromise;
 }
 
-export async function beginEmbeddedSignup(options: { flowState?: MetaOAuthFlowState } = {}) {
-  const configId = WHATSAPP_ONBOARDING_CONFIG_ID;
+export async function checkFacebookLoginStatus() {
   await ensureMetaSdkReady();
-  const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.search}`;
-  const flowState = options.flowState || 'core_onboarding';
-  const oauthState = buildOauthState(flowState);
 
-  return new Promise<EmbeddedSignupSession>((resolve, reject) => {
-    let authCode: string | null = null;
-    let sessionInfo: {
-      wabaId?: string;
-      phoneNumberId?: string;
-      setupContext?: EmbeddedSignupSession['setupContext'];
-    } = {};
-
-    const maybeResolve = () => {
-      if (authCode && sessionInfo.wabaId && sessionInfo.phoneNumberId) {
-        cleanup();
-        resolve({
-          code: authCode,
-          wabaId: sessionInfo.wabaId,
-          phoneNumberId: sessionInfo.phoneNumberId,
-          redirectUri,
-          flowState,
-          oauthState,
-          setupContext:
-            sessionInfo.setupContext || {
-              type: 'WA_EMBEDDED_SIGNUP',
-              event: 'FINISH',
-              data: {
-                waba_id: sessionInfo.wabaId,
-                phone_number_id: sessionInfo.phoneNumberId,
-              },
-              receivedAt: new Date().toISOString(),
-              appId: clientConfig.meta.appId,
-              configId,
-              graphVersion: clientConfig.meta.graphVersion,
-              redirectUri,
-              flowState,
-              oauthState,
-            },
-        });
-      }
-    };
-
-    const handleMessage = (event: MessageEvent) => {
-      const trustedOrigin = typeof event.origin === 'string' && event.origin.includes('facebook.com');
-
-      if (!trustedOrigin || typeof event.data !== 'string') {
+  if (!loginStatusPromise) {
+    loginStatusPromise = new Promise<FacebookLoginStatusResponse>((resolve, reject) => {
+      const fb = window.FB;
+      if (!fb) {
+        reject(new Error('The Meta SDK did not provide the Facebook API.'));
         return;
       }
+
+      let settled = false;
+      const timeout = window.setTimeout(() => {
+        settled = true;
+        reject(new Error('Timed out while checking Facebook login status.'));
+      }, 10000);
 
       try {
-        const payload = JSON.parse(event.data) as {
-          type?: string;
-          event?: string;
-          data?: Record<string, unknown>;
-        };
-
-        if (payload.type !== 'WA_EMBEDDED_SIGNUP' || payload.event !== 'FINISH') {
-          return;
-        }
-
-        sessionInfo = {
-          wabaId: typeof payload.data?.waba_id === 'string' ? payload.data.waba_id : undefined,
-          phoneNumberId:
-            typeof payload.data?.phone_number_id === 'string'
-              ? payload.data.phone_number_id
-              : undefined,
-          setupContext: {
-            type: payload.type,
-            event: payload.event,
-            data: payload.data || {},
-            receivedAt: new Date().toISOString(),
-            appId: clientConfig.meta.appId,
-            configId,
-            graphVersion: clientConfig.meta.graphVersion,
-            redirectUri,
-            flowState,
-            oauthState,
-          },
-        };
-        maybeResolve();
-      } catch {
-        return;
-      }
-    };
-
-    const cleanup = () => {
-      window.removeEventListener('message', handleMessage);
-    };
-
-    window.addEventListener('message', handleMessage);
-    const fb = window.FB;
-    if (!fb) {
-      cleanup();
-      reject(new Error('Meta SDK did not initialize correctly.'));
-      return;
-    }
-
-    fb.login(
-      (response) => {
-        if (response.status !== 'connected' || !response.authResponse?.code) {
-          cleanup();
-          reject(new Error('Meta signup was cancelled before authorization completed.'));
-          return;
-        }
-
-        authCode = response.authResponse.code;
-        window.setTimeout(() => {
-          if (!sessionInfo.wabaId || !sessionInfo.phoneNumberId) {
-            cleanup();
-            reject(
-              new Error(
-                'Meta signup finished but the account identifiers were not returned. Use manual connection as a fallback.',
-              ),
-            );
+        fb.getLoginStatus((response) => {
+          if (settled) {
             return;
           }
 
-          maybeResolve();
-        }, 3000);
-      },
-      buildConfiguredLoginOptions(configId, oauthState, {
+          settled = true;
+          window.clearTimeout(timeout);
+          statusChangeCallback(response);
+          resolve(response);
+        });
+      } catch (error) {
+        settled = true;
+        window.clearTimeout(timeout);
+        reject(error);
+      }
+    }).finally(() => {
+      loginStatusPromise = null;
+    });
+  }
+
+  return loginStatusPromise;
+}
+
+export function beginEmbeddedSignup(options: {
+  onCode: (input: EmbeddedMetaCodeExchangeInput) => Promise<EmbeddedMetaCodeExchangeResponse>;
+  signal?: AbortSignal;
+  flowState?: MetaOAuthFlowState;
+}): Promise<EmbeddedSignupSession> {
+  // FB.login must run directly in the click handler, without awaiting SDK loading.
+  if (!sdkInitialized || !window.FB) {
+    return Promise.reject(new Error('Facebook is still loading. Please try again in a moment.'));
+  }
+  if (window.location.protocol !== 'https:') {
+    return Promise.reject(new Error('Meta Embedded Signup requires HTTPS. Open Connektly using its HTTPS app URL.'));
+  }
+  if (embeddedSignupActive) {
+    return Promise.reject(new Error('A WhatsApp signup is already open. Finish or cancel it before starting again.'));
+  }
+  if (options.signal?.aborted) {
+    return Promise.reject(new Error('WhatsApp signup was cancelled.'));
+  }
+
+  const fb = window.FB;
+  const configId = WHATSAPP_ONBOARDING_CONFIG_ID;
+  const redirectUri = `${window.location.origin}${window.location.pathname}`;
+  const flowState = options.flowState || 'core_onboarding';
+  const oauthState = buildOauthState(flowState);
+  embeddedSignupActive = true;
+
+  return new Promise<EmbeddedSignupSession>((resolve, reject) => {
+    let settled = false;
+    let exchanging = false;
+    let authorization: EmbeddedMetaCodeExchangeResponse | null = null;
+    let sessionInfo: EmbeddedSignupSession['setupContext'] | null = null;
+    let detailsTimeout: number | undefined;
+
+    const cleanup = () => {
+      settled = true;
+      embeddedSignupActive = false;
+      window.clearTimeout(timeout);
+      window.clearTimeout(detailsTimeout);
+      window.removeEventListener('message', handleMessage);
+      options.signal?.removeEventListener('abort', handleAbort);
+    };
+    const fail = (message: string) => {
+      if (settled) return;
+      cleanup();
+      reject(new Error(message));
+    };
+    const handleAbort = () => fail('WhatsApp signup was cancelled.');
+    const maybeResolve = () => {
+      if (settled || !authorization || !sessionInfo) return;
+      const wabaId = String(sessionInfo.data.waba_id || '').trim();
+      const phoneNumberId = String(sessionInfo.data.phone_number_id || '').trim();
+      cleanup();
+      resolve({
+        signupTicket: authorization.signupTicket,
+        expiresAt: authorization.expiresAt,
+        wabaId, phoneNumberId, redirectUri, flowState, oauthState,
+        setupContext: sessionInfo,
+      });
+    };
+    const handleMessage = (event: MessageEvent) => {
+      if (settled) return;
+      try {
+        const origin = new URL(event.origin);
+        if (
+          origin.protocol !== 'https:' || origin.port ||
+          !(origin.hostname === 'facebook.com' || origin.hostname.endsWith('.facebook.com'))
+        ) return;
+      } catch {
+        return;
+      }
+
+      let payload: { type?: string; event?: string; data?: Record<string, unknown> };
+      try {
+        payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      } catch {
+        return;
+      }
+      if (!payload || payload.type !== 'WA_EMBEDDED_SIGNUP' || typeof payload.event !== 'string') return;
+      const data = payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+        ? payload.data : {};
+      if (payload.event === 'CANCEL' || payload.event === 'ERROR') {
+        const message = typeof data.error_message === 'string' ? data.error_message : null;
+        const step = typeof data.current_step === 'string' ? data.current_step : null;
+        fail(message ? `Meta signup failed: ${message}` : `WhatsApp signup was cancelled${step ? ` at ${step}` : ''}. You can try again.`);
+        return;
+      }
+      if (payload.event === 'FINISH_ONLY_WABA') {
+        fail('Meta created the WhatsApp account without a phone number. Run signup again and add a phone number to connect messaging.');
+        return;
+      }
+      if (payload.event?.startsWith('FINISH') && payload.event !== 'FINISH') {
+        fail('Meta returned a different WhatsApp onboarding flow. This connection requires the standard Cloud API flow; use its WhatsApp Embedded Signup configuration.');
+        return;
+      }
+      if (payload.event !== 'FINISH') return;
+      const wabaId = typeof data.waba_id === 'string' ? data.waba_id.trim() : '';
+      const phoneNumberId = typeof data.phone_number_id === 'string' ? data.phone_number_id.trim() : '';
+      if (!/^\d+$/.test(wabaId) || !/^\d+$/.test(phoneNumberId)) {
+        fail('Meta finished signup without the WhatsApp account and phone number IDs. Confirm that the app domain is allowed in Facebook Login for Business, then try again.');
+        return;
+      }
+      sessionInfo = {
+        type: 'WA_EMBEDDED_SIGNUP', event: 'FINISH',
+        data: { ...data, waba_id: wabaId, phone_number_id: phoneNumberId },
+        receivedAt: new Date().toISOString(),
+        appId: clientConfig.meta.appId, configId,
+        graphVersion: clientConfig.meta.graphVersion, redirectUri, flowState, oauthState,
+      };
+      maybeResolve();
+    };
+    const timeout = window.setTimeout(() => {
+      fail('WhatsApp signup timed out. Close the Meta window and try again.');
+    }, 10 * 60 * 1000);
+    window.addEventListener('message', handleMessage);
+    options.signal?.addEventListener('abort', handleAbort, { once: true });
+
+    try {
+      fb.login((response) => {
+        if (settled || exchanging) return;
+        const code = response.authResponse?.code?.trim();
+        if (!code) {
+          fail('Meta did not return an authorization code. Complete WhatsApp signup and grant access before continuing.');
+          return;
+        }
+        exchanging = true;
+        // Meta codes expire after 30 seconds. Exchange immediately, independently
+        // of when the separate FINISH postMessage delivers the asset IDs.
+        detailsTimeout = window.setTimeout(() => {
+          fail('Meta authorized the connection but did not return the account details. Check the HTTPS domain and OAuth settings, then run signup again.');
+        }, 60000);
+        let exchange: Promise<EmbeddedMetaCodeExchangeResponse>;
+        try {
+          exchange = options.onCode({ code, configId, oauthState });
+        } catch (error) {
+          fail(error instanceof Error ? error.message : 'Could not exchange the Meta signup code.');
+          return;
+        }
+        void exchange
+          .then((result) => {
+            if (settled) return;
+            authorization = result;
+            maybeResolve();
+          })
+          .catch((error) => fail(error instanceof Error ? error.message : 'Could not exchange the Meta signup code. Please try again.'));
+      }, {
+        config_id: configId,
         response_type: 'code',
         override_default_response_type: true,
-        extras: {
-          setup: {},
-          sessionInfoVersion: 3,
-          featureType: 'whatsapp_embedded_signup',
-          flowState,
-        },
-      }),
-    );
+        extras: { setup: {}, version: 'v4', sessionInfoVersion: 3 },
+      });
+    } catch (error) {
+      fail(error instanceof Error ? error.message : 'Could not open Meta Embedded Signup.');
+    }
   });
 }
 

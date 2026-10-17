@@ -1418,7 +1418,7 @@ export interface ManualMetaConnectionInput {
 
 export interface EmbeddedMetaConnectionInput {
   setupType: SetupType;
-  code: string;
+  signupTicket: string;
   wabaId: string;
   phoneNumberId: string;
   redirectUri?: string;
@@ -1436,6 +1436,17 @@ export interface EmbeddedMetaConnectionInput {
     flowState?: string | null;
     oauthState?: string | null;
   };
+}
+
+export interface EmbeddedMetaCodeExchangeInput {
+  code: string;
+  configId: string;
+  oauthState: string;
+}
+
+export interface EmbeddedMetaCodeExchangeResponse {
+  signupTicket: string;
+  expiresAt: string;
 }
 
 export interface RegisterMetaSenderInput {

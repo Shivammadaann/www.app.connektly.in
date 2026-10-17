@@ -13,6 +13,7 @@ import {
 import { appApi } from '../lib/api';
 import TurnstileWidget from '../components/TurnstileWidget';
 import { clientConfig, hasTurnstileSiteKey } from '../lib/config';
+import FacebookLoginButton from '../components/auth/FacebookLoginButton';
 import ModalPortal, { APP_MODAL_LAYER_CLASS } from '../components/ui/ModalPortal';
 import {
   AuthAlert,
@@ -674,7 +675,7 @@ export default function Login() {
     return (
       <AuthTransitionScreen
         title="Logging in"
-        description="Google confirmed your account. Taking you to Connektly now."
+        description="Your account is confirmed. Taking you to Connektly now."
       />
     );
   }
@@ -743,7 +744,7 @@ export default function Login() {
 
           <Divider />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-3">
             <SocialLoginButton
               provider="google"
               loading={oauthLoadingProvider === 'google'}
@@ -753,14 +754,12 @@ export default function Login() {
               Google
             </SocialLoginButton>
 
-            <SocialLoginButton
-              provider="facebook"
+            <FacebookLoginButton
               loading={oauthLoadingProvider === 'facebook'}
-              disabled={oauthLoadingProvider !== null || isLoading || isPreparingMfa}
-              onClick={() => void handleOAuthLogin('facebook')}
-            >
-              Facebook
-            </SocialLoginButton>
+              disabled={oauthLoadingProvider !== null || isLoading || isPreparingMfa || (hasTurnstileSiteKey && !captchaToken)}
+              onContinue={() => handleOAuthLogin('facebook')}
+              onError={setError}
+            />
           </div>
         </div>
       </AuthForm>

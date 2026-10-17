@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { appApi } from '../lib/api';
 import { hasEmbeddedSignupConfig } from '../lib/config';
-import { beginEmbeddedSignup } from '../lib/meta-sdk';
+import { beginEmbeddedSignup, ensureMetaSdkReady, type EmbeddedSignupSession } from '../lib/meta-sdk';
+import { getWhatsAppActivationIssue, getWhatsAppPaymentSettingsUrl } from '../lib/whatsapp-onboarding';
 import { useAppData } from '../context/AppDataContext';
 import OnboardingTopBar from '../components/OnboardingTopBar';
 import ChannelBrandIcon from '../components/ChannelBrandIcon';
@@ -218,7 +219,9 @@ export default function ChannelConnection() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
-  const [has2FADisabled, setHas2FADisabled] = useState<boolean | null>(null);
+  const [hasPhoneAccess, setHasPhoneAccess] = useState<boolean | null>(null);
+  const [sdkReady, setSdkReady] = useState(false);
+  const [sdkError, setSdkError] = useState<string | null>(null);
   const [connectMethod, setConnectMethod] = useState<'manual' | null>(null);
   const [manualData, setManualData] = useState({ token: '', wabaId: '', phoneId: '' });
   const [isConnecting, setIsConnecting] = useState(false);
@@ -235,10 +238,12 @@ export default function ChannelConnection() {
   const [success, setSuccess] = useState<string | null>(null);
   const businessPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const manualTokenInputRef = useRef<HTMLInputElement | null>(null);
+  const signupAbortRef = useRef<AbortController | null>(null);
+  const pendingSignupRef = useRef<EmbeddedSignupSession | null>(null);
 
   const existingChannel = bootstrap?.channel || null;
   const onboardingChannel = pendingChannel || existingChannel;
-  const requirementsReady = hasAdmin === true && has2FADisabled !== null;
+  const requirementsReady = hasAdmin === true && hasPhoneAccess === true;
   const manualConnectionReady =
     manualData.token.trim() !== '' && manualData.wabaId.trim() !== '' && manualData.phoneId.trim() !== '';
   const businessProfilePreviewName = getBusinessProfilePreviewName(businessProfile, bootstrap);
@@ -273,6 +278,19 @@ export default function ChannelConnection() {
   }, [existingChannel]);
 
   useEffect(() => {
+    let active = true;
+    void ensureMetaSdkReady().then(() => {
+      if (active) setSdkReady(true);
+    }).catch(() => {
+      if (active) setSdkError('Facebook could not load. Check your connection or browser settings, then reload this page.');
+    });
+    return () => {
+      active = false;
+      signupAbortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     if (isBusinessProfileDirty) {
       return;
     }
@@ -298,9 +316,12 @@ export default function ChannelConnection() {
   }, [businessPhotoPreviewUrl]);
 
   const resetModal = () => {
+    signupAbortRef.current?.abort();
+    signupAbortRef.current = null;
+    pendingSignupRef.current = null;
     setStep(1);
     setHasAdmin(null);
-    setHas2FADisabled(null);
+    setHasPhoneAccess(null);
     setConnectMethod(null);
     setManualData({ token: '', wabaId: '', phoneId: '' });
     setPendingChannel(null);
@@ -331,6 +352,8 @@ export default function ChannelConnection() {
       setSuccess(null);
       const response = await appApi.registerMetaSender();
       setPendingChannel(response.channel);
+      const issue = getWhatsAppActivationIssue(response.channel);
+      if (issue) throw new Error(issue);
       setSuccess(null);
       await refresh();
       await refreshBusinessProfile({ silent: true }).catch(() => null);
@@ -433,14 +456,25 @@ export default function ChannelConnection() {
   };
 
   const handleConnectMeta = async () => {
+    const controller = new AbortController();
+    signupAbortRef.current = controller;
     try {
       setIsConnecting(true);
       setError(null);
       setSuccess(null);
-      const embeddedSession = await beginEmbeddedSignup({ flowState: 'core_onboarding' });
+      if (pendingSignupRef.current && Date.parse(pendingSignupRef.current.expiresAt) <= Date.now()) {
+        pendingSignupRef.current = null;
+      }
+      const embeddedSession = pendingSignupRef.current || await beginEmbeddedSignup({
+        flowState: 'core_onboarding',
+        signal: controller.signal,
+        onCode: (input) => appApi.exchangeEmbeddedSignupCode(input),
+      });
+      if (controller.signal.aborted) return;
+      pendingSignupRef.current = embeddedSession;
       const response = await appApi.connectMetaEmbedded({
         setupType: DEFAULT_WHATSAPP_SETUP_TYPE,
-        code: embeddedSession.code,
+        signupTicket: embeddedSession.signupTicket,
         wabaId: embeddedSession.wabaId,
         phoneNumberId: embeddedSession.phoneNumberId,
         redirectUri: embeddedSession.redirectUri,
@@ -448,14 +482,24 @@ export default function ChannelConnection() {
         oauthState: embeddedSession.oauthState,
         setupContext: embeddedSession.setupContext,
       });
+      if (controller.signal.aborted) return;
+      pendingSignupRef.current = null;
       setPendingChannel(response.channel);
       setSuccess(null);
-      setIsConnecting(false);
-      await activateSenderWithGeneratedPin('Meta connected, but automatic WhatsApp activation failed');
+      await refresh();
+      const issue = getWhatsAppActivationIssue(response.channel);
+      if (issue) throw new Error(issue);
+      await refreshBusinessProfile({ silent: true }).catch(() => null);
+      setStep(3);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Meta connection failed.');
+      if (!controller.signal.aborted) {
+        setError(error instanceof Error ? error.message : 'Meta connection failed.');
+      }
     } finally {
-      setIsConnecting(false);
+      if (signupAbortRef.current === controller) {
+        signupAbortRef.current = null;
+        setIsConnecting(false);
+      }
     }
   };
 
@@ -683,8 +727,8 @@ export default function ChannelConnection() {
                       </div>
 
                       <FormSection
-                        title="Do you have admin access to the Meta Business Portfolio?"
-                        description="Embedded signup and manual token setup require Meta admin access."
+                        title="Can you manage or create a Meta Business Portfolio?"
+                        description="Use a Facebook account that can create a business portfolio or has admin access to the one you want to connect."
                       >
                         <div className="flex flex-wrap gap-2">
                           <RequirementChoice selected={hasAdmin === true} onClick={() => setHasAdmin(true)}>
@@ -708,7 +752,7 @@ export default function ChannelConnection() {
                               className="mt-4 flex gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800"
                             >
                               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                              Ask a Meta Business admin to complete this step or provide manual connection values.
+                              Ask a Meta Business admin to complete this step, or use an account that can create a new business portfolio.
                             </motion.div>
                           ) : null}
                         </AnimatePresence>
@@ -723,22 +767,22 @@ export default function ChannelConnection() {
                             transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                           >
                             <FormSection
-                              title="If you are migrating, is Meta two-factor authentication disabled for setup?"
-                              description="Connektly generates a secure 2FA PIN during activation after the account connects."
+                              title="Can you receive a verification code on your business number?"
+                              description="Have the number available for Meta's SMS or voice verification during signup."
                             >
                               <div className="flex flex-wrap gap-2">
                                 <RequirementChoice
-                                  selected={has2FADisabled === true}
-                                  onClick={() => setHas2FADisabled(true)}
+                                  selected={hasPhoneAccess === true}
+                                  onClick={() => setHasPhoneAccess(true)}
                                 >
-                                  Yes, ready
+                                  Yes, I can verify it
                                 </RequirementChoice>
                                 <RequirementChoice
-                                  selected={has2FADisabled === false}
+                                  selected={hasPhoneAccess === false}
                                   tone="neutral"
-                                  onClick={() => setHas2FADisabled(false)}
+                                  onClick={() => setHasPhoneAccess(false)}
                                 >
-                                  Not migrating
+                                  I need access first
                                 </RequirementChoice>
                               </div>
                             </FormSection>
@@ -795,7 +839,7 @@ export default function ChannelConnection() {
                               type="button"
                               variant="facebook"
                               onClick={() => void handleConnectMeta()}
-                              disabled={isConnecting || isRegisteringSender || !hasEmbeddedSignupConfig}
+                              disabled={isConnecting || isRegisteringSender || !hasEmbeddedSignupConfig || !sdkReady}
                               loading={isConnecting || isRegisteringSender}
                               icon={<img src={facebookIconUrl} alt="" className="h-5 w-5" />}
                               className="w-full"
@@ -804,7 +848,11 @@ export default function ChannelConnection() {
                                 ? 'Activating WhatsApp...'
                                 : isConnecting
                                   ? 'Connecting...'
-                                  : 'Continue with Facebook'}
+                                  : !sdkReady && !sdkError
+                                    ? 'Loading Facebook...'
+                                    : pendingSignupRef.current
+                                      ? 'Retry connection'
+                                      : 'Continue with Facebook'}
                             </StepCTA>
 
                             <div className="mt-4 grid gap-2 text-xs text-gray-500 sm:grid-cols-3">
@@ -820,6 +868,20 @@ export default function ChannelConnection() {
                               <p className="mt-4 text-xs leading-4 text-amber-700">
                                 Facebook embedded signup is not configured yet. Use manual setup below.
                               </p>
+                            ) : null}
+                            {sdkError ? <p className="mt-4 text-xs text-amber-700">{sdkError}</p> : null}
+                            {pendingSignupRef.current && error ? (
+                              <button
+                                type="button"
+                                disabled={isConnecting}
+                                onClick={() => {
+                                  pendingSignupRef.current = null;
+                                  void handleConnectMeta();
+                                }}
+                                className="mt-4 text-sm font-semibold text-[#1381FF] underline disabled:opacity-60"
+                              >
+                                Start a new Meta signup
+                              </button>
                             ) : null}
                           </FormSection>
 
@@ -1157,10 +1219,22 @@ export default function ChannelConnection() {
                       >
                         <CheckCircle2 className="h-10 w-10" />
                       </motion.div>
-                      <h3 className="mt-6 text-3xl font-semibold tracking-tight text-gray-950">WhatsApp is ready</h3>
+                      <h3 className="mt-6 text-3xl font-semibold tracking-tight text-gray-950">WhatsApp is connected</h3>
                       <p className="mx-auto mt-3 max-w-md text-sm leading-5 text-gray-500">
-                        Your WhatsApp Business number is connected, activation ran, and the workspace is ready for templates, inbox, and dashboard updates.
+                        Your number is registered for Cloud API and Connektly is subscribed to account webhooks.
                       </p>
+                      <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-left text-sm text-amber-900">
+                        <p className="font-semibold">Add your WhatsApp payment method</p>
+                        <p className="mt-1">Meta bills your business directly. Add or confirm a payment method for this WhatsApp account in WhatsApp Manager before sending messages.</p>
+                        <a
+                          href={getWhatsAppPaymentSettingsUrl(onboardingChannel?.wabaId)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex font-semibold underline"
+                        >
+                          Open WhatsApp Manager
+                        </a>
+                      </div>
                       <StepCTA
                         type="button"
                         onClick={() => void finishOnboarding()}

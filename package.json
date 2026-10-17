@@ -11,7 +11,8 @@
     "preview": "vite preview --port=3000 --host=0.0.0.0",
     "start": "node server.js",
     "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\"",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:embedded-signup": "node --test tests/embedded-signup.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

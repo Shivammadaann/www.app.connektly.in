@@ -9,6 +9,8 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import multer from 'multer';
 import { createClient, type User } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import { createEmbeddedSignupTicket, readEmbeddedSignupTicket } from './server/embedded-signup-ticket';
+import { WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID, getWhatsAppActivationIssue } from './src/lib/whatsapp-onboarding';
 import {
   BILLING_CURRENCY,
   BILLING_DEFAULT_TRIAL_DAYS,
@@ -60,6 +62,7 @@ import type {
   DeveloperWebhookEvent,
   DeveloperWebhookUpdateInput,
   EmbeddedMetaConnectionInput,
+  EmbeddedMetaCodeExchangeInput,
   LaunchMarketingCampaignInput,
   LaunchMarketingCampaignResponse,
   InviteWorkspaceUserInput,
@@ -174,7 +177,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT || process.env.API_PORT || 3001);
-const graphVersion = process.env.META_GRAPH_VERSION || 'v24.0';
+const graphVersion = process.env.META_GRAPH_VERSION || 'v25.0';
 const instagramGraphVersion = process.env.INSTAGRAM_GRAPH_VERSION || 'v25.0';
 const officialBusinessAccountGraphVersion = process.env.META_OBA_GRAPH_VERSION || 'v25.0';
 const obaStatusCacheTtlMs = 5 * 60 * 1000;
@@ -3953,12 +3956,13 @@ async function exchangeEmbeddedSignupCode(
     redirectUri?: string;
     requestReferer?: string;
     requestOrigin?: string;
+    sdkFlow?: boolean;
   },
 ) {
   requireMetaAppCredentials();
 
   const redirectUriCandidates = buildEmbeddedSignupRedirectUriCandidates(options);
-  const attempts = [null, ...redirectUriCandidates];
+  const attempts = options.sdkFlow ? [null] : [null, ...redirectUriCandidates];
   let lastError: Error | null = null;
 
   for (let index = 0; index < attempts.length; index += 1) {
@@ -3972,13 +3976,14 @@ async function exchangeEmbeddedSignupCode(
       url.searchParams.set('redirect_uri', redirectUri);
     }
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
 
     if (response.ok) {
       const payload = (await response.json()) as {
         access_token: string;
       };
 
+      if (!payload.access_token) throw new Error('Meta did not return a business access token.');
       return payload.access_token;
     }
 
@@ -4712,7 +4717,7 @@ async function autoRegisterWhatsAppSenderForChannel(args: {
     const { data, error } = await adminSupabase
       .from('meta_channels')
       .update({
-        status: 'connected',
+        status: args.row.status === 'pending' ? 'pending' : 'connected',
         display_phone_number: phone.display_phone_number || null,
         verified_name: phone.verified_name || null,
         quality_rating: phone.quality_rating || null,
@@ -8013,16 +8018,6 @@ async function subscribeWhatsAppWebhookApp(args: {
     method: 'POST',
     body: {},
   });
-
-  await metaRequestDetailed<{ success?: boolean }>({
-    accessToken: args.accessToken,
-    path: `${args.wabaId}/subscribed_apps`,
-    method: 'POST',
-    body: {
-      override_callback_uri: args.callbackUrl,
-      verify_token: args.verifyToken,
-    },
-  });
 }
 
 function getWhatsAppSubscribedAppData(entry: Record<string, unknown>) {
@@ -8686,6 +8681,8 @@ function resolveWhatsAppWebhookSubscriptionEntry(
     if (exactMatch) {
       return exactMatch;
     }
+
+    return null;
   }
 
   return entries[0];
@@ -8719,7 +8716,7 @@ async function persistWhatsAppWebhookSubscriptionStatus(args: {
         webhookSubscription: {
           isSubscribed: args.isSubscribed,
           callbackUrl,
-          overrideCallbackUri: args.isSubscribed ? overrideCallbackUri || callbackUrl : null,
+          overrideCallbackUri: args.isSubscribed ? overrideCallbackUri : null,
           appId:
             normalizeOptionalIdentifier(apiData?.id) ||
             (args.isSubscribed ? metaAppId || null : metaAppId || null),
@@ -8773,6 +8770,10 @@ async function syncWhatsAppWebhookSubscription(args: {
       ? subscriptions.data.filter((entry): entry is Record<string, unknown> => isRecord(entry))
       : [];
 
+    if (!resolveWhatsAppWebhookSubscriptionEntry(entries)) {
+      throw new Error('Meta did not confirm this app in the WhatsApp account webhook subscriptions. Retry activation.');
+    }
+
     return persistWhatsAppWebhookSubscriptionStatus({
       userId: args.userId,
       row: args.row,
@@ -8818,6 +8819,67 @@ async function checkWhatsAppWebhookSubscription(args: {
     entries,
     isSubscribed: Boolean(matchedEntry),
   });
+}
+
+async function activateEmbeddedWhatsAppChannel(args: {
+  userId: string;
+  row: Record<string, unknown>;
+  accessToken: string;
+  req: Request;
+  rawPin?: unknown;
+}) {
+  let row = args.row;
+  let activationError: string | null = null;
+  try {
+    const metadata = getMetaChannelMetadata(row);
+    const registration = isRecord(metadata.autoRegistration) ? metadata.autoRegistration : {};
+    if (registration.status !== 'registered' || args.rawPin) {
+      row = (await autoRegisterWhatsAppSenderForChannel({
+        ...args, row, reason: 'channel_connected', throwOnError: true,
+      })).row;
+    }
+    row = await syncWhatsAppWebhookSubscription({ ...args, row, throwOnError: true });
+  } catch (error) {
+    activationError = mapDbError(error);
+    // Registration/subscription helpers persist their individual outcomes.
+    row = await getMetaChannelRow(args.userId) || row;
+  }
+  const metadata = getMetaChannelMetadata(row);
+  const previous = isRecord(metadata.embeddedSignup) ? metadata.embeddedSignup : {};
+  const { data, error } = await adminSupabase.from('meta_channels').update({
+    status: activationError ? 'pending' : 'connected',
+    metadata: {
+      ...metadata,
+      embeddedSignup: {
+        ...previous,
+        status: activationError ? 'activation_failed' : 'setup_complete',
+        lastError: activationError,
+        updatedAt: new Date().toISOString(),
+        billing: { type: 'customer_payment_method', paymentMethodCheck: 'required_in_whatsapp_manager' },
+      },
+    },
+    updated_at: new Date().toISOString(),
+  }).eq('user_id', args.userId).eq('id', row.id).select('*').single();
+  if (error) throw error;
+  return data as Record<string, unknown>;
+}
+
+async function assertWhatsAppPhoneBelongsToWaba(accessToken: string, wabaId: string, phoneNumberId: string) {
+  let after: string | undefined;
+  do {
+    const result = await metaRequest<{
+      data?: Array<{ id?: string }>;
+      paging?: { next?: string; cursors?: { after?: string } };
+    }>({
+      accessToken, path: `${wabaId}/phone_numbers`,
+      query: { fields: 'id', limit: '100', ...(after ? { after } : {}) },
+    });
+    if (result.data?.some((phone) => phone.id === phoneNumberId)) return;
+    const next = result.paging?.next ? result.paging.cursors?.after : undefined;
+    if (next === after) break;
+    after = next;
+  } while (after);
+  throw new Error('The phone number returned by Meta does not belong to the selected WhatsApp Business account. Run signup again.');
 }
 
 async function deactivateWhatsAppWebhookSubscription(args: {
@@ -16892,10 +16954,11 @@ async function saveMetaChannel(args: {
   messagingLimitTier: string | null;
   businessAccountName: string | null;
   metadataPatch?: Record<string, unknown>;
+  status?: 'connected' | 'pending';
 }) {
   const existingChannelResult = await adminSupabase
     .from('meta_channels')
-    .select('phone_number_id,metadata')
+    .select('waba_id,phone_number_id,metadata')
     .eq('user_id', args.userId)
     .maybeSingle();
 
@@ -16909,7 +16972,8 @@ async function saveMetaChannel(args: {
       ? (existingChannel.metadata as Record<string, unknown>)
       : {};
   const shouldPreserveMetadata =
-    normalizeOptionalIdentifier(existingChannel?.phone_number_id) === args.phoneNumberId;
+    normalizeOptionalIdentifier(existingChannel?.phone_number_id) === args.phoneNumberId &&
+    normalizeOptionalIdentifier(existingChannel?.waba_id) === args.wabaId;
   const nextMetadata = {
     ...(shouldPreserveMetadata ? existingMetadata : {}),
     ...(args.metadataPatch || {}),
@@ -16918,7 +16982,7 @@ async function saveMetaChannel(args: {
     user_id: args.userId,
     setup_type: args.setupType,
     connection_method: args.connectionMethod,
-    status: 'connected',
+    status: args.status || 'connected',
     waba_id: args.wabaId,
     phone_number_id: args.phoneNumberId,
     display_phone_number: args.displayPhoneNumber,
@@ -19510,6 +19574,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     graphVersion,
+    embeddedSignupVersion: 'v4',
   });
 });
 
@@ -19715,7 +19780,36 @@ async function handlePhoneNumberNameUpdateWebhook(args: {
   }
 }
 
+async function handleWhatsAppAccountUpdateWebhook(wabaId: string | null, value: Record<string, unknown>) {
+  if (!wabaId) return;
+  const { data: rows, error } = await adminSupabase.from('meta_channels').select('*').eq('waba_id', wabaId);
+  if (error) throw error;
+  for (const row of rows || []) {
+    const metadata = getMetaChannelMetadata(row);
+    const { error: updateError } = await adminSupabase.from('meta_channels').update({
+      metadata: {
+        ...metadata,
+        accountUpdate: {
+          receivedAt: new Date().toISOString(),
+          data: sanitizeReusableMetaSetupValue(value),
+        },
+      },
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id).eq('user_id', row.user_id);
+    if (updateError) throw updateError;
+  }
+}
+
 app.post('/api/meta/webhook', async (req, res) => {
+  const signature = req.get('x-hub-signature-256') || '';
+  const suppliedSignature = /^sha256=([a-f0-9]{64})$/i.exec(signature)?.[1];
+  const expectedSignature = metaAppSecret && req.rawBody
+    ? crypto.createHmac('sha256', metaAppSecret).update(req.rawBody).digest('hex')
+    : null;
+  if (!suppliedSignature || !expectedSignature || !timingSafeCompareHex(suppliedSignature, expectedSignature)) {
+    res.status(403).json({ error: 'Invalid Meta webhook signature.' });
+    return;
+  }
   try {
     const payload = req.body as {
       entry?: Array<{
@@ -19730,6 +19824,11 @@ app.post('/api/meta/webhook', async (req, res) => {
     for (const entry of payload.entry || []) {
       for (const change of entry.changes || []) {
         const value = change.value;
+
+        if (change.field === 'account_update' && value && isRecord(value)) {
+          await handleWhatsAppAccountUpdateWebhook(normalizeOptionalIdentifier(entry.id), value);
+          continue;
+        }
 
         if (change.field === 'phone_number_name_update' && value && isRecord(value)) {
           await handlePhoneNumberNameUpdateWebhook({
@@ -21541,99 +21640,94 @@ app.post('/api/meta/connect/manual', async (req, res) => {
   }
 });
 
+app.post('/api/meta/connect/embedded/exchange', async (req, res) => {
+  try {
+    const input = req.body as EmbeddedMetaCodeExchangeInput;
+    const code = normalizeOptionalString(input.code);
+    const oauthState = normalizeOptionalString(input.oauthState);
+    if (!code || !oauthState || !/^core_onboarding:[a-f0-9]+$/.test(oauthState)) {
+      throw new Error('A WhatsApp authorization code and signup state are required.');
+    }
+    if (input.configId !== WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID) {
+      throw new Error('Use the configured WhatsApp Embedded Signup configuration.');
+    }
+    if (!encryptionKey) {
+      throw new Error('Configure META_TOKEN_ENCRYPTION_KEY before onboarding WhatsApp accounts.');
+    }
+    requireMetaWebhookVerifyToken();
+    // The JS SDK code is exchanged without a redirect_uri; no URI guessing or retries.
+    const accessToken = await exchangeEmbeddedSignupCode(code, { sdkFlow: true });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(createEmbeddedSignupTicket({
+      accessToken, userId: req.authedUser!.id, appId: metaAppId,
+      configId: WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID, oauthState,
+    }, metaAppSecret));
+  } catch (error) {
+    sendError(res, 400, error);
+  }
+});
+
 app.post('/api/meta/connect/embedded', async (req, res) => {
   try {
-    const { code, setupType, wabaId, phoneNumberId, redirectUri, setupContext, flowState, oauthState } =
+    const { signupTicket, setupType, wabaId, phoneNumberId, setupContext, oauthState } =
       req.body as EmbeddedMetaConnectionInput;
-
-    if (!code || !wabaId || !phoneNumberId || !setupType) {
-      throw new Error('code, setupType, wabaId, and phoneNumberId are required.');
+    if (
+      !signupTicket || setupType !== 'exclusive' ||
+      typeof wabaId !== 'string' || !/^\d+$/.test(wabaId) ||
+      typeof phoneNumberId !== 'string' || !/^\d+$/.test(phoneNumberId) ||
+      !oauthState || setupContext?.event !== 'FINISH'
+    ) {
+      throw new Error('A completed Cloud API signup session, WhatsApp account ID, and phone number ID are required.');
     }
-
+    requireMetaAppCredentials();
+    const authorization = readEmbeddedSignupTicket(signupTicket, {
+      userId: req.authedUser!.id, appId: metaAppId,
+      configId: WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID, oauthState,
+    }, metaAppSecret);
+    const accessToken = authorization.accessToken;
     const mergedSetupContext = {
-      ...(isRecord(setupContext) ? setupContext : {}),
-      flowState:
-        normalizeOptionalString(setupContext?.flowState) ||
-        normalizeOptionalString(flowState) ||
-        'core_onboarding',
-      oauthState:
-        normalizeOptionalString(setupContext?.oauthState) ||
-        normalizeOptionalString(oauthState),
+      ...setupContext, appId: metaAppId, configId: authorization.configId,
+      flowState: 'core_onboarding', oauthState: authorization.oauthState,
     };
-    assertMetaOAuthFlowState(mergedSetupContext.flowState, 'core_onboarding');
-
-    const accessToken = await exchangeEmbeddedSignupCode(code, {
-      redirectUri,
-      requestReferer: req.get('referer') || undefined,
-      requestOrigin: req.get('origin') || undefined,
-    });
-    const [phone, waba, reusableAssets] = await Promise.all([
-      fetchPhoneNumber(accessToken, phoneNumberId),
-      fetchWaba(accessToken, wabaId),
-      fetchReusableMetaSetupAssets(accessToken),
+    await assertWhatsAppPhoneBelongsToWaba(accessToken, wabaId, phoneNumberId);
+    const [phone, waba] = await Promise.all([
+      fetchPhoneNumber(accessToken, phoneNumberId), fetchWaba(accessToken, wabaId),
     ]);
-
-    let channel = await saveMetaChannel({
-      userId: req.authedUser!.id,
-      setupType,
-      connectionMethod: 'embedded_signup',
-      accessToken,
-      wabaId,
-      phoneNumberId,
+    await saveMetaChannel({
+      userId: req.authedUser!.id, setupType, connectionMethod: 'embedded_signup',
+      status: 'pending', accessToken, wabaId, phoneNumberId,
       displayPhoneNumber: phone.display_phone_number || null,
       verifiedName: phone.verified_name || null,
       qualityRating: phone.quality_rating || null,
       messagingLimitTier: getNormalizedMessagingLimitTier(phone),
       businessAccountName: waba.name || null,
       metadataPatch: {
+        embeddedSignup: {
+          version: 4, status: 'activating', lastError: null,
+          businessId: normalizeOptionalIdentifier(setupContext.data?.business_id),
+          completedAt: setupContext.receivedAt || new Date().toISOString(),
+        },
         reusableMetaSetup: buildReusableMetaSetupContext({
-          source: 'waba_embedded_signup',
-          setupType,
-          connectionMethod: 'embedded_signup',
-          accessToken,
-          wabaId,
-          phoneNumberId,
+          source: 'waba_embedded_signup', setupType, connectionMethod: 'embedded_signup',
+          accessToken, wabaId, phoneNumberId,
           displayPhoneNumber: phone.display_phone_number || null,
-          verifiedName: phone.verified_name || null,
-          qualityRating: phone.quality_rating || null,
+          verifiedName: phone.verified_name || null, qualityRating: phone.quality_rating || null,
           messagingLimitTier: getNormalizedMessagingLimitTier(phone),
-          businessAccountName: waba.name || null,
-          setupContext: mergedSetupContext,
-          reusableAssets,
+          businessAccountName: waba.name || null, setupContext: mergedSetupContext,
         }),
       },
     });
-
-    let savedChannelRow = await getMetaChannelRow(req.authedUser!.id);
-
-    if (savedChannelRow) {
-      const registration = await autoRegisterWhatsAppSenderForChannel({
-        userId: req.authedUser!.id,
-        row: savedChannelRow,
-        accessToken,
-        reason: 'channel_connected',
+    const row = await getMetaChannelRow(req.authedUser!.id);
+    if (!row) throw new Error('The WhatsApp connection could not be saved. Please retry.');
+    const activatedRow = await activateEmbeddedWhatsAppChannel({
+      userId: req.authedUser!.id, row, accessToken, req,
+    });
+    const channel = mapChannel(activatedRow);
+    if (channel?.status === 'connected') {
+      await syncTemplates(req.authedUser!.id).catch((error) => {
+        console.warn('WhatsApp connected; initial template sync will need to be retried.', mapDbError(error));
       });
-      savedChannelRow = registration.row;
-
-      await seedMetaLeadCaptureFromReusableSetup({
-        userId: req.authedUser!.id,
-        metaChannelId: String(savedChannelRow.id),
-        accessToken,
-        reusableAssets,
-      }).catch((error) => {
-        console.warn('Failed to seed Meta Lead Capture from reusable Meta setup.', error);
-      });
-
-      const syncedRow = await syncWhatsAppWebhookSubscription({
-        userId: req.authedUser!.id,
-        row: savedChannelRow,
-        accessToken,
-        req,
-      });
-      channel = mapChannel(syncedRow);
     }
-
-    await syncTemplates(req.authedUser!.id);
     res.json({ channel });
   } catch (error) {
     sendError(res, 400, error);
@@ -21683,6 +21777,16 @@ app.post('/api/meta/channel/register', async (req, res) => {
   try {
     const rawPin = (req.body as { pin?: unknown } | undefined)?.pin;
     const { row, accessToken } = await getChannelWithToken(req.authedUser!.id);
+    if (row.connection_method === 'embedded_signup') {
+      const activated = await activateEmbeddedWhatsAppChannel({
+        userId: req.authedUser!.id, row, accessToken, req, rawPin,
+      });
+      const channel = mapChannel(activated);
+      const issue = getWhatsAppActivationIssue(channel);
+      if (issue) throw new Error(issue);
+      res.json({ channel });
+      return;
+    }
     const registration = await autoRegisterWhatsAppSenderForChannel({
       userId: req.authedUser!.id,
       row,

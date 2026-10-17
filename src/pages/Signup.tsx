@@ -5,6 +5,7 @@ import { getCachedSession, supabase } from '../lib/supabase';
 import { appApi } from '../lib/api';
 import TurnstileWidget from '../components/TurnstileWidget';
 import { clientConfig, hasTurnstileSiteKey } from '../lib/config';
+import FacebookLoginButton from '../components/auth/FacebookLoginButton';
 import {
   AuthAlert,
   AuthForm,
@@ -207,7 +208,7 @@ export default function Signup() {
     return (
       <AuthTransitionScreen
         title="Signing up"
-        description="Google confirmed your account. Preparing your Connektly workspace."
+        description="Your account is confirmed. Preparing your Connektly workspace."
       />
     );
   }
@@ -291,7 +292,7 @@ export default function Signup() {
 
           <Divider />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-3">
             <SocialLoginButton
               provider="google"
               loading={oauthLoadingProvider === 'google'}
@@ -301,14 +302,12 @@ export default function Signup() {
               Google
             </SocialLoginButton>
 
-            <SocialLoginButton
-              provider="facebook"
+            <FacebookLoginButton
               loading={oauthLoadingProvider === 'facebook'}
-              disabled={oauthLoadingProvider !== null || isLoading}
-              onClick={() => void handleOAuthSignup('facebook')}
-            >
-              Facebook
-            </SocialLoginButton>
+              disabled={oauthLoadingProvider !== null || isLoading || (hasTurnstileSiteKey && !captchaToken)}
+              onContinue={() => handleOAuthSignup('facebook')}
+              onError={setError}
+            />
           </div>
         </div>
       </AuthForm>
