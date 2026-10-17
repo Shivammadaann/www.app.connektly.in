@@ -79,14 +79,29 @@ accidental wrapping quotes or a `Bearer ` prefix, then applies each endpoint's
 documented header format.
 
 Before a new Facebook signup, authenticated
-`GET /api/meta/partner/authentication` checks the same partner app-list API used
-by activation. A provider authentication rejection produces a service-readiness
+`GET /api/meta/partner/authentication` checks Gupshup's documented
+`GET /partner/account/api/partnerApps`, using the raw Universal Token in the
+`Authorization` header and validating `status: success` plus `partnerAppsList`.
+Only readiness and its check time reach the customer; other customers' app
+records remain on the server. Activation reconciles this linked-app inventory
+with the paginated `GET /partner/app/list` endpoint, whose `token` header and
+contains-style phone filter are separate API contracts. Full normalized phone
+matches are deduplicated by app ID; multiple distinct matches stop activation.
+A provider authentication rejection produces a service-readiness
 error, without signing the Connektly user out or starting another Meta signup.
 An app-list 401 occurs **before app creation** and says nothing about the wallet.
 Explicit SDK creation 401/403 responses are saved as rejected attempts and may
 be retried after authentication is corrected; transport failures, missing IDs,
 HTML responses and other uncertain creation outcomes remain protected from
 automatic replay.
+
+Passing this authentication check does **not** establish SDK provisioning
+availability. The Client Secret is used by the separate legacy login API to
+issue a 24-hour partner token; a valid Universal Token can call the partner APIs
+directly and does not require that login or an additional app token. Keep the
+Client Secret out of browser configuration and source control.
+References: [Get Partner Apps](https://partner-docs.gupshup.io/reference/get_partner-account-api-partnerapps)
+and [Universal Token authentication](https://partner-docs.gupshup.io/docs/partner-authentication-guide-universal-tokens-ut-overview).
 
 ### SDK onboarding versus Partner Portal onboarding
 
@@ -301,10 +316,22 @@ WearOS are not supported companions for this integration. Unit/simulated tests
 do not establish live Meta authorization or delivery.
 
 On October 17, 2026, Meta showed solution 1287084176407435 Active and Gupshup
-Settings > Solutions showed APPROVED. Read-only calls verified the current UT's
-partner app-list and subscription access, and Meta confirmed all six required
-webhook fields above are active. A related new Bizgate list endpoint returned
-portal HTML; the SDK create POST has not been exercised against a customer
-number. Confirm its availability and run a real HTTPS customer acceptance test
-before production rollout. Do not create dummy customer apps, force-register
-phones, or send real messages merely to probe endpoint availability.
+Settings > Solutions showed APPROVED. Meta confirmed all six required webhook
+fields above are active. The regenerated UT authenticated both documented app
+list endpoints; the linked-app inventory contained 41 apps. Neither saved
+pending signup matched that inventory by exact normalized phone or its
+deterministic app name. Both customer SDK creation attempts returned a non-JSON
+HTTP 200 and remain `creation.status: unknown`.
+
+A validation-only SDK POST with an empty JSON body, with no customer assets or
+creation fields supplied, also returned HTTP 200 `text/html` titled
+`WhatsApp Partner Portal - Gupshup.io`, including after the credential rotation.
+The documented missing-field response is HTTP 400 JSON. Gupshup must confirm the
+production SDK route and this partner's Bizgate/TPP availability; account
+enablement is not established merely by an approved Meta solution or a passing
+legacy app-list call. Confirm the result of the saved attempts before releasing
+any unknown creation claim. Reconcile an existing app rather than creating
+another one. Run a real HTTPS customer acceptance test after this is resolved;
+unit tests and app-list authentication do not prove live provisioning.
+References: [SDK create](https://bizgate-docs.gupshup.io/reference/createtppapp)
+and [Bizgate prerequisites](https://bizgate-docs.gupshup.io/reference/getting-started).

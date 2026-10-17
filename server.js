@@ -171,10 +171,17 @@ function createGupshupClient(config) {
     }
     return payload;
   }
+  async function listPartnerApps() {
+    const result = await request("/partner/account/api/partnerApps", { operation: "partner app lookup" });
+    if (result.status !== "success" || !Array.isArray(result.partnerAppsList) || !result.partnerAppsList.every((app2) => record2(app2) && typeof app2.id === "string" && app2.id.trim())) {
+      throw new Error("Gupshup did not return a verifiable linked partner app list.");
+    }
+    return result.partnerAppsList;
+  }
   return {
+    listPartnerApps,
     async checkPartnerAuthentication() {
-      const result = await request("/partner/app/list?pageNo=1&pageSize=1", { tokenHeader: true, operation: "partner app lookup" });
-      if (!Array.isArray(result.apps || result.partnerAppsList || result.appList)) throw new Error("Gupshup did not confirm partner app access.");
+      await listPartnerApps();
       return { authenticated: true, checkedAt: (/* @__PURE__ */ new Date()).toISOString() };
     },
     async blockedUsers(appId, method, body, after) {
@@ -196,13 +203,15 @@ function createGupshupClient(config) {
       return result.data.appId;
     },
     async findApps(phone2) {
-      const matches = [];
+      const normalizedPhone = normalizePartnerPhone(phone2);
+      if (!normalizedPhone) throw new Error("A phone number is required to look up a Gupshup app.");
+      const matches = (await listPartnerApps()).filter((app2) => normalizePartnerPhone(app2.phone) === normalizedPhone);
       for (let page = 1; page <= 100; page++) {
         const result = await request(`/partner/app/list?${new URLSearchParams({ phone: normalizePartnerPhone(phone2), pageNo: String(page), pageSize: "100" })}`, { tokenHeader: true, operation: "partner app lookup" });
         const rows = result.partnerAppsList || result.apps || result.appList;
         if (!Array.isArray(rows)) throw new Error("Gupshup did not return a verifiable partner app list.");
-        matches.push(...rows.filter((row) => record2(row) && normalizePartnerPhone(row.phone) === normalizePartnerPhone(phone2)));
-        if (rows.length < 100) return matches;
+        matches.push(...rows.filter((row) => record2(row) && typeof row.id === "string" && row.id && normalizePartnerPhone(row.phone) === normalizedPhone));
+        if (rows.length < 100) return [...new Map(matches.map((app2) => [app2.id, app2])).values()];
       }
       throw new Error("Gupshup app pagination could not be completed.");
     },

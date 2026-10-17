@@ -28,11 +28,13 @@ test('hosting dashboard quotes and Bearer prefixes are normalized for both authe
   const requests = [];
   const client = provider.createGupshupClient({ ...settings, token: '  "Bearer server-secret"  ', fetch: async (url, init) => {
     requests.push({ url, init });
-    return url.includes('/list?') ? json({ apps: [], status: 'success' }) : json({ status: 'success', data: { appId: 'gs-app' } });
+    return url.endsWith('/partnerApps') ? json({ partnerAppsList: [], status: 'success' }) : json({ status: 'success', data: { appId: 'gs-app' } });
   } });
   assert.equal((await client.checkPartnerAuthentication()).authenticated, true);
   await client.createApp({ name: 'Connektly123', wabaId: '123', phone: '919123456' });
-  assert.equal(requests[0].init.headers.token, 'server-secret');
+  assert.equal(requests[0].url, 'https://partner.gupshup.io/partner/account/api/partnerApps');
+  assert.equal(requests[0].init.headers.Authorization, 'server-secret');
+  assert.equal(requests[0].init.headers.token, undefined);
   assert.equal(requests[1].init.headers.Authorization, 'Bearer server-secret');
 });
 
@@ -71,12 +73,25 @@ test('documented SDK creation binds partner wallet and never forces registration
   assert.equal(calls, 1);
 });
 
-test('provider app matching uses full normalized phone and legacy details shape', async () => {
-  const client = provider.createGupshupClient({ ...settings, fetch: async (url) => url.includes('/list?')
-    ? json({ status: 'success', apps: [{ id: 'wrong', phone: '9191234560' }, { id: 'exact', phone: '+91 9123456' }] })
+test('provider app matching reconciles linked and filtered lists without duplicate or partial-phone matches', async () => {
+  const client = provider.createGupshupClient({ ...settings, fetch: async (url) => url.endsWith('/partnerApps')
+    ? json({ status: 'success', partnerAppsList: [{ id: 'linked-only', phone: '919123456' }, { id: 'exact', phone: '919123456' }, { id: 'sandbox' }] })
+    : url.includes('/list?') ? json({ status: 'success', apps: [{ id: 'wrong', phone: '9191234560' }, { id: 'exact', phone: '+91 9123456' }] })
     : json({ status: 'success', app: 'true', appDetails: { id: 'exact', provider: 'OD' } }) });
-  assert.deepEqual((await client.findApps('919123456')).map((a) => a.id), ['exact']);
+  assert.deepEqual((await client.findApps('919123456')).map((a) => a.id), ['linked-only', 'exact']);
   assert.equal((await client.details('exact')).provider, 'OD');
+});
+
+test('partner readiness does not expose linked apps and rejects incomplete discovery responses', async () => {
+  const client = provider.createGupshupClient({ ...settings, fetch: async () => json({
+    status: 'success', partnerAppsList: [{ id: 'private-app', name: 'Private customer', phone: '919123456' }],
+  }) });
+  assert.deepEqual(Object.keys(await client.checkPartnerAuthentication()).sort(), ['authenticated', 'checkedAt']);
+  for (const body of [{ status: 'success' }, { status: 'success', partnerAppsList: [{}] }]) {
+    const invalid = provider.createGupshupClient({ ...settings, fetch: async () => json(body) });
+    await assert.rejects(invalid.checkPartnerAuthentication(), /verifiable linked partner app list/);
+    await assert.rejects(invalid.findApps('919123456'), /verifiable linked partner app list/);
+  }
 });
 
 test('v3 subscription keeps other callbacks, subscribes delivery/account/coexistence modes, and verifies its auth header', async () => {
