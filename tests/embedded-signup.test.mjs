@@ -39,8 +39,6 @@ async function serverSandbox(functionNames = [], routePaths = [], overrides = {}
     metaAppId: '797649033413847', metaAppSecret: 'test-app-secret', graphVersion: 'v25.0',
     encryptionKey: Buffer.alloc(32, 1),
     WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID: '959911236622056',
-    WHATSAPP_PARTNER_SOLUTION_ID: '1287084176407435',
-    isWhatsAppPartnerChannel: () => false,
     isRecord: (value) => value !== null && typeof value === 'object' && !Array.isArray(value),
     normalizeOptionalString: (value) => typeof value === 'string' ? value.trim() || null : null,
     normalizeOptionalIdentifier: (value) => typeof value === 'string' ? value.trim() || null : null,
@@ -86,7 +84,7 @@ for (const order of ['code-first', 'assets-first']) {
     assert.equal(b.logins.length, 1, 'Launch synchronously from the click');
     assert.deepEqual(JSON.parse(JSON.stringify(b.logins[0].options)), {
       config_id: '959911236622056', response_type: 'code', override_default_response_type: true,
-      extras: { setup: { solutionID: '1287084176407435' }, version: 'v4', sessionInfoVersion: 3 },
+      extras: { setup: {}, version: 'v4', sessionInfoVersion: 3 },
     });
     if (order === 'assets-first') b.message(JSON.stringify(finish));
     b.logins[0].callback({ authResponse: { code: 'one-time-code' } });
@@ -270,7 +268,7 @@ test('Webhook subscription must match this app, never an arbitrary subscribed ap
 
 test('Meta webhook verifies signature and dispatches account_update events', async () => {
   const updates = [];
-  const { handlers } = await serverSandbox(['timingSafeCompareHex', 'processWhatsAppWebhookPayload'], ['/api/meta/webhook'], {
+  const { handlers } = await serverSandbox(['timingSafeCompareHex'], ['/api/meta/webhook'], {
     coexistenceWebhookQueue: { enqueue: async (input) => updates.push({ wabaId: input.wabaId, value: input.payload }), kick() {} },
     coexistenceTimestamp: (value) => value == null ? null : new Date(Number(value) * 1000).toISOString(),
   });
@@ -309,7 +307,7 @@ test('Code exchange endpoint returns only a protected ticket bound to the authen
       return 'customer-business-token';
     },
   });
-  const input = { code: 'meta-code', configId: '959911236622056', oauthState: 'core_onboarding:abcdef', solutionId: '1287084176407435' };
+  const input = { code: 'meta-code', configId: '959911236622056', oauthState: 'core_onboarding:abcdef' };
   const handler = handlers.get('/api/meta/connect/embedded/exchange');
   const response = apiResponse();
   await handler({ authedUser: { id: 'user-1' }, body: input }, response);
@@ -317,7 +315,7 @@ test('Code exchange endpoint returns only a protected ticket bound to the authen
   assert.equal(response.headers['Cache-Control'], 'no-store');
   assert.deepEqual(Object.keys(response.body).sort(), ['expiresAt', 'signupTicket']);
   assert.equal(readEmbeddedSignupTicket(response.body.signupTicket, {
-    userId: 'user-1', appId: '797649033413847', configId: input.configId, oauthState: input.oauthState, solutionId: input.solutionId,
+    userId: 'user-1', appId: '797649033413847', configId: input.configId, oauthState: input.oauthState,
   }, 'test-app-secret').accessToken, 'customer-business-token');
   const invalid = apiResponse();
   await handler({ authedUser: { id: 'user-1' }, body: { ...input, configId: 'unrelated-login-config' } }, invalid);

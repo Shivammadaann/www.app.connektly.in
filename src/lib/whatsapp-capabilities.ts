@@ -1,5 +1,4 @@
 import type { MetaChannelConnection } from './types';
-import { isWhatsAppPartnerChannel } from './whatsapp-partner';
 
 type WhatsAppChannel = Pick<MetaChannelConnection, 'setupType' | 'metadata'> | null | undefined;
 
@@ -37,18 +36,17 @@ export function getWhatsAppCoexistenceLifecycle(channel: WhatsAppChannel) {
 export function getWhatsAppCapabilities(channel: WhatsAppChannel) {
   const isCoexistence = isWhatsAppCoexistence(channel);
   const canManageCloudApiNumber = Boolean(channel) && !isCoexistence;
-  const isPartner = isWhatsAppPartnerChannel(channel);
   return {
     isCoexistence,
     connectionLabel: isCoexistence ? 'WhatsApp Business app + Cloud API' : 'Cloud API',
     maxMessagesPerSecond: isCoexistence ? 20 : null,
-    canRegisterSender: canManageCloudApiNumber && !isPartner,
-    canDeregisterSender: canManageCloudApiNumber && !isPartner,
-    canVerifyPhone: canManageCloudApiNumber && !isPartner,
-    canManageTwoStepVerification: canManageCloudApiNumber && !isPartner,
+    canRegisterSender: canManageCloudApiNumber,
+    canDeregisterSender: canManageCloudApiNumber,
+    canVerifyPhone: canManageCloudApiNumber,
+    canManageTwoStepVerification: canManageCloudApiNumber,
     canEditBusinessProfile: canManageCloudApiNumber,
     canManageCommerceSettings: canManageCloudApiNumber,
-    canUseCallingApi: canManageCloudApiNumber && !isWhatsAppPartnerChannel(channel),
+    canUseCallingApi: canManageCloudApiNumber,
   };
 }
 

@@ -3,8 +3,6 @@ import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
 import { build } from 'esbuild';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -123,7 +121,7 @@ const page = await build({
           return React.useState(Object.prototype.hasOwnProperty.call(globalThis.stateOverrides, index)
             ? globalThis.stateOverrides[index] : initial);
         }` };
-      if (path.endsWith('ModalPortal')) return { contents: 'export const APP_MODAL_LAYER_CLASS = "z-[200]"; export default function Portal({children}) { return children; }' };
+      if (path.endsWith('ModalPortal')) return { contents: 'export const APP_MODAL_LAYER_CLASS = "modal"; export default function Portal({children}) { return children; }' };
       if (path.endsWith('OnboardingTopBar')) return { contents: 'export default function TopBar() { return null; }' };
       if (path.endsWith('AppDataContext')) return { contents: 'export function useAppData() { return globalThis.dashboardData; }' };
       return { contents: 'export const appApi = new Proxy({}, { get() { return () => { throw new Error("Unexpected API request"); }; } });' };
@@ -183,24 +181,4 @@ test('Manual or detected connections without an Embedded Signup lifecycle still 
     ...channel.metadata, coexistenceSync: { contacts: { status: 'pending' }, history: { status: 'pending' } },
   } });
   assert.doesNotMatch(missingLifecycle, /Check connection status/);
-});
-
-test('partner signup shows OneDirect consent, partner billing and a safe saved-connection check in both modes', () => {
-  const partnerMetadata = { partnerSolution: { id: '1287084176407435', status: 'ACTIVE' }, gupshup: { appId: 'gs-app', status: 'ready' } };
-  for (const setupType of ['exclusive', 'coexistence']) {
-    const partnerChannel = { ...channel, setupType, metadata: { ...channel.metadata, ...partnerMetadata } };
-    const final = renderSignup(setupType, 4, partnerChannel);
-    assert.match(final, /WhatsApp partner billing/);
-    assert.match(final, /OneDirect \/ Gupshup/);
-    assert.doesNotMatch(final, /Add your WhatsApp payment method|Meta bills your business directly/);
-    const pending = renderSignup(setupType, 2, { ...partnerChannel, status: 'pending' });
-    assert.match(pending, /Check connection status/);
-    assert.match(pending, /Connektly and OneDirect/);
-    assert.doesNotMatch(pending, /Retry automatic activation/);
-    if (setupType === 'coexistence' && process.env.CONNEKTLY_UI_PREVIEW_DIR) {
-      fs.mkdirSync(process.env.CONNEKTLY_UI_PREVIEW_DIR, { recursive: true });
-      fs.writeFileSync(path.join(process.env.CONNEKTLY_UI_PREVIEW_DIR, 'partner-signup.html'),
-        `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/app.css"><style>*{animation:none!important;opacity:1!important}body{margin:0;font-family:Arial,sans-serif}</style></head><body>${final}</body></html>`);
-    }
-  }
 });

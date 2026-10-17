@@ -127,7 +127,6 @@ function normalizeMessage(args: {
   // Standalone history media messages do not reliably repeat original direction.
   // They must hydrate the stored wamid, or be queued until its thread arrives.
   const direction = hydrationOnly ? null : isEcho ? 'outbound' :
-    historical && typeof record(raw.history_context).from_me === 'boolean' ? (record(raw.history_context).from_me ? 'outbound' : 'inbound') :
     sender && args.businessPhone && sender === args.businessPhone ? 'outbound' :
       sender && threadPhone && sender === threadPhone ? 'inbound' :
         recipient && threadPhone && recipient === threadPhone ? 'outbound' :

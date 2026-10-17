@@ -39,12 +39,6 @@ export function mergeMetaChannelSaveMetadata(args: {
   const existing = args.existingRow;
   const sameAssets = Boolean(existing && existing.waba_id === args.wabaId && existing.phone_number_id === args.phoneNumberId);
   const rawMetadata = record(existing?.metadata) ? existing.metadata : {};
-  const partnerRegistry = record(rawMetadata.partnerAppsByPhone) ? { ...rawMetadata.partnerAppsByPhone } : {};
-  if (existing?.phone_number_id && record(rawMetadata.gupshup)) {
-    partnerRegistry[String(existing.phone_number_id)] = {
-      wabaId: existing.waba_id, gupshup: rawMetadata.gupshup, partnerSolution: rawMetadata.partnerSolution,
-    };
-  }
   const registry = record(rawMetadata.coexistenceSyncByPhone) ? { ...rawMetadata.coexistenceSyncByPhone } : {};
   if (existing?.phone_number_id && record(rawMetadata.coexistenceSync)) {
     // The user currently has one active channel row. Switching numbers must not
@@ -57,16 +51,11 @@ export function mergeMetaChannelSaveMetadata(args: {
   }
   const priorNumberValue = registry[args.phoneNumberId];
   const priorNumber = record(priorNumberValue) ? priorNumberValue : null;
-  const patch = args.metadataPatch || {};
-  const priorPartnerValue = partnerRegistry[args.phoneNumberId];
-  const priorPartner = record(priorPartnerValue) ? priorPartnerValue : {};
-  const restoringPartner = priorPartner.wabaId === args.wabaId && record(patch.partnerSolution)
-    && record(priorPartner.partnerSolution) && priorPartner.partnerSolution.id === patch.partnerSolution.id;
   const restoringNumber = args.setupType === 'coexistence' && Boolean(priorNumber);
-  const previous: Metadata = sameAssets ? rawMetadata : {
-    ...(restoringNumber ? { coexistence: priorNumber!.coexistence, coexistenceSync: priorNumber!.sync } : {}),
-    ...(restoringPartner ? { gupshup: priorPartner.gupshup, partnerSolution: priorPartner.partnerSolution } : {}),
-  };
+  const previous: Metadata = sameAssets ? rawMetadata : restoringNumber ? {
+    coexistence: priorNumber!.coexistence, coexistenceSync: priorNumber!.sync,
+  } : {};
+  const patch = args.metadataPatch || {};
   const previousCoexistence = record(previous.coexistence) ? previous.coexistence : {};
   const lifecycle = record(previousCoexistence.lifecycle) ? previousCoexistence.lifecycle : {};
   const oldSync = record(previous.coexistenceSync) ? previous.coexistenceSync : {};
@@ -80,14 +69,6 @@ export function mergeMetaChannelSaveMetadata(args: {
     throw new Error('This number is connected through WhatsApp Business app Coexistence. Use the Coexistence connection flow.');
   }
   const result: Metadata = { ...previous, ...patch };
-  if (Object.keys(partnerRegistry).length) result.partnerAppsByPhone = partnerRegistry;
-  if (record(previous.partnerSolution) && record(patch.partnerSolution) && previous.partnerSolution.id === patch.partnerSolution.id) {
-    // Another authorization must not erase an observed solution deactivation or
-    // lifecycle ordering while server-side activation re-verifies Meta state.
-    result.partnerSolution = { ...previous.partnerSolution, ...patch.partnerSolution,
-      status: previous.partnerSolution.status || patch.partnerSolution.status,
-    };
-  }
   if (Object.keys(registry).length) result.coexistenceSyncByPhone = registry;
   if (args.setupType !== 'coexistence' || (!sameAssets && !restoringNumber)) return result;
   const hasPreviousLifecycle = typeof oldSync.onboardingId === 'string';

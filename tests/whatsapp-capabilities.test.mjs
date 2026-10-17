@@ -173,14 +173,3 @@ test('Cloud API dashboard pages keep the existing calls, profile, and PIN contro
   assert.match(renderPage('Channels', 'exclusive'), /Enable two-step verification/);
   assert.match(renderPage('Catalog', 'exclusive'), /Save Commerce Settings/);
 });
-
-test('partner dashboard offers setup reconciliation and SIP guidance without direct registration or browser calling', () => {
-  const metadata = { partnerSolution: { id: '1287084176407435', status: 'ACTIVE' }, gupshup: { appId: 'gs-app', status: 'ready' } };
-  const channels = renderPage('Channels', 'exclusive', metadata);
-  assert.match(channels, /OneDirect \/ Gupshup partner connection/);
-  assert.match(channels, /Check partner setup/);
-  assert.doesNotMatch(channels, /Enable two-step verification|Change PIN/);
-  const calls = renderPage('Calls', 'exclusive', metadata);
-  assert.match(calls, /Partner calling requires SIP setup/);
-  assert.doesNotMatch(calls, /New WhatsApp Call|Call Settings/);
-});

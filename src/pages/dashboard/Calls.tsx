@@ -15,7 +15,6 @@ import {
 import { Link } from 'react-router-dom';
 import { appApi } from '../../lib/api';
 import { getWhatsAppCapabilities } from '../../lib/whatsapp-capabilities';
-import { isWhatsAppPartnerChannel, WHATSAPP_PARTNER_CALLING_GUIDANCE } from '../../lib/whatsapp-partner';
 import {
   canRequestCallPermissionFromResponse,
   canStartCallFromPermissionResponse,
@@ -606,16 +605,16 @@ export default function Calls() {
   useEscapeKey(isNewCallModalOpen, closeNewCallModal);
   useEscapeKey(isCallSettingsModalOpen, closeCallSettingsModal);
 
-  if (getWhatsAppCapabilities(bootstrap?.channel).isCoexistence || isWhatsAppPartnerChannel(bootstrap?.channel)) {
+  if (getWhatsAppCapabilities(bootstrap?.channel).isCoexistence) {
     return (
       <div className="mx-auto max-w-4xl">
         <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
           <Phone className="h-12 w-12 text-emerald-600" />
-          <h1 className="mt-5 text-2xl font-bold text-gray-900">{getWhatsAppCapabilities(bootstrap?.channel).isCoexistence ? 'Use WhatsApp Business for calls' : 'Partner calling requires SIP setup'}</h1>
+          <h1 className="mt-5 text-2xl font-bold text-gray-900">Use WhatsApp Business for calls</h1>
           <p className="mt-3 text-sm leading-6 text-gray-600">
-            {getWhatsAppCapabilities(bootstrap?.channel).isCoexistence ? <>Your number uses the WhatsApp Business app and Cloud API together. Voice and video calls remain available in
+            Your number uses the WhatsApp Business app and Cloud API together. Voice and video calls remain available in
             the WhatsApp Business app. Meta does not support Cloud API calling for coexistence numbers, so calling controls
-            and call settings are unavailable in Connektly for this connection.</> : WHATSAPP_PARTNER_CALLING_GUIDANCE}
+            and call settings are unavailable in Connektly for this connection.
           </p>
           <Link to="/dashboard/channels" className="mt-6 inline-flex text-sm font-semibold text-[#1381FF]">
             View channel details

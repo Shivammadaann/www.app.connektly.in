@@ -36,7 +36,6 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { appApi } from '../../lib/api';
-import { getWhatsAppMessageId } from '../../lib/whatsapp-message-id';
 import { opensCustomerServiceWindow } from '../../lib/customer-service-window';
 import { getWhatsAppCapabilities } from '../../lib/whatsapp-capabilities';
 import {
@@ -1336,7 +1335,7 @@ function MessageReceiptStatus({ message }: { message: ConversationMessage }) {
 }
 
 function isContextualReplyableMessage(message: ConversationMessage) {
-  return Boolean(getWhatsAppMessageId(message));
+  return Boolean(message.waMessageId && message.waMessageId.startsWith('wamid.'));
 }
 
 function getContextualReplyMessageId(message: ConversationMessage) {
@@ -2537,7 +2536,7 @@ export default function Inbox() {
   const replyTargetMessage = useMemo(
     () =>
       replyToWaMessageId
-        ? activeThreadMessages.find((message) => getWhatsAppMessageId(message) === replyToWaMessageId) || null
+        ? activeThreadMessages.find((message) => message.waMessageId === replyToWaMessageId) || null
         : null,
     [activeThreadMessages, replyToWaMessageId],
   );
@@ -2548,8 +2547,6 @@ export default function Inbox() {
       if (message.waMessageId) {
         next.set(message.waMessageId, message);
       }
-      const whatsappId = getWhatsAppMessageId(message);
-      if (whatsappId) next.set(whatsappId, message);
     }
 
     return next;
@@ -3239,7 +3236,7 @@ export default function Inbox() {
       return;
     }
 
-    setReplyToWaMessageId(getWhatsAppMessageId(message));
+    setReplyToWaMessageId(message.waMessageId);
     setIsTemplateTrayOpen(false);
     setIsEmojiOpen(false);
     setIsComposerActionsOpen(false);
@@ -3417,7 +3414,7 @@ export default function Inbox() {
     const to = activeThread.displayPhone || activeThread.contactWaId;
     const trimmedBody = messageInput.trim();
     const pendingAttachment = attachment;
-    const replyToMessageId = getWhatsAppMessageId(replyTargetMessage) || undefined;
+    const replyToMessageId = replyTargetMessage?.waMessageId || undefined;
 
     if (!pendingAttachment && !trimmedBody) {
       return;
@@ -3617,7 +3614,7 @@ export default function Inbox() {
     const createdAt = new Date().toISOString();
     const clientTempId = createClientTempId();
     const canUseContextualReply = getConversationWindowState(activeThreadMessages, Date.now()).isActive;
-    const replyToMessageId = canUseContextualReply ? getWhatsAppMessageId(replyTargetMessage) || undefined : undefined;
+    const replyToMessageId = canUseContextualReply ? replyTargetMessage?.waMessageId || undefined : undefined;
     const templateSnapshot = normalizeTemplateSnapshot(selectedTemplate.raw, {
       name: selectedTemplate.name,
       language: selectedTemplate.language,

@@ -19,7 +19,6 @@ const queueModule = await load('server/coexistence-webhook-queue.ts');
 const metadataModule = await load('server/coexistence-sync-store.ts');
 const sync = await load('server/coexistence-sync.ts');
 const policy = await load('server/coexistence-policy.ts');
-const partner = await load('src/lib/whatsapp-partner.ts');
 const source = fs.readFileSync('server.ts', 'utf8');
 const ast = ts.createSourceFile('server.ts', source, ts.ScriptTarget.Latest, true);
 const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -33,12 +32,7 @@ function database(initial = {}) {
       const query = {
         filters: [], operation: 'select', payload: null,
         select() { return this; },
-        eq(key, value) {
-          this.filters.push((row) => {
-            const actual = key.split('->>').reduce((item, part) => item?.[part], row);
-            return typeof actual === 'object' && actual !== null ? JSON.stringify(actual) === value : actual === value;
-          }); return this;
-        },
+        eq(key, value) { this.filters.push((row) => typeof row[key] === 'object' && row[key] !== null ? JSON.stringify(row[key]) === value : row[key] === value); return this; },
         is(key, value) { this.filters.push((row) => row[key] == value); return this; },
         contains(key, value) {
           const contains = (actual, subset) => subset && typeof subset === 'object'
@@ -110,7 +104,7 @@ async function sandbox(db, overrides = {}) {
   const code = await transform(functions.map((node) => node.getText(ast)).join('\n'), { loader: 'ts' });
   const deferred = [];
   const context = vm.createContext({
-    console, Date, adminSupabase: db, ...parser, ...metadataModule, ...sync, ...queueModule, ...policy, ...partner,
+    console, Date, adminSupabase: db, ...parser, ...metadataModule, ...sync, ...queueModule, ...policy,
     isRecord: (value) => value !== null && typeof value === 'object' && !Array.isArray(value),
     normalizePhoneLike: (value) => typeof value === 'string' ? value.replace(/\D/g, '') || null : null,
     normalizeOptionalString: (value) => typeof value === 'string' ? value.trim() || null : null,
@@ -347,7 +341,7 @@ test('display-name webhook preserves concurrent once-only claims and lifecycle m
 });
 
 test('signed webhook acknowledges only after durable enqueue and returns 500 when storage fails', async () => {
-  const names = ['timingSafeCompareHex', 'processWhatsAppWebhookPayload'];
+  const names = ['timingSafeCompareHex'];
   const functions = ast.statements.filter((node) => ts.isFunctionDeclaration(node) && names.includes(node.name?.text));
   const route = ast.statements.find((node) => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) &&
     node.expression.expression.name?.text === 'post' && node.expression.arguments[0]?.text === '/api/meta/webhook');
@@ -375,20 +369,4 @@ test('signed webhook acknowledges only after durable enqueue and returns 500 whe
   await handler({ body, rawBody, get: () => signature }, failed);
   assert.equal(failed.statusCode, 500);
   assert.deepEqual(events, ['durable', 'ack'], 'Failed durable writes must not launch processing or return 200');
-});
-
-test('partner history reconciles the Meta wamid alias with an existing Gupshup outgoing message', async () => {
-  const linkedChannel = clone(channel);
-  linkedChannel.metadata.partnerSolution = { id: '1287084176407435' };
-  const db = database({ meta_channels: [linkedChannel], conversation_threads: [{ id: 'thread', user_id: 'owner', contact_wa_id: customer,
-    last_message_at: '2026-10-17T00:00:00Z', last_message_text: 'Current', unread_count: 0 }],
-    conversation_messages: [{ id: 'message', user_id: 'owner', thread_id: 'thread', wa_message_id: 'gs-uuid', direction: 'outbound',
-      message_type: 'text', body: 'Original', status: 'read', created_at: '2025-02-11T00:00:00Z', raw: { gupshup_whatsapp_message_id: 'wamid.alias' } }] });
-  const { context } = await sandbox(db);
-  const outgoing = { ...rawMessage('wamid.alias'), history_context: { from_me: true, status: 'SENT' } };
-  const parsed = parser.parseCoexistenceWebhook('history', history(outgoing), linkedChannel.display_phone_number).messages[0];
-  await context.persistCoexistenceMessage(linkedChannel, parsed);
-  assert.equal(db.tables.conversation_messages.length, 1);
-  assert.equal(db.tables.conversation_messages[0].wa_message_id, 'gs-uuid');
-  assert.equal(db.tables.conversation_messages[0].status, 'read');
 });

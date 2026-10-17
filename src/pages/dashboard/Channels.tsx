@@ -9,8 +9,6 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { appApi } from '../../lib/api';
-import { isWhatsAppPartnerChannel, WHATSAPP_PARTNER_CALLING_GUIDANCE } from '../../lib/whatsapp-partner';
-import { getWhatsAppActivationIssue } from '../../lib/whatsapp-onboarding';
 import {
   getWhatsAppCapabilities,
   getWhatsAppCoexistenceSync,
@@ -2004,26 +2002,6 @@ export default function Channels({ hideHeader = false }: { hideHeader?: boolean 
             <>
               <StatusTable rows={whatsappRows} reduceMotion={Boolean(shouldReduceMotion)} />
               <StatusTable rows={qualityRows} isQualityTable reduceMotion={Boolean(shouldReduceMotion)} />
-              {isWhatsAppPartnerChannel(whatsappChannel) ? (
-                <motion.div variants={slideUp} className="rounded-3xl border border-blue-100 bg-blue-50/60 px-5 py-5">
-                  <h3 className="text-base font-semibold text-gray-900">OneDirect / Gupshup partner connection</h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-700">WhatsApp messaging uses the Connektly partner solution and partner billing. Your platform subscription is separate. {WHATSAPP_PARTNER_CALLING_GUIDANCE}</p>
-                  {getWhatsAppActivationIssue(whatsappChannel) ? <p className="mt-3 text-sm text-amber-900">{getWhatsAppActivationIssue(whatsappChannel)}</p> : null}
-                  <button type="button" disabled={isRefreshingWhatsAppStatus || whatsappChannel?.status === 'disconnected'}
-                    className="mt-4 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
-                    onClick={async () => {
-                      setIsRefreshingWhatsAppStatus(true); setError(null); setSuccess(null);
-                      try {
-                        const result = await appApi.activateWhatsAppPartner();
-                        await refresh();
-                        const issue = getWhatsAppActivationIssue(result.channel);
-                        if (issue) throw new Error(issue);
-                        setSuccess('Partner connection confirmed.');
-                      } catch (error) { setError(error instanceof Error ? error.message : 'Partner setup could not be confirmed.'); }
-                      finally { setIsRefreshingWhatsAppStatus(false); }
-                    }}>Check partner setup</button>
-                </motion.div>
-              ) : null}
               {whatsappCapabilities.isCoexistence ? (
                 <motion.div variants={slideUp} className="rounded-3xl border border-emerald-100 bg-emerald-50/60 px-5 py-5">
                   <h3 className="text-base font-semibold text-gray-900">WhatsApp Business app coexistence</h3>
