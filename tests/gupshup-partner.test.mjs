@@ -24,6 +24,38 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const settings = { token: 'server-secret', partnerId: '4607', walletName: 'Connektly' };
 
+test('hosting dashboard quotes and Bearer prefixes are normalized for both authentication header formats', async () => {
+  const requests = [];
+  const client = provider.createGupshupClient({ ...settings, token: '  "Bearer server-secret"  ', fetch: async (url, init) => {
+    requests.push({ url, init });
+    return url.includes('/list?') ? json({ apps: [], status: 'success' }) : json({ status: 'success', data: { appId: 'gs-app' } });
+  } });
+  assert.equal((await client.checkPartnerAuthentication()).authenticated, true);
+  await client.createApp({ name: 'Connektly123', wabaId: '123', phone: '919123456' });
+  assert.equal(requests[0].init.headers.token, 'server-secret');
+  assert.equal(requests[1].init.headers.Authorization, 'Bearer server-secret');
+});
+
+test('401 errors identify app lookup before creation and never echo provider response bodies or credentials', async () => {
+  let requests = 0;
+  const client = provider.createGupshupClient({ ...settings, fetch: async () => {
+    requests++; return json({ status: 'error', message: 'sensitive-provider-response' }, 401);
+  } });
+  await assert.rejects(client.findApps('919123456'), (error) => {
+    assert.equal(error.httpStatus, 401); assert.equal(error.operation, 'partner app lookup');
+    assert.equal(provider.isRejectedGupshupAuthentication(error), true);
+    assert.match(error.message, /App creation has not started/);
+    assert.doesNotMatch(error.message, /sensitive-provider-response|server-secret|wallet/);
+    return true;
+  });
+  assert.equal(requests, 1);
+});
+
+test('a hosting placeholder token fails before making a provider request', async () => {
+  const client = provider.createGupshupClient({ ...settings, token: 'YOUR_UNIVERSAL_TOKEN', fetch: async () => { throw new Error('Must not contact the provider'); } });
+  await assert.rejects(client.checkPartnerAuthentication(), /not configured/);
+});
+
 test('documented SDK creation binds partner wallet and never forces registration or replays a failed POST', async () => {
   const requests = [];
   const client = provider.createGupshupClient({ ...settings, fetch: async (url, init) => {
@@ -122,7 +154,7 @@ function database(initial) {
 }
 async function sandbox(names, overrides = {}, routes = []) {
   const nodes = ast.statements.filter((node) => ts.isFunctionDeclaration(node) && names.includes(node.name?.text) ||
-    ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && node.expression.expression.name?.text === 'post' && routes.includes(node.expression.arguments[0]?.text));
+    ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && ['get', 'post'].includes(node.expression.expression.name?.text) && routes.includes(node.expression.arguments[0]?.text));
   const compiled = await transform(nodes.map((node) => node.getText(ast)).join('\n'), { loader: 'ts' });
   const handlers = new Map();
   const context = vm.createContext({ console: { info() {}, error() {}, warn() {} }, crypto, Buffer, URL, Date, process,
@@ -133,7 +165,7 @@ async function sandbox(names, overrides = {}, routes = []) {
     normalizeOptionalString: (v) => typeof v === 'string' ? v.trim() || null : null,
     normalizeOptionalIdentifier: (v) => typeof v === 'string' ? v.trim() || null : null,
     getMetaChannelMetadata: (r) => r.metadata || {}, mapDbError: (e) => e.message,
-    app: { post: (path, fn) => handlers.set(path, fn) },
+    app: { post: (path, fn) => handlers.set(path, fn), get: (path, fn) => handlers.set(path, fn) },
     ...overrides,
   });
   vm.runInContext(compiled.code, context);
@@ -170,6 +202,41 @@ test('actual partner app activation durably claims creation and reconciles uncer
   assert.equal(ready.metadata.gupshup.status, 'ready');
   assert.equal(ready.metadata.gupshup.appId, 'gs-app');
   assert.equal(creates, 1);
+});
+
+test('an explicit authentication rejection is recorded and permits a new creation attempt after credentials are fixed', async () => {
+  const db = database(baseChannel()); let creates = 0;
+  const { context } = await sandbox(['assertPartnerSolutionForWaba', 'prepareGupshupChannel'], {
+    adminSupabase: db, process: { env: { GUPSHUP_PARTNER_TOKEN: 'secret', GUPSHUP_WEBHOOK_SECRET: 'root' } },
+    metaRequest: async ({ path }) => path.endsWith('/solutions') ? { data: [{ id: partner.WHATSAPP_PARTNER_SOLUTION_ID, status: 'ACTIVE' }] }
+      : { data: [{ object: 'whatsapp_business_account', fields: ['messages', 'account_update', 'partner_solutions'] }] },
+    assertCoexistenceStorageReady: async () => {}, assertWhatsAppPhoneBelongsToWaba: async () => {},
+    fetchPhoneNumber: async () => ({ display_phone_number: '919123456' }),
+    gupshup: { findApps: async () => [], createApp: async () => {
+      creates++;
+      if (creates === 1) throw new provider.GupshupApiError('SDK app creation', 401, 'rejected', 'Authentication rejected');
+      return 'gs-app';
+    }, details: async () => ({ id: 'gs-app', phone: '919123456', live: true, stopped: false, provider: 'OD' }),
+    health: async () => ({ phone: '919123456', wabaId: '123', accountStatus: 'ACTIVE', dockerStatus: 'CONNECTED', canSendMessage: 'AVAILABLE' }),
+    ensureSubscription: async () => 'subscription' },
+  });
+  const run = () => context.prepareGupshupChannel({ userId: 'owner', row: clone(db.row), accessToken: 'meta-secret', req: {} });
+  await assert.rejects(run(), /Authentication rejected/);
+  assert.equal(db.row.metadata.gupshup.creation.status, 'rejected');
+  assert.equal(db.row.metadata.gupshup.creation.httpStatus, 401);
+  assert.equal((await run()).metadata.gupshup.status, 'ready');
+  assert.equal(creates, 2);
+});
+
+test('partner authentication preflight reports upstream rejection without expiring the customer session', async () => {
+  const { handlers } = await sandbox([], {
+    gupshup: { checkPartnerAuthentication: async () => { throw new provider.GupshupApiError('partner app lookup', 401, 'rejected', 'Partner authentication rejected'); } },
+    sendError: (res, status, error) => res.status(status).json({ error: error.message }),
+  }, ['/api/meta/partner/authentication']);
+  const res = { code: 200, setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
+  await handlers.get('/api/meta/partner/authentication')({}, res);
+  assert.equal(res.code, 503);
+  assert.equal(res.body.error, 'Partner authentication rejected');
 });
 
 test('actual transport uses Gupshup, refuses pending routes, preserves direct Meta, and never falls back after failure', async () => {

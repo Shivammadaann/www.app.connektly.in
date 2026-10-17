@@ -4,6 +4,29 @@ type Json = Record<string, any>;
 const record = (v: unknown): v is Json => Boolean(v && typeof v === 'object' && !Array.isArray(v));
 export const normalizePartnerPhone = (value: unknown) => String(value || '').replace(/\D/g, '');
 
+/** Hosting dashboards keep quotes/prefixes literally, unlike dotenv files. */
+export function normalizeGupshupToken(value: string) {
+  let token = value.trim();
+  for (let index = 0; index < 2; index++) {
+    if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) token = token.slice(1, -1).trim();
+    token = token.replace(/^Bearer\s+/i, '').trim();
+  }
+  return token;
+}
+
+export class GupshupApiError extends Error {
+  readonly metaStatus: number;
+  constructor(public readonly operation: string, public readonly httpStatus: number, public readonly outcome: 'rejected' | 'unknown', message: string) {
+    super(message);
+    this.name = 'GupshupApiError';
+    this.metaStatus = httpStatus;
+  }
+}
+
+export function isRejectedGupshupAuthentication(error: unknown): error is GupshupApiError {
+  return error instanceof GupshupApiError && error.outcome === 'rejected' && [401, 403].includes(error.httpStatus);
+}
+
 /** A callback credential is bound to one channel and one provider app, never a tenant-supplied ID. */
 export function gupshupCallbackSecret(secret: string, channelId: string, appId: string) {
   if (!secret) throw new Error('Configure GUPSHUP_WEBHOOK_SECRET before partner onboarding.');
@@ -19,31 +42,44 @@ export function createGupshupClient(config: {
   fetch?: typeof fetch; timeoutMs?: number;
 }) {
   const requestFetch = config.fetch || fetch;
+  const token = normalizeGupshupToken(config.token);
   const appPath = (id: string) => `/partner/app/${encodeURIComponent(id)}`;
   async function request(path: string, options: {
-    method?: string; body?: Json; form?: Record<string, string>; multipart?: FormData; rawFormJson?: Json; bearer?: boolean; tokenHeader?: boolean;
+    method?: string; body?: Json; form?: Record<string, string>; multipart?: FormData; rawFormJson?: Json; bearer?: boolean; tokenHeader?: boolean; operation?: string;
   } = {}): Promise<Json> {
-    if (!config.token) throw new Error('Configure the server GUPSHUP_PARTNER_TOKEN Universal Token.');
+    if (!token || /^(?:YOUR_|REPLACE_|<)/i.test(token)) throw new Error('The Gupshup partner token is not configured on the API server.');
+    const operation = options.operation || `${options.method || 'GET'} ${path.split('?')[0]}`;
     const response = await requestFetch(`https://partner.gupshup.io${path}`, {
       method: options.method || 'GET', redirect: 'error', signal: AbortSignal.timeout(config.timeoutMs || 30_000),
       headers: { Accept: 'application/json',
-        ...(options.tokenHeader ? { token: config.token } : { Authorization: `${options.bearer ? 'Bearer ' : ''}${config.token}` }),
+        ...(options.tokenHeader ? { token } : { Authorization: `${options.bearer ? 'Bearer ' : ''}${token}` }),
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
         ...(options.form || options.rawFormJson ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
       },
       body: options.multipart || (options.body ? JSON.stringify(options.body) : options.form ? new URLSearchParams(options.form) : options.rawFormJson ? JSON.stringify(options.rawFormJson) : undefined),
     });
+    if ([401, 403].includes(response.status)) {
+      throw new GupshupApiError(operation, response.status, 'rejected',
+        `Gupshup rejected the API server's partner credential (${response.status}) during ${operation}. ` +
+        (operation === 'partner app lookup' ? 'App creation has not started. ' : '') +
+        'Check the deployed partner token and restart the API service.');
+    }
     let payload: unknown;
     try { payload = await response.json(); } catch {
-      throw new Error(`Gupshup returned a non-JSON response (${response.status}). Partner API availability must be confirmed; the operation will not be replayed automatically.`);
+      throw new GupshupApiError(operation, response.status, 'unknown', `Gupshup returned a non-JSON response (${response.status}) during ${operation}. Partner API availability must be confirmed; the operation will not be replayed automatically.`);
     }
     if (!response.ok || !record(payload) || payload.status === 'error' || payload.status === 'failed' || payload.error) {
       // Do not include response bodies: provider errors can contain tokens or customer data.
-      throw Object.assign(new Error(`Gupshup could not confirm the operation (${response.status}). Check the partner app and wallet in the Partner Portal.`), { metaStatus: response.status });
+      throw new GupshupApiError(operation, response.status, 'unknown', `Gupshup could not confirm ${operation} (${response.status}). Check the partner app and wallet in the Partner Portal.`);
     }
     return payload;
   }
   return {
+    async checkPartnerAuthentication() {
+      const result = await request('/partner/app/list?pageNo=1&pageSize=1', { tokenHeader: true, operation: 'partner app lookup' });
+      if (!Array.isArray(result.apps || result.partnerAppsList || result.appList)) throw new Error('Gupshup did not confirm partner app access.');
+      return { authenticated: true as const, checkedAt: new Date().toISOString() };
+    },
     async blockedUsers(appId: string, method: string, body?: Json, after?: string) {
       if (method === 'GET') return request(`${appPath(appId)}/user/blocklist?${new URLSearchParams({ limit: '100', ...(after ? { after } : {}) })}`);
       if (!['POST', 'DELETE'].includes(method)) throw new Error('Unsupported partner block action.');
@@ -52,7 +88,7 @@ export function createGupshupClient(config: {
     async createApp(input: { name: string; wabaId: string; phone: string }) {
       if (!/^\d+$/.test(config.partnerId) || !config.walletName) throw new Error('Configure GUPSHUP_PARTNER_ID and GUPSHUP_WALLET_NAME.');
       const result = await request(`/partner/bizgate/partner/${config.partnerId}/tpp/app`, {
-        method: 'POST', bearer: true,
+        method: 'POST', bearer: true, operation: 'SDK app creation',
         body: { ...input, phone: normalizePartnerPhone(input.phone), walletName: config.walletName, force: false },
       });
       if (result.status !== 'success' || !record(result.data) || typeof result.data.appId !== 'string' || !result.data.appId) {
@@ -64,7 +100,7 @@ export function createGupshupClient(config: {
       const matches: Json[] = [];
       // The documented phone filter is a contains match; compare full normalized values.
       for (let page = 1; page <= 100; page++) {
-        const result = await request(`/partner/app/list?${new URLSearchParams({ phone: normalizePartnerPhone(phone), pageNo: String(page), pageSize: '100' })}`, { tokenHeader: true });
+        const result = await request(`/partner/app/list?${new URLSearchParams({ phone: normalizePartnerPhone(phone), pageNo: String(page), pageSize: '100' })}`, { tokenHeader: true, operation: 'partner app lookup' });
         const rows = result.partnerAppsList || result.apps || result.appList;
         if (!Array.isArray(rows)) throw new Error('Gupshup did not return a verifiable partner app list.');
         matches.push(...rows.filter((row: unknown) => record(row) && normalizePartnerPhone(row.phone) === normalizePartnerPhone(phone)));
@@ -123,9 +159,9 @@ export function createGupshupClient(config: {
       return { id: String(result.mediaId) };
     },
     async downloadMedia(appId: string, mediaId: string) {
-      if (!config.token) throw new Error('The Gupshup Universal Token is not configured.');
+      if (!token) throw new Error('The Gupshup Universal Token is not configured.');
       const response = await requestFetch(`https://partner.gupshup.io${appPath(appId)}/media/${encodeURIComponent(mediaId)}`, {
-        headers: { Authorization: config.token }, redirect: 'error', signal: AbortSignal.timeout(config.timeoutMs || 30_000),
+        headers: { Authorization: token }, redirect: 'error', signal: AbortSignal.timeout(config.timeoutMs || 30_000),
       });
       if (!response.ok || !response.body || response.headers.get('content-type')?.includes('text/html')) {
         throw new Error(`Partner media is unavailable (${response.status}). Check media expiry and the provider download limit.`);

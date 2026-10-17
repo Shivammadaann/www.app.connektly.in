@@ -70,6 +70,38 @@ header derived from the server webhook secret. Credentials never enter Vite
 configuration or channel metadata. Keep the Universal Token current in server
 secrets. No additional app token needs to be generated for an existing valid UT.
 
+For Render, set `GUPSHUP_PARTNER_TOKEN` in the **web service's Environment**
+settings to the actual partner Universal Token. A local `.env` file is not the
+Render runtime environment. Do not substitute a WhatsApp app API key, webhook
+secret, or the `YOUR_UNIVERSAL_TOKEN` template value. Save the setting and restart
+or redeploy the API so it reads the updated credential. The client normalizes
+accidental wrapping quotes or a `Bearer ` prefix, then applies each endpoint's
+documented header format.
+
+Before a new Facebook signup, authenticated
+`GET /api/meta/partner/authentication` checks the same partner app-list API used
+by activation. A provider authentication rejection produces a service-readiness
+error, without signing the Connektly user out or starting another Meta signup.
+An app-list 401 occurs **before app creation** and says nothing about the wallet.
+Explicit SDK creation 401/403 responses are saved as rejected attempts and may
+be retried after authentication is corrected; transport failures, missing IDs,
+HTML responses and other uncertain creation outcomes remain protected from
+automatic replay.
+
+### SDK onboarding versus Partner Portal onboarding
+
+This implementation hosts Meta signup in Connektly and uses the **SDK app
+creation API** after the customer grants the shared solution access. The
+attached `POST /partner/app` endpoint creates a sandbox app for a different,
+Gupshup-hosted journey: create sandbox app, set contact details, verify its email
+OTP, and generate a signed Embedded Signup link. Contact/OTP and that legacy
+sandbox creation sequence are **not invoked by Connektly's SDK journey**.
+Do not call both creation APIs for one customer or claim that sandbox creation
+has linked a WABA, registered a phone, funded a wallet, or made the app live.
+References: [Partner Portal onboarding](https://partner-docs.gupshup.io/docs/onboarding-apis),
+[Create App](https://partner-docs.gupshup.io/reference/post_partner-app), and
+[contact email verification](https://partner-docs.gupshup.io/reference/verifyappcontactemail).
+
 The private `whatsapp-partner-media` Supabase storage bucket caches downloaded
 provider media, with a 50 MiB object limit matching the current storage limit.
 It is included in `schema.sql` and created privately on first use if absent.

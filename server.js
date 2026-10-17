@@ -105,6 +105,27 @@ function coexistenceRestrictedAction(method, pathname) {
 import crypto from "node:crypto";
 var record2 = (v) => Boolean(v && typeof v === "object" && !Array.isArray(v));
 var normalizePartnerPhone = (value) => String(value || "").replace(/\D/g, "");
+function normalizeGupshupToken(value) {
+  let token = value.trim();
+  for (let index = 0; index < 2; index++) {
+    if (token.startsWith('"') && token.endsWith('"') || token.startsWith("'") && token.endsWith("'")) token = token.slice(1, -1).trim();
+    token = token.replace(/^Bearer\s+/i, "").trim();
+  }
+  return token;
+}
+var GupshupApiError = class extends Error {
+  constructor(operation, httpStatus, outcome, message) {
+    super(message);
+    this.operation = operation;
+    this.httpStatus = httpStatus;
+    this.outcome = outcome;
+    this.name = "GupshupApiError";
+    this.metaStatus = httpStatus;
+  }
+};
+function isRejectedGupshupAuthentication(error) {
+  return error instanceof GupshupApiError && error.outcome === "rejected" && [401, 403].includes(error.httpStatus);
+}
 function gupshupCallbackSecret(secret, channelId, appId) {
   if (!secret) throw new Error("Configure GUPSHUP_WEBHOOK_SECRET before partner onboarding.");
   return crypto.createHmac("sha256", secret).update(`connektly:gupshup:v3:${channelId}:${appId}`).digest("hex");
@@ -114,33 +135,48 @@ function verifyGupshupCallbackSecret(supplied, expected) {
 }
 function createGupshupClient(config) {
   const requestFetch = config.fetch || fetch;
+  const token = normalizeGupshupToken(config.token);
   const appPath = (id) => `/partner/app/${encodeURIComponent(id)}`;
   async function request(path2, options = {}) {
-    if (!config.token) throw new Error("Configure the server GUPSHUP_PARTNER_TOKEN Universal Token.");
+    if (!token || /^(?:YOUR_|REPLACE_|<)/i.test(token)) throw new Error("The Gupshup partner token is not configured on the API server.");
+    const operation = options.operation || `${options.method || "GET"} ${path2.split("?")[0]}`;
     const response = await requestFetch(`https://partner.gupshup.io${path2}`, {
       method: options.method || "GET",
       redirect: "error",
       signal: AbortSignal.timeout(config.timeoutMs || 3e4),
       headers: {
         Accept: "application/json",
-        ...options.tokenHeader ? { token: config.token } : { Authorization: `${options.bearer ? "Bearer " : ""}${config.token}` },
+        ...options.tokenHeader ? { token } : { Authorization: `${options.bearer ? "Bearer " : ""}${token}` },
         ...options.body ? { "Content-Type": "application/json" } : {},
         ...options.form || options.rawFormJson ? { "Content-Type": "application/x-www-form-urlencoded" } : {}
       },
       body: options.multipart || (options.body ? JSON.stringify(options.body) : options.form ? new URLSearchParams(options.form) : options.rawFormJson ? JSON.stringify(options.rawFormJson) : void 0)
     });
+    if ([401, 403].includes(response.status)) {
+      throw new GupshupApiError(
+        operation,
+        response.status,
+        "rejected",
+        `Gupshup rejected the API server's partner credential (${response.status}) during ${operation}. ` + (operation === "partner app lookup" ? "App creation has not started. " : "") + "Check the deployed partner token and restart the API service."
+      );
+    }
     let payload;
     try {
       payload = await response.json();
     } catch {
-      throw new Error(`Gupshup returned a non-JSON response (${response.status}). Partner API availability must be confirmed; the operation will not be replayed automatically.`);
+      throw new GupshupApiError(operation, response.status, "unknown", `Gupshup returned a non-JSON response (${response.status}) during ${operation}. Partner API availability must be confirmed; the operation will not be replayed automatically.`);
     }
     if (!response.ok || !record2(payload) || payload.status === "error" || payload.status === "failed" || payload.error) {
-      throw Object.assign(new Error(`Gupshup could not confirm the operation (${response.status}). Check the partner app and wallet in the Partner Portal.`), { metaStatus: response.status });
+      throw new GupshupApiError(operation, response.status, "unknown", `Gupshup could not confirm ${operation} (${response.status}). Check the partner app and wallet in the Partner Portal.`);
     }
     return payload;
   }
   return {
+    async checkPartnerAuthentication() {
+      const result = await request("/partner/app/list?pageNo=1&pageSize=1", { tokenHeader: true, operation: "partner app lookup" });
+      if (!Array.isArray(result.apps || result.partnerAppsList || result.appList)) throw new Error("Gupshup did not confirm partner app access.");
+      return { authenticated: true, checkedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    },
     async blockedUsers(appId, method, body, after) {
       if (method === "GET") return request(`${appPath(appId)}/user/blocklist?${new URLSearchParams({ limit: "100", ...after ? { after } : {} })}`);
       if (!["POST", "DELETE"].includes(method)) throw new Error("Unsupported partner block action.");
@@ -151,6 +187,7 @@ function createGupshupClient(config) {
       const result = await request(`/partner/bizgate/partner/${config.partnerId}/tpp/app`, {
         method: "POST",
         bearer: true,
+        operation: "SDK app creation",
         body: { ...input, phone: normalizePartnerPhone(input.phone), walletName: config.walletName, force: false }
       });
       if (result.status !== "success" || !record2(result.data) || typeof result.data.appId !== "string" || !result.data.appId) {
@@ -161,7 +198,7 @@ function createGupshupClient(config) {
     async findApps(phone2) {
       const matches = [];
       for (let page = 1; page <= 100; page++) {
-        const result = await request(`/partner/app/list?${new URLSearchParams({ phone: normalizePartnerPhone(phone2), pageNo: String(page), pageSize: "100" })}`, { tokenHeader: true });
+        const result = await request(`/partner/app/list?${new URLSearchParams({ phone: normalizePartnerPhone(phone2), pageNo: String(page), pageSize: "100" })}`, { tokenHeader: true, operation: "partner app lookup" });
         const rows = result.partnerAppsList || result.apps || result.appList;
         if (!Array.isArray(rows)) throw new Error("Gupshup did not return a verifiable partner app list.");
         matches.push(...rows.filter((row) => record2(row) && normalizePartnerPhone(row.phone) === normalizePartnerPhone(phone2)));
@@ -230,9 +267,9 @@ function createGupshupClient(config) {
       return { id: String(result.mediaId) };
     },
     async downloadMedia(appId, mediaId) {
-      if (!config.token) throw new Error("The Gupshup Universal Token is not configured.");
+      if (!token) throw new Error("The Gupshup Universal Token is not configured.");
       const response = await requestFetch(`https://partner.gupshup.io${appPath(appId)}/media/${encodeURIComponent(mediaId)}`, {
-        headers: { Authorization: config.token },
+        headers: { Authorization: token },
         redirect: "error",
         signal: AbortSignal.timeout(config.timeoutMs || 3e4)
       });
@@ -7419,7 +7456,9 @@ async function prepareGupshupChannel(args) {
         mutate: (metadata, current) => {
           if (current.phone_number_id !== args.row.phone_number_id || current.waba_id !== args.row.waba_id || current.status === "disconnected" || !isWhatsAppPartnerChannel({ metadata })) throw new Error("The partner connection changed during app setup.");
           const previous = isRecord(metadata.gupshup) ? metadata.gupshup : {};
-          if (previous.appId || previous.creation) return null;
+          const creation2 = isRecord(previous.creation) ? previous.creation : {};
+          const rejectedAuthentication = creation2.status === "rejected" && [401, 403].includes(Number(creation2.httpStatus));
+          if (previous.appId || previous.creation && !rejectedAuthentication) return null;
           return { metadata: { ...metadata, gupshup: {
             ...previous,
             creation: { status: "requested", attemptId, requestedAt: timestamp },
@@ -7437,7 +7476,12 @@ async function prepareGupshupChannel(args) {
           phone: phone2
         });
       } catch (error) {
-        await patchProvider({ creation: { ...creation, status: "unknown" }, status: "pending", lastError: mapDbError(error) });
+        const rejected = isRejectedGupshupAuthentication(error);
+        await patchProvider({ creation: {
+          ...creation,
+          status: rejected ? "rejected" : "unknown",
+          ...rejected ? { httpStatus: error.httpStatus, operation: error.operation } : {}
+        }, status: "pending", lastError: mapDbError(error) });
         throw error;
       }
     }
@@ -16992,6 +17036,14 @@ app.post("/api/meta/channel/partner/activate", async (req, res) => {
     res.json({ channel: mapChannel(activated) });
   } catch (error) {
     sendError(res, 400, error);
+  }
+});
+app.get("/api/meta/partner/authentication", async (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    res.json(await gupshup.checkPartnerAuthentication());
+  } catch (error) {
+    sendError(res, 503, error);
   }
 });
 app.post("/api/meta/oauth/exchange", async (req, res) => {

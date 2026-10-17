@@ -239,6 +239,9 @@ export default function ChannelConnection() {
   const [businessPhotoPreviewUrl, setBusinessPhotoPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [partnerAuthentication, setPartnerAuthentication] = useState<'idle' | 'checking' | 'ready' | 'failed'>('idle');
+  const [partnerAuthenticationError, setPartnerAuthenticationError] = useState<string | null>(null);
+  const [partnerAuthenticationRetry, setPartnerAuthenticationRetry] = useState(0);
   const businessPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const manualTokenInputRef = useRef<HTMLInputElement | null>(null);
   const signupAbortRef = useRef<AbortController | null>(null);
@@ -317,6 +320,21 @@ export default function ChannelConnection() {
     setBusinessProfileForm(buildBusinessProfileForm(businessProfile, bootstrap));
     setBusinessPhotoPreviewUrl(businessProfile?.profilePictureUrl || null);
   }, [bootstrap, businessProfile, isBusinessProfileDirty]);
+
+  useEffect(() => {
+    if (!isModalOpen || step !== 2 || connectMethod || coexistenceLifecycle.isReconnecting) return;
+    let active = true;
+    setPartnerAuthentication('checking');
+    setPartnerAuthenticationError(null);
+    void appApi.checkWhatsAppPartnerAuthentication().then(() => {
+      if (active) setPartnerAuthentication('ready');
+    }).catch(() => {
+      if (!active) return;
+      setPartnerAuthentication('failed');
+      setPartnerAuthenticationError('WhatsApp partner setup is temporarily unavailable. Contact Connektly support or check availability again before starting Facebook signup.');
+    });
+    return () => { active = false; };
+  }, [isModalOpen, step, connectMethod, coexistenceLifecycle.isReconnecting, partnerAuthenticationRetry]);
 
   useEffect(() => {
     if (connectMethod === 'manual') {
@@ -491,6 +509,10 @@ export default function ChannelConnection() {
     }
     if (canCheckCoexistence && !reauthorize) {
       await handleCheckCoexistenceConnection();
+      return;
+    }
+    if (partnerAuthentication !== 'ready') {
+      setError('Confirm WhatsApp partner availability before starting Facebook signup.');
       return;
     }
     if (reauthorize) pendingSignupRef.current = null;
@@ -963,7 +985,7 @@ export default function ChannelConnection() {
                               type="button"
                               variant="facebook"
                               onClick={() => void handleConnectMeta()}
-                              disabled={isConnecting || isRegisteringSender || (!canCheckCoexistence && !coexistenceLifecycle.isReconnecting && (!hasEmbeddedSignupConfig || !sdkReady))}
+                              disabled={isConnecting || isRegisteringSender || (!canCheckCoexistence && !coexistenceLifecycle.isReconnecting && (!hasEmbeddedSignupConfig || !sdkReady || partnerAuthentication !== 'ready'))}
                               loading={isConnecting || isRegisteringSender}
                               icon={<img src={facebookIconUrl} alt="" className="h-5 w-5" />}
                               className="w-full"
@@ -1000,12 +1022,19 @@ export default function ChannelConnection() {
                               </p>
                             ) : null}
                             {sdkError ? <p className="mt-4 text-xs text-amber-700">{sdkError}</p> : null}
+                            {!coexistenceLifecycle.isReconnecting && partnerAuthentication !== 'ready' ? (
+                              <div className="mt-4 text-sm text-gray-600" aria-live="polite">
+                                <p>{partnerAuthenticationError || 'Checking WhatsApp partner availability...'}</p>
+                                {partnerAuthentication === 'failed' ? <button type="button" className="mt-2 font-semibold text-blue-700 underline"
+                                  onClick={() => setPartnerAuthenticationRetry((value) => value + 1)}>Check partner availability</button> : null}
+                              </div>
+                            ) : null}
                             {canCheckCoexistence && error && !coexistenceLifecycle.isReconnecting ? (
                               <div className="mt-4 text-sm text-gray-600">
                                 <p>If your Meta access expired or was revoked, authorize again. Existing initial-import evidence is preserved.</p>
                                 <button
                                   type="button"
-                                  disabled={isConnecting || !sdkReady || !hasEmbeddedSignupConfig}
+                                  disabled={isConnecting || !sdkReady || !hasEmbeddedSignupConfig || partnerAuthentication !== 'ready'}
                                   onClick={() => void handleConnectMeta(true)}
                                   className="mt-2 font-semibold text-[#1381FF] underline disabled:opacity-60"
                                 >

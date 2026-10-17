@@ -10,7 +10,7 @@ import multer from 'multer';
 import { createClient, type User } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 import { coexistenceRestrictedAction, isCoexistenceChannelRow } from './server/coexistence-policy';
-import { createGupshupClient, gupshupCallbackSecret, verifyGupshupCallbackSecret, normalizeGupshupWebhook, normalizePartnerPhone } from './server/gupshup';
+import { createGupshupClient, gupshupCallbackSecret, verifyGupshupCallbackSecret, normalizeGupshupWebhook, normalizePartnerPhone, isRejectedGupshupAuthentication } from './server/gupshup';
 import { isWhatsAppPartnerChannel, WHATSAPP_PARTNER_SOLUTION_ID, WHATSAPP_SOLUTION_PARTNER_APP_ID, WHATSAPP_PARTNER_CALLING_GUIDANCE } from './src/lib/whatsapp-partner';
 import { createCoexistenceSendLimiter, whatsappSendPhoneId } from './server/coexistence-rate-limit';
 import { claimLiveWhatsAppMessage } from './server/coexistence-live-message';
@@ -8923,7 +8923,9 @@ async function prepareGupshupChannel(args: { userId: string; row: Record<string,
           if (current.phone_number_id !== args.row.phone_number_id || current.waba_id !== args.row.waba_id || current.status === 'disconnected' ||
               !isWhatsAppPartnerChannel({ metadata })) throw new Error('The partner connection changed during app setup.');
           const previous = isRecord(metadata.gupshup) ? metadata.gupshup : {};
-          if (previous.appId || previous.creation) return null;
+          const creation = isRecord(previous.creation) ? previous.creation : {};
+          const rejectedAuthentication = creation.status === 'rejected' && [401, 403].includes(Number(creation.httpStatus));
+          if (previous.appId || (previous.creation && !rejectedAuthentication)) return null;
           return { metadata: { ...metadata, gupshup: { ...previous,
             creation: { status: 'requested', attemptId, requestedAt: timestamp }, status: 'provisioning',
           } } };
@@ -8938,7 +8940,10 @@ async function prepareGupshupChannel(args: { userId: string; row: Record<string,
           wabaId: String(row.waba_id), phone,
         });
       } catch (error) {
-        await patchProvider({ creation: { ...creation, status: 'unknown' }, status: 'pending', lastError: mapDbError(error) });
+        const rejected = isRejectedGupshupAuthentication(error);
+        await patchProvider({ creation: { ...creation, status: rejected ? 'rejected' : 'unknown',
+          ...(rejected ? { httpStatus: error.httpStatus, operation: error.operation } : {}),
+        }, status: 'pending', lastError: mapDbError(error) });
         throw error;
       }
     }
@@ -22572,6 +22577,16 @@ app.post('/api/meta/channel/partner/activate', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json({ channel: mapChannel(activated) });
   } catch (error) { sendError(res, 400, error); }
+});
+
+app.get('/api/meta/partner/authentication', async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    res.json(await gupshup.checkPartnerAuthentication());
+  } catch (error) {
+    // A provider 401 is not a Connektly user-session 401. Keep the user signed in.
+    sendError(res, 503, error);
+  }
 });
 
 app.post('/api/meta/oauth/exchange', async (req, res) => {
